@@ -1,6 +1,8 @@
-# Architecture proposal
+# Architecture and acceptance criteria
 
-This document describes intended behavior, not an implemented system.
+This document records the design and acceptance criteria. The development release
+implements the core components; [README](../README.md) distinguishes implemented
+behavior from signed runtime checks and later features.
 
 ## Services and children
 
@@ -45,7 +47,7 @@ Sources: [Chrome permissions](https://developer.chrome.com/docs/extensions/devel
 ## Components and authority
 
 - **Swift macOS app:** parent settings, children, weekly hours, domain/app groups,
-  reset day and timezone, remaining time, and explicit temporary overrides. Keep
+  reset day and timezone, and remaining time. Keep
   the main view simple: a child switcher, one row per assigned service with
   used/remaining time and blocking state, an hours editor, an **Add website or
   group** action, and one shared reset setting. Put client connection settings in
@@ -105,10 +107,11 @@ explicit coverage gap, never a reason to apply a machine-wide app ban.
 
 ## Open HTTP interface and additional clients
 
-Use the proposed loopback endpoint `http://127.0.0.1:48123/v1` with JSON resources
-for children, services, per-child quotas, and balances. Shared reset settings and
-account pairing remain native parent-app operations in the first API draft. The
-port is a design choice; no listener has been implemented or opened. See
+Use the loopback endpoint `http://127.0.0.1:48123/v1` with JSON resources
+for children, services, per-child quotas, and balances. Parent administrative
+routes also manage verified account/app selection, reset settings, and read tokens.
+The parent UI uses root-authenticated UNIX IPC so a process occupying the HTTP
+port cannot impersonate the daemon and harvest its administrator token. See
 [API behavior](api.md) and the [OpenAPI contract](../api/openapi.yaml).
 
 Require credentials even on loopback because other local accounts and applications

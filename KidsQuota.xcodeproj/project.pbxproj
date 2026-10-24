@@ -1,0 +1,807 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0A804CFC1343DFE58573DA2A /* pages.css in Resources */ = {isa = PBXBuildFile; fileRef = 438D684D08F5BF9DFE5BB20E /* pages.css */; };
+		13C9689127140E0F76B308BA /* FilterPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C85D794878CFF5AAE3F8C22 /* FilterPolicy.swift */; };
+		19A75D99C86731A3F674B26E /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 996356B88C15A8A949E4F7F6 /* Models.swift */; };
+		1D64391A68A62DFE2F6644EA /* AccountDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = E91A0E3F4E3798DB46C7CB48 /* AccountDiscovery.swift */; };
+		22A7C0DAA40A2D9717BFB86D /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 996356B88C15A8A949E4F7F6 /* Models.swift */; };
+		2E9D69EA0FD194DCC0FBD1B4 /* FilterPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C85D794878CFF5AAE3F8C22 /* FilterPolicy.swift */; };
+		2FC8A810C1C125F2C997E5AF /* DaemonSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FA76F5B23B64EEA26CF951F /* DaemonSocket.swift */; };
+		3BF312A329442A5CE8612896 /* KidsQuotaNetworkFilter.systemextension in Embed System Extensions */ = {isa = PBXBuildFile; fileRef = 928DF96510A96362E8C2602C /* KidsQuotaNetworkFilter.systemextension */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		40471E8597555B656C245AF4 /* SafariServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 41D4AE38DCF528CF5E39F05B /* SafariServices.framework */; };
+		45B23497BF48E822C9900AFD /* FilterActivation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0E74CDD4AB71C40305D044A /* FilterActivation.swift */; };
+		5198C3A39370C0DF81D65A0F /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC75DCACB973DD8A68844FA /* main.swift */; };
+		5297C1AC147D1EC5C06208CA /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4D4758042C5FB07BD053919A /* Security.framework */; };
+		749C9926E996DEB38EF44182 /* popup.js in Resources */ = {isa = PBXBuildFile; fileRef = 868443CEC3154221C14E2B8B /* popup.js */; };
+		8BD0A8AFC80E4E14B42705F5 /* content.js in Resources */ = {isa = PBXBuildFile; fileRef = A8C27909B3EDFAA62A945FE2 /* content.js */; };
+		9243702DF859087639A91F28 /* blocked.html in Resources */ = {isa = PBXBuildFile; fileRef = 6DC96A4666268F04B0584523 /* blocked.html */; };
+		96F7EBED28522711E2CF6348 /* DaemonSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FA76F5B23B64EEA26CF951F /* DaemonSocket.swift */; };
+		9F933F5BC5B8845D8A13C90D /* DaemonSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FA76F5B23B64EEA26CF951F /* DaemonSocket.swift */; };
+		A4A92E8059389173B8651E3A /* OpenDirectory.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 78CFD972A8045BD26EB40966 /* OpenDirectory.framework */; };
+		A7B2620DBF0C8E039A0A1ED7 /* KidsQuotaSafari.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F974028416E127238ABCA644 /* KidsQuotaSafari.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A9A7AEA9DEBE25523F51BECC /* popup.html in Resources */ = {isa = PBXBuildFile; fileRef = BB1B22E8D2EB2C4C94649A03 /* popup.html */; };
+		AB1ECB3A2E351CB72E3572D7 /* PolicyAndPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB6AB19DFF7BCBFA3935E0A1 /* PolicyAndPresentationTests.swift */; };
+		B1FB7EA7D88ED42803711FD3 /* HouseholdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D29850FADA13EA105BDE693 /* HouseholdView.swift */; };
+		BED98CE4E5C7ECCC40735E41 /* FilterDataProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE86FA2C0A56221DCC85D48E /* FilterDataProvider.swift */; };
+		D172204FAE0F286790478583 /* ParentStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34C0C8CBA3370EC5CD0D9406 /* ParentStore.swift */; };
+		D2F7EF0ED9E7B45BEC4165AE /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = FCB3EE697E64AC130374AEB0 /* manifest.json */; };
+		DBF73CE2A915CAB6CA75D0C8 /* KidsQuotaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79726C89A0A8759010F74649 /* KidsQuotaApp.swift */; };
+		E444904B11C855DB3411FB86 /* blocked.js in Resources */ = {isa = PBXBuildFile; fileRef = 6A231BBECEC8FF80ECF74B49 /* blocked.js */; };
+		E45AB5CFDA08111D09CD745A /* background.js in Resources */ = {isa = PBXBuildFile; fileRef = A6A9601D36F2488AA82BB3A7 /* background.js */; };
+		F0ACE04AD0C96999A8C92068 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B69D825D3E3E70581161834F /* SettingsView.swift */; };
+		F4BC8222B62D72FA44740C89 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF491F7976E4B4EA9EF896F5 /* SafariWebExtensionHandler.swift */; };
+		F65632B769A8496DAF898B3A /* NetworkExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F8C75AF527FBBEF792E7BBD3 /* NetworkExtension.framework */; };
+		FA002F32ECA12D0E6AA8C876 /* SystemExtensions.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A07AA8AF136EBC7C050309AB /* SystemExtensions.framework */; };
+		FACC878181EB5B9D521B6C16 /* NetworkExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F8C75AF527FBBEF792E7BBD3 /* NetworkExtension.framework */; };
+		FBC1B4715D6C916194E37A4F /* Editors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 313138D9232594F8EEA7E139 /* Editors.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		C6BC487ED1AA25C4EAAFFAD1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D81CDB0F04076C5BBC1EBC58 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0F66D64B16A29052278A14C7;
+			remoteInfo = KidsQuotaNetworkFilter;
+		};
+		E1C48091573241C3B5344D4A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D81CDB0F04076C5BBC1EBC58 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 932EF901860854E0412C87BC;
+			remoteInfo = KidsQuotaSafari;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		22E13BEBF578916AFF55C0D1 /* Embed System Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(SYSTEM_EXTENSIONS_FOLDER_PATH)";
+			dstSubfolderSpec = 16;
+			files = (
+				3BF312A329442A5CE8612896 /* KidsQuotaNetworkFilter.systemextension in Embed System Extensions */,
+			);
+			name = "Embed System Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E522BD66103EE7AB0B61A568 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A7B2620DBF0C8E039A0A1ED7 /* KidsQuotaSafari.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		0F0E95C2D75EE13A82F06352 /* NetworkFilter.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NetworkFilter.entitlements; sourceTree = "<group>"; };
+		2F22CD224F461DED2BFEF6DD /* KidsQuotaMacTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KidsQuotaMacTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		313138D9232594F8EEA7E139 /* Editors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Editors.swift; sourceTree = "<group>"; };
+		34C0C8CBA3370EC5CD0D9406 /* ParentStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentStore.swift; sourceTree = "<group>"; };
+		369D695E0B3C83E5D971FCDA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		41D4AE38DCF528CF5E39F05B /* SafariServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SafariServices.framework; path = System/Library/Frameworks/SafariServices.framework; sourceTree = SDKROOT; };
+		438D684D08F5BF9DFE5BB20E /* pages.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = pages.css; sourceTree = "<group>"; };
+		4D29850FADA13EA105BDE693 /* HouseholdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HouseholdView.swift; sourceTree = "<group>"; };
+		4D4758042C5FB07BD053919A /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		4F3CF4A34D1FE170A71697F5 /* SafariExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SafariExtension.entitlements; sourceTree = "<group>"; };
+		4FA76F5B23B64EEA26CF951F /* DaemonSocket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonSocket.swift; sourceTree = "<group>"; };
+		6A231BBECEC8FF80ECF74B49 /* blocked.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = blocked.js; sourceTree = "<group>"; };
+		6C85D794878CFF5AAE3F8C22 /* FilterPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterPolicy.swift; sourceTree = "<group>"; };
+		6DC96A4666268F04B0584523 /* blocked.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = blocked.html; sourceTree = "<group>"; };
+		78CFD972A8045BD26EB40966 /* OpenDirectory.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenDirectory.framework; path = System/Library/Frameworks/OpenDirectory.framework; sourceTree = SDKROOT; };
+		79726C89A0A8759010F74649 /* KidsQuotaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KidsQuotaApp.swift; sourceTree = "<group>"; };
+		868443CEC3154221C14E2B8B /* popup.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = popup.js; sourceTree = "<group>"; };
+		928DF96510A96362E8C2602C /* KidsQuotaNetworkFilter.systemextension */ = {isa = PBXFileReference; explicitFileType = "wrapper.system-extension"; includeInIndex = 0; path = KidsQuotaNetworkFilter.systemextension; sourceTree = BUILT_PRODUCTS_DIR; };
+		940633D9D44E6CB436EDD948 /* KidsQuota.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KidsQuota.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		996356B88C15A8A949E4F7F6 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		A07AA8AF136EBC7C050309AB /* SystemExtensions.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SystemExtensions.framework; path = System/Library/Frameworks/SystemExtensions.framework; sourceTree = SDKROOT; };
+		A6A9601D36F2488AA82BB3A7 /* background.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = background.js; sourceTree = "<group>"; };
+		A8C27909B3EDFAA62A945FE2 /* content.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = content.js; sourceTree = "<group>"; };
+		AF491F7976E4B4EA9EF896F5 /* SafariWebExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariWebExtensionHandler.swift; sourceTree = "<group>"; };
+		B69D825D3E3E70581161834F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		BB1B22E8D2EB2C4C94649A03 /* popup.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = popup.html; sourceTree = "<group>"; };
+		BB6AB19DFF7BCBFA3935E0A1 /* PolicyAndPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PolicyAndPresentationTests.swift; sourceTree = "<group>"; };
+		BFC75DCACB973DD8A68844FA /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		CE86FA2C0A56221DCC85D48E /* FilterDataProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterDataProvider.swift; sourceTree = "<group>"; };
+		D0E74CDD4AB71C40305D044A /* FilterActivation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterActivation.swift; sourceTree = "<group>"; };
+		E34C78A741C5F0D98BBCB17A /* ParentApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ParentApp.entitlements; sourceTree = "<group>"; };
+		E91A0E3F4E3798DB46C7CB48 /* AccountDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountDiscovery.swift; sourceTree = "<group>"; };
+		EFB13A15D4B83FA583C5DDD8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		F8C75AF527FBBEF792E7BBD3 /* NetworkExtension.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = NetworkExtension.framework; path = System/Library/Frameworks/NetworkExtension.framework; sourceTree = SDKROOT; };
+		F974028416E127238ABCA644 /* KidsQuotaSafari.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = KidsQuotaSafari.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		FCB3EE697E64AC130374AEB0 /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = manifest.json; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		65FDEAB0D3E827AB3DC88EE0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F65632B769A8496DAF898B3A /* NetworkExtension.framework in Frameworks */,
+				5297C1AC147D1EC5C06208CA /* Security.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9658AB1910D973EA914C9499 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FACC878181EB5B9D521B6C16 /* NetworkExtension.framework in Frameworks */,
+				FA002F32ECA12D0E6AA8C876 /* SystemExtensions.framework in Frameworks */,
+				A4A92E8059389173B8651E3A /* OpenDirectory.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ECDF52D3B4761EB323BE54D0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				40471E8597555B656C245AF4 /* SafariServices.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		302E1C04A93571003B30DD51 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				F8C75AF527FBBEF792E7BBD3 /* NetworkExtension.framework */,
+				78CFD972A8045BD26EB40966 /* OpenDirectory.framework */,
+				41D4AE38DCF528CF5E39F05B /* SafariServices.framework */,
+				4D4758042C5FB07BD053919A /* Security.framework */,
+				A07AA8AF136EBC7C050309AB /* SystemExtensions.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		663A8A55960CD9D556600C03 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				4FA76F5B23B64EEA26CF951F /* DaemonSocket.swift */,
+				6C85D794878CFF5AAE3F8C22 /* FilterPolicy.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		763CCE9AB4F34EAC3D013D9C /* macos */ = {
+			isa = PBXGroup;
+			children = (
+				E6EF87ECC27B0567803DDC93 /* NetworkFilter */,
+				B7986366F6B54C232A6FB630 /* ParentApp */,
+				DAA7712C16A44F20E2DE96F9 /* SafariExtension */,
+				663A8A55960CD9D556600C03 /* Shared */,
+				C9C46645A6342C18C0EF4604 /* Tests */,
+			);
+			path = macos;
+			sourceTree = "<group>";
+		};
+		848D52DD6231869E2D47F177 = {
+			isa = PBXGroup;
+			children = (
+				CFE08A996DD21CCDEB37188B /* extensions */,
+				763CCE9AB4F34EAC3D013D9C /* macos */,
+				302E1C04A93571003B30DD51 /* Frameworks */,
+				C96C01D42DCB2FE55E6241AB /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		92176F373855149FE410D535 /* build */ = {
+			isa = PBXGroup;
+			children = (
+				B76BC63D702FE44E5BC97254 /* safari */,
+			);
+			path = build;
+			sourceTree = "<group>";
+		};
+		B76BC63D702FE44E5BC97254 /* safari */ = {
+			isa = PBXGroup;
+			children = (
+				A6A9601D36F2488AA82BB3A7 /* background.js */,
+				6DC96A4666268F04B0584523 /* blocked.html */,
+				6A231BBECEC8FF80ECF74B49 /* blocked.js */,
+				A8C27909B3EDFAA62A945FE2 /* content.js */,
+				FCB3EE697E64AC130374AEB0 /* manifest.json */,
+				438D684D08F5BF9DFE5BB20E /* pages.css */,
+				BB1B22E8D2EB2C4C94649A03 /* popup.html */,
+				868443CEC3154221C14E2B8B /* popup.js */,
+			);
+			path = safari;
+			sourceTree = "<group>";
+		};
+		B7986366F6B54C232A6FB630 /* ParentApp */ = {
+			isa = PBXGroup;
+			children = (
+				E91A0E3F4E3798DB46C7CB48 /* AccountDiscovery.swift */,
+				313138D9232594F8EEA7E139 /* Editors.swift */,
+				D0E74CDD4AB71C40305D044A /* FilterActivation.swift */,
+				4D29850FADA13EA105BDE693 /* HouseholdView.swift */,
+				79726C89A0A8759010F74649 /* KidsQuotaApp.swift */,
+				996356B88C15A8A949E4F7F6 /* Models.swift */,
+				E34C78A741C5F0D98BBCB17A /* ParentApp.entitlements */,
+				34C0C8CBA3370EC5CD0D9406 /* ParentStore.swift */,
+				B69D825D3E3E70581161834F /* SettingsView.swift */,
+			);
+			path = ParentApp;
+			sourceTree = "<group>";
+		};
+		C96C01D42DCB2FE55E6241AB /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				940633D9D44E6CB436EDD948 /* KidsQuota.app */,
+				2F22CD224F461DED2BFEF6DD /* KidsQuotaMacTests.xctest */,
+				928DF96510A96362E8C2602C /* KidsQuotaNetworkFilter.systemextension */,
+				F974028416E127238ABCA644 /* KidsQuotaSafari.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		C9C46645A6342C18C0EF4604 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				BB6AB19DFF7BCBFA3935E0A1 /* PolicyAndPresentationTests.swift */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		CFE08A996DD21CCDEB37188B /* extensions */ = {
+			isa = PBXGroup;
+			children = (
+				92176F373855149FE410D535 /* build */,
+			);
+			path = extensions;
+			sourceTree = "<group>";
+		};
+		DAA7712C16A44F20E2DE96F9 /* SafariExtension */ = {
+			isa = PBXGroup;
+			children = (
+				EFB13A15D4B83FA583C5DDD8 /* Info.plist */,
+				4F3CF4A34D1FE170A71697F5 /* SafariExtension.entitlements */,
+				AF491F7976E4B4EA9EF896F5 /* SafariWebExtensionHandler.swift */,
+			);
+			path = SafariExtension;
+			sourceTree = "<group>";
+		};
+		E6EF87ECC27B0567803DDC93 /* NetworkFilter */ = {
+			isa = PBXGroup;
+			children = (
+				CE86FA2C0A56221DCC85D48E /* FilterDataProvider.swift */,
+				369D695E0B3C83E5D971FCDA /* Info.plist */,
+				BFC75DCACB973DD8A68844FA /* main.swift */,
+				0F0E95C2D75EE13A82F06352 /* NetworkFilter.entitlements */,
+			);
+			path = NetworkFilter;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0F66D64B16A29052278A14C7 /* KidsQuotaNetworkFilter */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A730399BD907D4A29493E9C8 /* Build configuration list for PBXNativeTarget "KidsQuotaNetworkFilter" */;
+			buildPhases = (
+				D57EED5660CDFB7623DD7EBB /* Sources */,
+				65FDEAB0D3E827AB3DC88EE0 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = KidsQuotaNetworkFilter;
+			packageProductDependencies = (
+			);
+			productName = KidsQuotaNetworkFilter;
+			productReference = 928DF96510A96362E8C2602C /* KidsQuotaNetworkFilter.systemextension */;
+			productType = "com.apple.product-type.system-extension";
+		};
+		932EF901860854E0412C87BC /* KidsQuotaSafari */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 295CD16073BD634FBDAA479A /* Build configuration list for PBXNativeTarget "KidsQuotaSafari" */;
+			buildPhases = (
+				47E7097BAF2CD974FAD9682A /* Sources */,
+				CBD1CA5AD7D91F4573756C54 /* Resources */,
+				ECDF52D3B4761EB323BE54D0 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = KidsQuotaSafari;
+			packageProductDependencies = (
+			);
+			productName = KidsQuotaSafari;
+			productReference = F974028416E127238ABCA644 /* KidsQuotaSafari.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		A6560111937B4F3784E4D082 /* KidsQuota */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A271ED487E18D1085794968D /* Build configuration list for PBXNativeTarget "KidsQuota" */;
+			buildPhases = (
+				C1F6CE75274B699EF895A39E /* Sources */,
+				9658AB1910D973EA914C9499 /* Frameworks */,
+				E522BD66103EE7AB0B61A568 /* Embed Foundation Extensions */,
+				22E13BEBF578916AFF55C0D1 /* Embed System Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				341D1592785A417999CFCA35 /* PBXTargetDependency */,
+				B3B8BE537EC64EA483EA73F2 /* PBXTargetDependency */,
+			);
+			name = KidsQuota;
+			packageProductDependencies = (
+			);
+			productName = KidsQuota;
+			productReference = 940633D9D44E6CB436EDD948 /* KidsQuota.app */;
+			productType = "com.apple.product-type.application";
+		};
+		D7137F20CCB110538D6E5ABD /* KidsQuotaMacTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BA982115DF39BB44E6141453 /* Build configuration list for PBXNativeTarget "KidsQuotaMacTests" */;
+			buildPhases = (
+				7507BB09433112C0CAC3145E /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = KidsQuotaMacTests;
+			packageProductDependencies = (
+			);
+			productName = KidsQuotaMacTests;
+			productReference = 2F22CD224F461DED2BFEF6DD /* KidsQuotaMacTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		D81CDB0F04076C5BBC1EBC58 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					0F66D64B16A29052278A14C7 = {
+						ProvisioningStyle = Automatic;
+					};
+					932EF901860854E0412C87BC = {
+						ProvisioningStyle = Automatic;
+					};
+					A6560111937B4F3784E4D082 = {
+						ProvisioningStyle = Automatic;
+					};
+					D7137F20CCB110538D6E5ABD = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = DA3636457FE129DD99DFDCA3 /* Build configuration list for PBXProject "KidsQuota" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 848D52DD6231869E2D47F177;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A6560111937B4F3784E4D082 /* KidsQuota */,
+				D7137F20CCB110538D6E5ABD /* KidsQuotaMacTests */,
+				0F66D64B16A29052278A14C7 /* KidsQuotaNetworkFilter */,
+				932EF901860854E0412C87BC /* KidsQuotaSafari */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		CBD1CA5AD7D91F4573756C54 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E45AB5CFDA08111D09CD745A /* background.js in Resources */,
+				9243702DF859087639A91F28 /* blocked.html in Resources */,
+				E444904B11C855DB3411FB86 /* blocked.js in Resources */,
+				8BD0A8AFC80E4E14B42705F5 /* content.js in Resources */,
+				D2F7EF0ED9E7B45BEC4165AE /* manifest.json in Resources */,
+				0A804CFC1343DFE58573DA2A /* pages.css in Resources */,
+				A9A7AEA9DEBE25523F51BECC /* popup.html in Resources */,
+				749C9926E996DEB38EF44182 /* popup.js in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		47E7097BAF2CD974FAD9682A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2FC8A810C1C125F2C997E5AF /* DaemonSocket.swift in Sources */,
+				F4BC8222B62D72FA44740C89 /* SafariWebExtensionHandler.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7507BB09433112C0CAC3145E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				13C9689127140E0F76B308BA /* FilterPolicy.swift in Sources */,
+				19A75D99C86731A3F674B26E /* Models.swift in Sources */,
+				AB1ECB3A2E351CB72E3572D7 /* PolicyAndPresentationTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C1F6CE75274B699EF895A39E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1D64391A68A62DFE2F6644EA /* AccountDiscovery.swift in Sources */,
+				96F7EBED28522711E2CF6348 /* DaemonSocket.swift in Sources */,
+				FBC1B4715D6C916194E37A4F /* Editors.swift in Sources */,
+				45B23497BF48E822C9900AFD /* FilterActivation.swift in Sources */,
+				B1FB7EA7D88ED42803711FD3 /* HouseholdView.swift in Sources */,
+				DBF73CE2A915CAB6CA75D0C8 /* KidsQuotaApp.swift in Sources */,
+				22A7C0DAA40A2D9717BFB86D /* Models.swift in Sources */,
+				D172204FAE0F286790478583 /* ParentStore.swift in Sources */,
+				F0ACE04AD0C96999A8C92068 /* SettingsView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D57EED5660CDFB7623DD7EBB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9F933F5BC5B8845D8A13C90D /* DaemonSocket.swift in Sources */,
+				BED98CE4E5C7ECCC40735E41 /* FilterDataProvider.swift in Sources */,
+				2E9D69EA0FD194DCC0FBD1B4 /* FilterPolicy.swift in Sources */,
+				5198C3A39370C0DF81D65A0F /* main.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		341D1592785A417999CFCA35 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0F66D64B16A29052278A14C7 /* KidsQuotaNetworkFilter */;
+			targetProxy = C6BC487ED1AA25C4EAAFFAD1 /* PBXContainerItemProxy */;
+		};
+		B3B8BE537EC64EA483EA73F2 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 932EF901860854E0412C87BC /* KidsQuotaSafari */;
+			targetProxy = E1C48091573241C3B5344D4A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		18B717499748928A5229DAEB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		1EBE58DD372382B4CD821404 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = macos/SafariExtension/SafariExtension.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = macos/SafariExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kidsquota.app.safari;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		2DEB867AD38CBB5320DDC502 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = macos/NetworkFilter/NetworkFilter.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = macos/NetworkFilter/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kidsquota.app.networkfilter;
+				PRODUCT_NAME = com.kidsquota.app.networkfilter;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		4C546B57FBD0791CD5DFE3DF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = macos/ParentApp/ParentApp.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kidsquota.app;
+				PRODUCT_NAME = "Kids Quota";
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		5842DF289D3A7009895710E6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kidsquota.mactests;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		64360C03FED756F01298C928 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = macos/NetworkFilter/NetworkFilter.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = macos/NetworkFilter/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kidsquota.app.networkfilter;
+				PRODUCT_NAME = com.kidsquota.app.networkfilter;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		64D63099D418212DB5D50FB0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kidsquota.mactests;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		7F67A9586036C67C413D42F3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = macos/ParentApp/ParentApp.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kidsquota.app;
+				PRODUCT_NAME = "Kids Quota";
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		9ACCCDDC29DE263AC4611892 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		F1268EF221C6E154D0C2702D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = macos/SafariExtension/SafariExtension.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = macos/SafariExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kidsquota.app.safari;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		295CD16073BD634FBDAA479A /* Build configuration list for PBXNativeTarget "KidsQuotaSafari" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1EBE58DD372382B4CD821404 /* Debug */,
+				F1268EF221C6E154D0C2702D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A271ED487E18D1085794968D /* Build configuration list for PBXNativeTarget "KidsQuota" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4C546B57FBD0791CD5DFE3DF /* Debug */,
+				7F67A9586036C67C413D42F3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A730399BD907D4A29493E9C8 /* Build configuration list for PBXNativeTarget "KidsQuotaNetworkFilter" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2DEB867AD38CBB5320DDC502 /* Debug */,
+				64360C03FED756F01298C928 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		BA982115DF39BB44E6141453 /* Build configuration list for PBXNativeTarget "KidsQuotaMacTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5842DF289D3A7009895710E6 /* Debug */,
+				64D63099D418212DB5D50FB0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		DA3636457FE129DD99DFDCA3 /* Build configuration list for PBXProject "KidsQuota" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9ACCCDDC29DE263AC4611892 /* Debug */,
+				18B717499748928A5229DAEB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = D81CDB0F04076C5BBC1EBC58 /* Project object */;
+}

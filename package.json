@@ -1,0 +1,11 @@
+{
+  "name": "kids-quota-browser",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:extensions": "node scripts/build-extensions.mjs",
+    "test": "node --test Tests/browser/*.test.mjs"
+  },
+  "engines": { "node": ">=20" }
+}

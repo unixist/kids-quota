@@ -1,150 +1,134 @@
 # kids-quota
 
-Weekly website and app allowances for multiple children on macOS, with Chrome and
-Safari support and an open HTTP API for additional clients.
+Weekly website and Mac app allowances shared across Chrome, Safari, and selected
+apps, with independent balances for children using separate macOS login accounts.
 
-**Status:** project specification, example configuration, and API contract. The
-app, quota server, network filter, and browser extensions are not implemented yet.
+**Status: implemented development release.** The Swift service, SQLite ledger,
+parent app, browser adapters, native messaging hosts, and Network Extension build
+locally. Unit tests and an isolated live service test cover accounting and policy
+behavior. Signed installation and real browser/network-filter enforcement need
+on-device acceptance checks before this is relied on as parental control.
 
-## Product requirements
+## Features
 
-- Give each child independent weekly allowances, linked to their separate macOS
-  login account. Using or exhausting one child's time never affects another child.
-- Start with Chess.com and ChatGPT, each at six hours per week for each child.
-- Add other websites and named domain groups through the UI or authorized API.
-  A group can contain multiple domains and optional selected Mac apps.
-- Share a child's service balance across Chrome, Safari, and its selected apps.
-- At exhaustion, extensions block the websites and replace open matching tabs;
-  a macOS Network Extension cuts network access for that child's selected apps.
-- Apps may still launch and use cached/offline features. App termination and
-  launch prevention are outside the agreed initial scope.
-- Reset on a configurable weekday, default Monday at 00:00 in the configured timezone.
-- Keep authoritative settings and usage on the Mac; no cloud account is required.
-- Expose a documented, versioned REST API for widgets and other clients, including
-  a future publisher that reads balances and sends selected summaries to a website.
-- Keep the parent UI simple: child selector, service rows, remaining time, clear
-  coverage status, **Edit hours**, **Add website**, and a shared reset setting.
+- Starts each linked child with **Chess.com: 6 hours/week** and **ChatGPT: 6
+  hours/week**. Each service shares its balance between websites and selected apps.
+- Adds custom domain groups, optional subdomains, and optional Mac apps. Choose
+  an installed app with the standard picker; the service verifies its signature.
+  App paths and names alone never grant a match.
+- Counts the foreground website or app while the child's session is awake and
+  unlocked, including passive viewing. Background use does not consume time.
+- Blocks website navigation and replaces open matching tabs at exhaustion.
+  The Network Extension denies selected apps' network traffic for that child.
+  Apps can still launch and use cached/offline features.
+- Resets Monday at 00:00 by default in the saved timezone. Weekday/time/timezone
+  are editable; schedule changes take effect after the current period. Handles
+  DST, sleep, restarts, and clock rollback.
+- Exposes authenticated `http://127.0.0.1:48123/v1` JSON endpoints for widgets or
+  local publishers. Revocable read tokens have explicit child grants. No client
+  endpoint can post usage or set remaining balances.
+
+The parent app shows a child sidebar, remaining-time cards, **Edit hours**,
+**Includes**, custom services, and settings for protection, resets, and clients.
+Service membership is shared; hours belong to the selected child. Website-only
+services need no app selection. Presets do not guess app identities: use **Manage
+included websites and apps → Choose app** to include the installed app.
+
+## Build and test
+
+Requires macOS 14+, full Xcode, Node 20+, and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+Uses system SQLite; no third-party Swift/JavaScript runtime dependencies.
+
+```sh
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+swift test
+npm test
+npm run build:extensions
+xcodegen generate
+xcodebuild -project KidsQuota.xcodeproj -scheme KidsQuotaMacTests \
+  -destination 'platform=macOS' -derivedDataPath .build/xcode \
+  CODE_SIGNING_ALLOWED=NO test
+python3 scripts/smoke-service.py
+```
+
+The smoke test starts an unprivileged localhost service in a temporary directory,
+checks HTTP authorization, writes, native-peer rejection, and crash recovery, then
+stops it. It never installs a launch service or activates filtering.
+
+See [macOS build details](docs/macos-build.md) and [signed deployment](docs/deployment.md).
+Generated adapters are `extensions/build/chrome` and `extensions/build/safari`.
+
+To run a development daemon without installing anything:
+
+```sh
+swift build
+BIN_DIR="$(swift build --show-bin-path)"
+mkdir -p work/dev-data
+"$BIN_DIR/kids-quota-service" --development \
+  --data-dir "$PWD/work/dev-data" --socket /private/tmp/kids-quota-dev.sock
+```
+
+Development mode weakens native-peer verification and is for testing only.
+Production installation rejects unsigned binaries and runs as root with protected data.
+
+## Admin installation and removal resistance
+
+The installer places the daemon, native hosts, app, and launch configuration in
+administrator-controlled locations. A standard child cannot edit the ledger or
+replace these files. If a collector disappears, known services block after their
+freshness lease expires rather than continuing with unlimited time.
+
+Unpacked Chrome or manually enabled Safari extensions remain removable/disableable.
+Managed Chrome forced-install policy and Safari extension management can enforce
+enablement; templates and requirements are in [deployment](docs/deployment.md).
+This is a deployment choice, not a change to the quota architecture. Children
+must use standard accounts.
 
 ## Architecture
 
-A protected machine-wide Swift service owns balances, policies, and SQLite state.
-Per-login collectors report the foreground browser domain or selected app. The
-service maps the authenticated macOS account to its child profile and counts each
-foreground interval once. Filter rules use both source-app identity and the
-originating account, so the same app can be blocked for one child and available
-for another.
-
 ```mermaid
 flowchart LR
-    C[Chrome / Safari extensions] --> N[Per-login native collectors]
-    A[Foreground app monitor] --> N
-    N -->|Authenticated local IPC| Q[Shared quota service]
-    U[Parent app] --> Q
-    Q <--> D[(Per-child SQLite balances)]
-    Q --> E[Browser rules + app network filter]
-    Q <-->|Versioned REST API| R[Authorized read clients]
-    R --> W[macOS widget]
-    R --> P[Local publisher]
-    P -->|Opt-in selected summaries| S[Hosted website]
+  B[Chrome / Safari] --> H[Native browser bridges]
+  A[Per-login foreground agent] --> Q[Protected quota service]
+  H -->|OS-authenticated IPC| Q
+  P[Parent app] -->|Root-authenticated IPC + parent token| Q
+  Q <--> D[(SQLite policy and usage)]
+  Q --> B
+  Q --> F[App filter: source UID + signature]
+  R[Scoped REST clients] <-->|Loopback HTTP / JSON| Q
 ```
 
-The HTTP API initially listens only on loopback and requires a scoped credential.
-Read clients can access only the children the parent grants them. Separate parent
-authorization permits policy changes. Generic clients cannot submit usage or set
-balances; trusted local collectors remain responsible for accounting.
+Domain matching uses hostnames, label boundaries, IDNA normalization, and a bundled
+Public Suffix List, independent of DNS answers and IP addresses. The daemon selects
+one foreground activity, avoiding double charging. Native reports use OS credentials;
+stored account GUIDs are revalidated so a reused UID cannot inherit another child's quota.
 
-A hosted website cannot call the Mac's localhost API directly. A publisher running
-on the Mac can read the API and upload selected summaries. A remote API gateway
-would be a later feature with authenticated encrypted access. This design does not
-open a network listener or publish children's data now.
+## Validation and limits
 
-## Defaults and scope
+- Automated suites cover calendar boundaries/DST, shared usage, persistence,
+  child isolation, revocation, revisions, request parsing, domain matching, stale
+  adapters, app-rule isolation, and native presentation. See [validation](docs/validation.md).
+- A Developer ID certificate, matching provisioning/entitlements, and macOS
+  approval are required for the Network Extension. This repository has not
+  installed or activated protection on your Mac.
+- Run signed acceptance checks on each target macOS/browser version, including
+  Safari's native socket sandbox exception, existing TCP/UDP flows, screen lock,
+  wake, account switching, and the actual selected apps/helpers.
+- Browser measurement is the foreground **top-level** website. Embedded services,
+  other browsers, browser web-app wrappers, and unselected helpers may need added
+  coverage. Unsupported attribution is surfaced as incomplete.
+- A filter starting without the service has no initial rules; in-memory
+  fail-closed behavior requires a previously received policy. Restart apps after
+  initial filter activation to cover sockets opened before activation.
+- One Mac only. DNS proxy enforcement, offline app denial, automatic app-signature
+  catalogs, multi-Mac pooling, a widget, and a hosted publisher are follow-on work.
+  The REST API supports independent read clients now.
 
-| Setting | Default |
-| --- | --- |
-| Children | Separate macOS login accounts, explicitly linked during setup |
-| Chess.com | 6 hours per child, shared across website and selected app |
-| ChatGPT | A separate 6 hours per child, shared across website and selected app |
-| Other websites | Add a hostname/group and choose its allowance for each child |
-| Reset | Monday, 00:00; shared household timezone and reset schedule |
-| Metering | Matching foreground tab or app while the session is awake and unlocked |
-| Passive viewing | Counts, including foreground video without keyboard or mouse input |
-| Background use | Does not consume foreground time; exhausted apps remain network-blocked |
-| Unused time | Does not carry over |
-| Initial deployment | One Mac with multiple children; no automatic pooling across Macs |
-| Additional clients | Authenticated HTTP/JSON API with child-scoped access |
+## Reference
 
-For a child, two hours of Chess.com in Chrome, one in Safari, and two in the native
-app consume five hours and leave one hour. That child's ChatGPT balance and every
-other child's balances remain unchanged. Having the site open behind the app does
-not count twice.
-
-Parents can add a service such as **Reading** with `example.org` and subdomains,
-then give different allowances to different children. Service membership is shared
-configuration; allowances and usage are per child. Adding or editing a domain must
-surface any new browser permission needed before claiming full coverage.
-
-The example uses placeholder children and unconfigured OS/app bindings. Setup must
-verify the real accounts and installed apps. No account or app identifiers are
-guessed. Shared browser executables need site-specific attribution and must not
-be bound wholesale to a service.
-
-## Simple interface
-
-The main screen starts with a **Child** selector. Below it, show that child's
-service rows, initially **Chess.com** and **ChatGPT**. Each row has remaining time,
-a used-time progress bar, and **Available**, **Weekly limit reached**, or **Setup
-needed**. Selecting a different child changes the view only, never the identity
-charged by the collectors.
-
-**Edit hours** changes the selected child's allowance. **Add service** offers
-**Chess.com**, **ChatGPT**, and **Custom website**. A preset groups its websites and
-optional compatible apps under one allowance. Native setup can select a known app
-after verifying its identity; otherwise a friendly **Choose app…** step resolves
-the binding. Custom websites need only an address, name, and weekly hours, with
-**Add an app…** available as an optional detail.
-
-Preset selection is a draft until **Add to [child]** is pressed. **Includes** shows
-website/app coverage without exposing paths or signing fields. If an optional app
-is absent, show **Website ready · app not installed** and make future inclusion
-explicit. A present but unverified app shows **Needs setup**. Editing or reselecting
-a service never resets its used time. See [service setup UX](docs/service-setup-ux.md)
-for detection, custom groups, and preset-update behavior.
-
-**Manage children** links the children's existing macOS accounts. Show the next
-reset once below the list, with a simple day/timezone setting.
-
-Coverage details show Chrome, Safari, and optional app setup. Use **Website blocked
-until [reset]** and **App internet access blocked until [reset]** at exhaustion.
-Incomplete account mapping, permissions, or filtering must never appear protected.
-Advanced **Connected clients** settings manage read access, allowed children, and
-revocation without adding API details to the everyday quota screen.
-
-## Documents
-
-- [Architecture and acceptance checks](docs/architecture.md)
-- [Service presets and friendly setup](docs/service-setup-ux.md)
-- [HTTP API and client access](docs/api.md)
-- [OpenAPI contract](api/openapi.yaml)
-- [Example family policy](config/example-policy.json)
-- [Custom website creation example](config/custom-service.example.json)
-
-The custom-service request uses a placeholder revision of zero. Replace it with
-the latest `policyRevision` from an authorized read before submitting the request.
-
-## Implementation sequence
-
-1. Quota core and persistence: custom domains, child/account mapping, per-child
-   allowances, usage, calendar boundaries, and API resource validation.
-2. Authenticated REST read API and parent policy endpoints, checked against the
-   OpenAPI contract, with child isolation and fresh balance snapshots.
-3. Chrome and Safari reporting/blocking plus native foreground-app metering;
-   reconcile login, logout, fast user switching, sleep, and reconnection.
-4. Network Extension app blocking by source account and app identity, including
-   verified helpers, existing flows, and recovery at reset.
-5. Simple parent UI, signed packaging, guided setup, and tamper-resistance review.
-6. Follow-on widget and publisher clients using the same API; no separate balance store.
-
-Enabled extensions, granted permissions, and functioning app filters are required.
-The initial design does not guarantee enforcement against deliberate bypass on an
-unmanaged Mac.
+- [API behavior](docs/api.md) and [OpenAPI 3.1](api/openapi.yaml)
+- [Architecture and acceptance criteria](docs/architecture.md)
+- [Service UX and future catalog behavior](docs/service-setup-ux.md)
+- [Example household policy](config/example-policy.json) (illustrative unpaired accounts)
+- [Read-client example](examples/read_balances.py)
+- [Third-party notices](THIRD_PARTY_NOTICES.md)

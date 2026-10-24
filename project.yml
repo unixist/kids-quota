@@ -1,0 +1,127 @@
+name: KidsQuota
+options:
+  deploymentTarget:
+    macOS: "14.0"
+  bundleIdPrefix: com.kidsquota
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_HARDENED_RUNTIME: YES
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    GENERATE_INFOPLIST_FILE: YES
+    SWIFT_STRICT_CONCURRENCY: targeted
+targets:
+  KidsQuota:
+    type: application
+    platform: macOS
+    sources:
+      - path: macos/ParentApp
+      - path: macos/Shared/DaemonSocket.swift
+    dependencies:
+      - target: KidsQuotaNetworkFilter
+        embed: true
+      - target: KidsQuotaSafari
+        embed: true
+      - sdk: NetworkExtension.framework
+      - sdk: SystemExtensions.framework
+      - sdk: OpenDirectory.framework
+    entitlements:
+      path: macos/ParentApp/ParentApp.entitlements
+      properties:
+        com.apple.developer.system-extension.install: true
+        com.apple.developer.networking.networkextension:
+          - content-filter-provider-systemextension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kidsquota.app
+        PRODUCT_NAME: Kids Quota
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        INFOPLIST_KEY_NSPrincipalClass: NSApplication
+        INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking: YES
+  KidsQuotaNetworkFilter:
+    type: system-extension
+    platform: macOS
+    sources:
+      - path: macos/NetworkFilter
+      - path: macos/Shared
+    dependencies:
+      - sdk: NetworkExtension.framework
+      - sdk: Security.framework
+    entitlements:
+      path: macos/NetworkFilter/NetworkFilter.entitlements
+      properties:
+        com.apple.developer.networking.networkextension:
+          - content-filter-provider-systemextension
+    info:
+      path: macos/NetworkFilter/Info.plist
+      properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDisplayName: Kids Quota App Filter
+        NetworkExtension:
+          NEProviderClasses:
+            com.apple.networkextension.filter-data: $(PRODUCT_MODULE_NAME).FilterDataProvider
+          NEMachServiceName: $(TeamIdentifierPrefix)com.kidsquota.app.networkfilter
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kidsquota.app.networkfilter
+        PRODUCT_NAME: com.kidsquota.app.networkfilter
+  KidsQuotaSafari:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: macos/SafariExtension
+      - path: macos/Shared/DaemonSocket.swift
+      - path: extensions/build/safari
+        buildPhase: resources
+    dependencies:
+      - sdk: SafariServices.framework
+    entitlements:
+      path: macos/SafariExtension/SafariExtension.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.security.temporary-exception.files.absolute-path.read-write:
+          - /var/run/kids-quota.sock
+          - /private/var/run/kids-quota.sock
+    info:
+      path: macos/SafariExtension/Info.plist
+      properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDisplayName: Kids Quota
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.Safari.web-extension
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).SafariWebExtensionHandler
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kidsquota.app.safari
+  KidsQuotaMacTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: macos/Tests
+      - path: macos/Shared/FilterPolicy.swift
+      - path: macos/ParentApp/Models.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kidsquota.mactests
+schemes:
+  KidsQuota:
+    build:
+      targets:
+        KidsQuota: all
+    test:
+      targets:
+        - KidsQuotaMacTests
+  KidsQuotaMacTests:
+    build:
+      targets:
+        KidsQuotaMacTests: all
+    test:
+      targets:
+        - KidsQuotaMacTests

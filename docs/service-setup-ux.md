@@ -1,8 +1,11 @@
-# Service setup UX proposal
+# Service setup UX
 
-**Status:** proposed interface behavior. No app scan, verified signer catalog, or
-working enforcement is implemented. Any interactive preview uses demonstration
-states, not information about the user's installed applications.
+**Implemented:** native child/service selection, website-only groups, custom domains,
+app selection with signature verification, per-child hours, shared membership editing,
+and coverage display. The first release uses **Choose app** for optional native apps.
+Automatic discovery, future-app inclusion, the trusted preset catalog, and catalog
+update flows below are follow-on design, not implemented behavior. Signed enforcement
+still requires on-device acceptance testing.
 
 ## Organize around the service
 

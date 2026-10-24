@@ -1,19 +1,20 @@
 openapi: 3.1.0
 info:
   title: kids-quota HTTP API
-  version: 0.1.0-draft
+  version: 0.1.0
   description: |
-    Proposed local API; no server is implemented. Every request requires a
-    parent-issued opaque token. Scopes and child grants are enforced server-side.
-    policy:write is household-admin authority issued only to parent clients with
-    all-child grants. Read-only clients can have narrower child grants.
-    x-required-scopes documents scopes for the HTTP bearer scheme. Normal clients
-    cannot submit usage, change balances, pair OS accounts, or verify app identities.
-    Child creation, pairing, and the shared reset schedule are native parent-app
-    operations in this draft. All responses use Cache-Control: no-store.
+    Implemented loopback API. Every request requires an opaque bearer token;
+    scopes and child grants are enforced by the service. policy:write additionally
+    requires the protected administrator credential. Read grants cannot confer
+    write authority. The parent app tunnels these same requests over authenticated
+    native IPC; the HTTP administrator routes are also supported. Clients cannot
+    submit usage, set balances, or supply verified app signing identities.
+    All responses use Cache-Control: no-store. Origin headers are rejected.
+    JSON bodies are limited to 65536 bytes, with 60 requests per second per token.
+    x-required-scopes documents scopes for the HTTP bearer scheme.
 servers:
   - url: http://127.0.0.1:48123
-    description: Proposed loopback-only listener; not a deployed service
+    description: Loopback listener after the service is installed and started
 security:
   - bearerAuth: []
 paths:
@@ -186,6 +187,169 @@ paths:
                     quotaState: available
                     coverage: complete
         default: {$ref: '#/components/responses/Error'}
+  /v1/admin/state:
+    get:
+      operationId: readAdministrativeState
+      summary: Read full policy, public client grants, and filter status
+      x-required-scopes: ["policy:write"]
+      responses:
+        '200':
+          description: Administrator-only state; tokens and credential digests are omitted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [policyRevision, policy, clients, filterConnected, unattributedFlows]
+                properties:
+                  policyRevision: {$ref: '#/components/schemas/Revision'}
+                  policy: {$ref: '#/components/schemas/Policy'}
+                  clients: {type: array, items: {$ref: '#/components/schemas/ClientGrant'}}
+                  filterConnected: {type: boolean}
+                  unattributedFlows: {type: integer, minimum: 0}
+        default: {$ref: '#/components/responses/Error'}
+  /v1/admin/children:
+    post:
+      operationId: createChild
+      summary: Verify the selected macOS account and create its child profile
+      description: Assigns default six-hour Chess.com and ChatGPT quotas when those presets exist.
+      x-required-scopes: ["policy:write"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expectedPolicyRevision, displayName, generatedUid]
+              properties:
+                expectedPolicyRevision: {$ref: '#/components/schemas/Revision'}
+                displayName: {type: string, minLength: 1, maxLength: 100}
+                generatedUid: {type: string, minLength: 1, description: Selected account GeneratedUID; independently resolved by the service.}
+                uid: {type: integer, minimum: 0, maximum: 4294967295, description: Optional consistency check against the resolved account.}
+      responses:
+        '201':
+          description: Verified account paired and initial quotas created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [policyRevision, child]
+                properties:
+                  policyRevision: {$ref: '#/components/schemas/Revision'}
+                  child: {$ref: '#/components/schemas/Child'}
+        default: {$ref: '#/components/responses/Error'}
+  /v1/admin/applications:
+    post:
+      operationId: verifyApplication
+      summary: Inspect an installed app and return its verified signing binding
+      description: |
+        Accepts a selected local app path. Signing identity, designated requirement,
+        and readiness are derived by the daemon and cannot be supplied by clients.
+        An existing signing identity is returned without a policy mutation.
+      x-required-scopes: ["policy:write"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expectedPolicyRevision, path]
+              properties:
+                expectedPolicyRevision: {$ref: '#/components/schemas/Revision'}
+                path: {type: string, minLength: 1, example: /Applications/ChatGPT.app}
+      responses:
+        '201': {$ref: '#/components/responses/ApplicationWrite'}
+        '200': {$ref: '#/components/responses/ApplicationWrite'}
+        default: {$ref: '#/components/responses/Error'}
+  /v1/admin/settings:
+    put:
+      operationId: updateResetSchedule
+      summary: Schedule a new household reset day, time, and timezone
+      description: Takes effect at the existing period end; does not refill current balances.
+      x-required-scopes: ["policy:write"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expectedPolicyRevision, reset]
+              properties:
+                expectedPolicyRevision: {$ref: '#/components/schemas/Revision'}
+                reset: {$ref: '#/components/schemas/ResetSchedule'}
+      responses:
+        '200':
+          description: Policy saved with a pending reset schedule when changed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [policyRevision, policy]
+                properties:
+                  policyRevision: {$ref: '#/components/schemas/Revision'}
+                  policy: {$ref: '#/components/schemas/Policy'}
+        default: {$ref: '#/components/responses/Error'}
+  /v1/admin/clients:
+    post:
+      operationId: issueReadCredential
+      summary: Issue a read-only token for explicitly granted children
+      description: Does not require or change policyRevision. The plaintext token is returned once.
+      x-required-scopes: ["policy:write"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name, scopes, childIds]
+              properties:
+                name: {type: string, minLength: 1, maxLength: 100}
+                scopes:
+                  type: array
+                  minItems: 1
+                  items: {$ref: '#/components/schemas/ReadScope'}
+                childIds:
+                  type: array
+                  minItems: 1
+                  items: {$ref: '#/components/schemas/Id'}
+      responses:
+        '201':
+          description: Created read credential; securely store the token before dismissing it
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, token, client]
+                properties:
+                  id: {$ref: '#/components/schemas/Id'}
+                  token: {type: string, description: Opaque bearer secret; not returned by later reads.}
+                  client: {$ref: '#/components/schemas/ClientGrant'}
+        default: {$ref: '#/components/responses/Error'}
+  /v1/admin/clients/{clientId}:
+    parameters:
+      - name: clientId
+        in: path
+        required: true
+        schema: {$ref: '#/components/schemas/Id'}
+    delete:
+      operationId: revokeReadCredential
+      summary: Revoke a previously issued read token
+      description: Does not require or change policyRevision. The administrator credential is protected.
+      x-required-scopes: ["policy:write"]
+      responses:
+        '200':
+          description: Revocation persisted and effective immediately
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [revoked]
+                properties:
+                  revoked: {type: boolean, const: true}
+        default: {$ref: '#/components/responses/Error'}
 components:
   securitySchemes:
     bearerAuth:
@@ -193,7 +357,7 @@ components:
       scheme: bearer
       bearerFormat: opaque
       description: |
-        Revocable token issued through parent-approved native pairing. Required
+        Revocable token issued through parent-approved client setup. Required
         even on loopback. Each token carries explicit scopes and child grants;
         callers cannot broaden grants by changing a path or request body.
   headers:
@@ -262,7 +426,108 @@ components:
             properties:
               policyRevision: {$ref: '#/components/schemas/Revision'}
               quota: {$ref: '#/components/schemas/Quota'}
+    ApplicationWrite:
+      description: Verified app binding; 201 for a new binding, 200 for an existing identity
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [policyRevision, application]
+            properties:
+              policyRevision: {$ref: '#/components/schemas/Revision'}
+              application: {$ref: '#/components/schemas/ApplicationBinding'}
   schemas:
+    ReadScope:
+      type: string
+      enum: ['children:read', 'services:read', 'quotas:read', 'balances:read']
+    ClientGrant:
+      type: object
+      required: [id, name, scopes, childIds, administrator]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        name: {type: string}
+        scopes: {type: array, items: {type: string}}
+        childIds: {type: array, items: {$ref: '#/components/schemas/Id'}}
+        administrator: {type: boolean}
+      description: Public metadata only; plaintext tokens and digests are never included.
+    ResetSchedule:
+      type: object
+      required: [weekday, localTime, timeZone]
+      properties:
+        weekday: {type: string, enum: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]}
+        localTime: {type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$', example: '00:00'}
+        timeZone: {type: string, example: America/Chicago, description: IANA timezone identifier.}
+    AccountBinding:
+      type: object
+      required: [status]
+      properties:
+        status: {type: string}
+        generatedUid: {type: string}
+        uid: {type: integer, minimum: 0, maximum: 4294967295}
+      description: Administrative data; not exposed in ordinary child list responses.
+    ApplicationIdentity:
+      type: object
+      required: [signingIdentifier, designatedRequirement]
+      properties:
+        signingIdentifier: {type: string}
+        teamIdentifier: {type: string}
+        designatedRequirement: {type: string}
+        executablePath: {type: string}
+      description: Derived from the app signature by the service, never accepted from a client.
+    ApplicationBinding:
+      type: object
+      required: [id, displayName, status]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        displayName: {type: string}
+        status: {type: string}
+        identity: {$ref: '#/components/schemas/ApplicationIdentity'}
+    Policy:
+      type: object
+      required: [schemaVersion, revision, reset, metering, enforcement, api, children, applicationBindings, services, quotas]
+      properties:
+        schemaVersion: {type: integer, const: 2}
+        revision: {$ref: '#/components/schemas/Revision'}
+        reset: {$ref: '#/components/schemas/ResetSchedule'}
+        pendingReset:
+          type: object
+          required: [schedule, effectiveAt]
+          properties:
+            schedule: {$ref: '#/components/schemas/ResetSchedule'}
+            effectiveAt: {type: string, format: date-time}
+        metering:
+          type: object
+          properties:
+            mode: {type: string, const: foreground-activity}
+            countPassiveViewing: {type: boolean, const: true}
+            countBackgroundMedia: {type: boolean, const: false}
+            pauseWhenLocked: {type: boolean, const: true}
+            pauseWhenAsleep: {type: boolean, const: true}
+        enforcement:
+          type: object
+          properties:
+            websites: {type: string, const: browser-extension}
+            applications: {type: string, const: network-content-filter}
+        api:
+          type: object
+          properties:
+            bindAddress: {type: string, const: '127.0.0.1'}
+            port: {type: integer, minimum: 1024, maximum: 65535}
+            basePath: {type: string, const: /v1}
+            authentication: {type: string, const: scoped-bearer-token}
+            allowedBrowserOrigins: {type: array, items: {type: string}}
+        children:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/Child'
+              - type: object
+                required: [macOSAccount]
+                properties:
+                  macOSAccount: {$ref: '#/components/schemas/AccountBinding'}
+        applicationBindings: {type: array, items: {$ref: '#/components/schemas/ApplicationBinding'}}
+        services: {type: array, items: {$ref: '#/components/schemas/Service'}}
+        quotas: {type: array, items: {$ref: '#/components/schemas/Quota'}}
     Id:
       type: string
       minLength: 1
@@ -276,7 +541,7 @@ components:
     Seconds:
       type: integer
       minimum: 0
-      maximum: 9007199254740991
+      maximum: 604800000
       description: Integer seconds. Zero allowance means exhausted immediately.
     Child:
       type: object
@@ -296,6 +561,16 @@ components:
           description: |
             Canonical lowercase ASCII/IDNA hostname. No scheme, path, wildcard,
             IP literal, or bare public suffix. Semantic validation is required.
+        includeSubdomains: {type: boolean}
+    DomainInput:
+      type: object
+      additionalProperties: false
+      required: [hostname, includeSubdomains]
+      properties:
+        hostname:
+          type: string
+          minLength: 1
+          description: Hostname or HTTP(S) website address; the service canonicalizes the host and rejects IPs and public suffixes.
         includeSubdomains: {type: boolean}
     Service:
       type: object
@@ -324,7 +599,7 @@ components:
       properties:
         expectedPolicyRevision: {$ref: '#/components/schemas/Revision'}
         name: {type: string, minLength: 1, maxLength: 100}
-        domains: {type: array, items: {$ref: '#/components/schemas/Domain'}}
+        domains: {type: array, items: {$ref: '#/components/schemas/DomainInput'}}
         applicationIds:
           type: array
           uniqueItems: true
@@ -341,7 +616,7 @@ components:
       properties:
         expectedPolicyRevision: {$ref: '#/components/schemas/Revision'}
         name: {type: string, minLength: 1, maxLength: 100}
-        domains: {type: array, items: {$ref: '#/components/schemas/Domain'}}
+        domains: {type: array, items: {$ref: '#/components/schemas/DomainInput'}}
         applicationIds:
           type: array
           uniqueItems: true
