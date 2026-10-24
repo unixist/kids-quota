@@ -6,13 +6,30 @@
     "timeZone": "America/Chicago"
   },
   "metering": {
-    "mode": "foreground-tab",
+    "mode": "foreground-activity",
     "countPassiveViewing": true,
     "countBackgroundMedia": false,
     "pauseWhenLocked": true,
     "pauseWhenAsleep": true
   },
+  "applicationBindings": [
+    {
+      "id": "chesscom-macos",
+      "displayName": "Chess.com macOS app",
+      "status": "needs-selection",
+      "identity": null
+    }
+  ],
   "quotas": [
+    {
+      "id": "chesscom",
+      "name": "Chess.com",
+      "hoursPerWeek": 6,
+      "domains": [
+        { "hostname": "chess.com", "includeSubdomains": true }
+      ],
+      "applicationIds": ["chesscom-macos"]
+    },
     {
       "id": "youtube",
       "name": "YouTube",
@@ -20,7 +37,8 @@
       "domains": [
         { "hostname": "youtube.com", "includeSubdomains": true },
         { "hostname": "youtu.be", "includeSubdomains": false }
-      ]
+      ],
+      "applicationIds": []
     },
     {
       "id": "roblox",
@@ -28,7 +46,8 @@
       "hoursPerWeek": 3,
       "domains": [
         { "hostname": "roblox.com", "includeSubdomains": true }
-      ]
+      ],
+      "applicationIds": []
     }
   ]
 }

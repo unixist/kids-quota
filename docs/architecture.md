@@ -21,7 +21,7 @@ Sources: [Chrome permissions](https://developer.chrome.com/docs/extensions/devel
 
 ## Components and authority
 
-- **Swift macOS app:** parent settings, weekly hours, domain groups, reset day and
+- **Swift macOS app:** parent settings, weekly hours, domain/app groups, reset day and
   timezone, remaining time, and explicit temporary overrides.
 - **Quota service:** the single owner of balances for a macOS user. A per-user
   background agent is sufficient for an initial prototype; privileged service
@@ -31,11 +31,55 @@ Sources: [Chrome permissions](https://developer.chrome.com/docs/extensions/devel
 - **Browser adapters:** report the selected top-level hostname and focus changes,
   receive remaining time and deadlines, and apply blocking. A Chrome native host
   and Safari native app-extension bridge both connect to the same service.
+- **Native app monitor:** observes the frontmost application and resolves its
+  verified identity to an explicit application binding. Reports activity to the
+  same quota service; a running background process does not imply use.
+- **Application enforcement adapter:** applies an exhausted group's policy to its
+  selected apps. Network access, already-running apps, and future launches need
+  separate mechanisms and explicit coverage status.
 
 Browser/native messages must be versioned, bounded, and restricted to the intended
 extension identities. Do not expose an unauthenticated localhost control server.
 Policy updates require parent authorization in the intended product, not merely
 a browser message. A parent PIN alone is not an OS-level security boundary.
+
+## Shared website and application quotas
+
+A quota is a stable group ID with one allowance and one usage ledger per user and
+calendar period. Group membership can include both domains and application IDs.
+Members never receive separate copies of the allowance.
+
+The initial example is `chesscom`: six hours per week shared by `chess.com` and
+subdomains in Chrome/Safari, and the explicitly selected installed Chess.com app.
+Two hours in Chrome plus one in Safari plus two in the native app use five hours,
+leaving one hour. Exhaustion and the Monday reset apply to the entire group.
+
+Policy `applicationIds` reference logical IDs in `applicationBindings`; those IDs
+are internal references, not claimed bundle identifiers. The example's
+`chesscom-macos` binding has `status: needs-selection` and `identity: null` because
+the actual app has not been inspected. A production policy may retain that draft,
+but must surface incomplete app coverage and cannot claim to restrict the app
+until binding and enforcement setup succeed. Missing identities never match all apps.
+
+During setup, the parent selects the installed app. Record and verify its signing
+identity, including a suitable code-signing requirement and signing identifier;
+do not rely on the display name, filename, installation path, or PID as identity.
+Resolve legitimate helper processes as part of a tested app-specific binding.
+Updates that satisfy the stored identity preserve the binding and usage; identity
+changes require review rather than silently losing coverage. Reject unresolved
+application ID references, duplicate verified identities under different bindings,
+and overlapping app membership across quota groups.
+
+Associate apps with services explicitly. An app making a request to `chess.com`
+does not establish that all its foreground time is Chess.com use. Selecting an
+app means its entire foreground use counts, including its offline features.
+General browsers must use the domain adapter rather than whole-app membership.
+Safari web apps and Chrome-installed web apps may share executable identities with
+their browser or other sites; require a distinct, verifiable site/app registration
+or report unsupported coverage. Never bind all browser processes to Chess.com.
+
+Sources: [Foreground application](https://developer.apple.com/documentation/appkit/nsworkspace/frontmostapplication),
+[Code Signing Services](https://developer.apple.com/documentation/security/code-signing-services).
 
 ## Domain matching
 
@@ -58,9 +102,10 @@ picture-in-picture need a defined policy before claiming coverage.
 
 ## What counts as time
 
-Default to the selected top-level tab in the frontmost supported browser while the
-macOS session is unlocked and awake. Use OS foreground/session state to arbitrate
-across browsers and windows; a tab's `active` flag alone is insufficient.
+While the macOS session is unlocked and awake, resolve the foreground activity to
+either the selected top-level tab in the frontmost supported browser or a bound
+standalone application. Use OS foreground/session state to arbitrate across apps,
+browsers, and windows; a tab's `active` flag alone is insufficient.
 
 Passive foreground viewing counts. A lack of keyboard or mouse activity must not
 stop the clock for a video. Background tabs and background audio do not count in
@@ -73,12 +118,17 @@ The native service owns elapsed-time accounting using a monotonic clock. Browser
 navigation and focus events update the current activity, with bounded heartbeats
 for liveness. Do not depend on a Manifest V3 worker's `setInterval` remaining alive.
 Resolve the actual current tab on startup, wake, reconnection, and focus changes.
-Do not infer that an old tab stayed active through a long unobserved interval.
+Also reconcile the current foreground application on those transitions. Do not
+infer that an old tab or application stayed active through a long unobserved interval.
 
 Charge at most one foreground activity per user at a time. Persist short increments
 transactionally and settle on transitions. Identify duplicate/out-of-order events
 with session IDs and sequence numbers. Target a small documented overshoot bound
 and measure it under suspension and disconnects before promising timing precision.
+For a browser-to-app transition within the same quota group, settle the previous
+activity and continue the same balance. Deduplicate simultaneous reports from web
+and native adapters. A browser left open behind the app cannot charge a second
+interval, and background network requests do not create usage intervals.
 
 ## Weekly reset
 
@@ -100,8 +150,8 @@ Reset-schedule changes should take effect at the next existing boundary. Keep th
 current period intact so repeatedly changing the weekday cannot mint new hours.
 Allowance edits apply to the current period without discarding already-used time.
 Lowering an allowance below time used blocks immediately. Changing device timezone
-does not change a policy's saved timezone. Domain and display-name edits preserve
-the quota's stable ID and usage; deleting and recreating a quota is an explicit
+does not change a policy's saved timezone. Domain, application membership, and
+display-name edits preserve the quota's stable ID and usage; deleting and recreating a quota is an explicit
 parent-authorized policy change.
 
 Clock rollback must not revive an older balance. Persist period transitions and
@@ -128,6 +178,19 @@ Proposed service-unavailable behavior: existing exhausted rules remain, and know
 restricted domains get a temporary unavailable page after a short grace interval.
 Unrestricted browsing remains available. This requires the extension to be running;
 it cannot guarantee enforcement if the extension is removed or disabled.
+
+The same exhausted quota decision must reach the application enforcement adapter.
+A Network Extension content filter can deny app network traffic using verified
+source-app identity, with explicit handling of existing connections. DNS can deny
+the group's domains but cannot stop cached or offline functionality. Ending use
+of an already-running app and preventing relaunch are separate requirements.
+Graceful closure should warn about unsaved work; a reactive launch watcher is a
+prototype mechanism with races. Stronger launch denial via Endpoint Security
+requires an entitlement requested from Apple and additional installation permissions.
+Do not advertise full app blocking when only network denial is implemented.
+
+Sources: [Network source-app identity](https://developer.apple.com/documentation/networkextension/nefilterflow/sourceappaudittoken),
+[Endpoint Security execution control](https://developer.apple.com/documentation/endpointsecurity/monitoring-system-events-with-endpoint-security).
 
 ## Why DNS and Network Extension are secondary layers
 
@@ -174,6 +237,11 @@ Sources: [ScreenTime](https://developer.apple.com/documentation/screentime),
 
 - Correct exact/subdomain boundaries, IDNA, suffix validation, aliases, and overlap rejection.
 - Shared balance when switching between Chrome and Safari, profiles, windows, and tabs.
+- Chess.com six-hour balance shared across Chrome, Safari, and its bound standalone app.
+- Browser/app overlap charges once; running background apps do not consume foreground time.
+- Verified app identity survives renaming and compatible updates; unresolved bindings show incomplete coverage.
+- Shared browser executables do not accidentally match all sites as one standalone app.
+- Exhaustion reaches both browser and app enforcement; offline and relaunch coverage is explicit.
 - No double charging; passive video counts; lock/sleep and excluded background use pause.
 - Exhaustion stops an open page as well as fresh navigation; cached content is covered.
 - Monday/custom-day boundaries, DST changes, wake after reset, and intervals across midnight.
