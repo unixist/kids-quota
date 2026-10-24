@@ -97,10 +97,22 @@ a used-time progress bar, and **Available**, **Weekly limit reached**, or **Setu
 needed**. Selecting a different child changes the view only, never the identity
 charged by the collectors.
 
-**Edit hours** changes the selected child's allowance. **Add website** asks for a
-friendly name, one or more domains, and weekly hours; optional app selection is an
-additional detail. **Manage children** links the children's existing macOS accounts.
-Show the next reset once below the list, with a simple day/timezone setting.
+**Edit hours** changes the selected child's allowance. **Add service** offers
+**Chess.com**, **ChatGPT**, and **Custom website**. A preset groups its websites and
+optional compatible apps under one allowance. Native setup can select a known app
+after verifying its identity; otherwise a friendly **Choose app…** step resolves
+the binding. Custom websites need only an address, name, and weekly hours, with
+**Add an app…** available as an optional detail.
+
+Preset selection is a draft until **Add to [child]** is pressed. **Includes** shows
+website/app coverage without exposing paths or signing fields. If an optional app
+is absent, show **Website ready · app not installed** and make future inclusion
+explicit. A present but unverified app shows **Needs setup**. Editing or reselecting
+a service never resets its used time. See [service setup UX](docs/service-setup-ux.md)
+for detection, custom groups, and preset-update behavior.
+
+**Manage children** links the children's existing macOS accounts. Show the next
+reset once below the list, with a simple day/timezone setting.
 
 Coverage details show Chrome, Safari, and optional app setup. Use **Website blocked
 until [reset]** and **App internet access blocked until [reset]** at exhaustion.
@@ -111,6 +123,7 @@ revocation without adding API details to the everyday quota screen.
 ## Documents
 
 - [Architecture and acceptance checks](docs/architecture.md)
+- [Service presets and friendly setup](docs/service-setup-ux.md)
 - [HTTP API and client access](docs/api.md)
 - [OpenAPI contract](api/openapi.yaml)
 - [Example family policy](config/example-policy.json)
