@@ -57,6 +57,7 @@ public final class ServiceController {
     private let verifyAccount: (String) throws -> MacOSAccountBinding
     private let verifyApplication: (String) throws -> ApplicationBinding
     private let processMatches: (Int32, String) -> Bool
+    private let authorizeParent: (UInt32, String) -> Bool
     private var foreground: [UInt32: ForegroundReport] = [:]
     private var browsers: [String: BrowserReport] = [:]
     private var filterLastSeen: Double?
@@ -71,9 +72,11 @@ public final class ServiceController {
                 consoleUID: @escaping () -> UInt32? = NativeIdentity.consoleUID,
                 verifyAccount: @escaping (String) throws -> MacOSAccountBinding = NativeIdentity.account,
                 verifyApplication: @escaping (String) throws -> ApplicationBinding = NativeIdentity.application,
-                processMatches: @escaping (Int32, String) -> Bool = NativeIdentity.processMatches) throws {
+                processMatches: @escaping (Int32, String) -> Bool = NativeIdentity.processMatches,
+                authorizeParent: @escaping (UInt32, String) -> Bool = ParentAuthorization.validate) throws {
         self.port = port; date = now; self.monotonic = monotonic; self.consoleUID = consoleUID
         self.verifyAccount = verifyAccount; self.verifyApplication = verifyApplication; self.processMatches = processMatches
+        self.authorizeParent = authorizeParent
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let store = try QuotaStore(path: directory.appendingPathComponent("quota.sqlite").path)
         engine = try QuotaEngine(store: store, policy: try store.loadPolicy() ?? Policy.starter())
@@ -124,11 +127,21 @@ public final class ServiceController {
         return try rules.map { .init(hostname: try DomainMatcher.canonicalHostname($0.hostname), includeSubdomains: $0.includeSubdomains) }
     }
     public func handle(_ request: HTTPRequest) -> HTTPResponse {
+        handle(request, administratorUID: nil)
+    }
+    /// Only native parent IPC can supply this context; no HTTP header sets it.
+    func handle(_ request: HTTPRequest, administratorUID: UInt32?) -> HTTPResponse {
         lock.lock(); defer { lock.unlock() }
         do {
             let host = request.headers["host"] ?? ""
             guard ["127.0.0.1:\(port)","localhost:\(port)"].contains(host), request.headers["origin"] == nil else { throw APIError(403,"forbidden","Unexpected Host or Origin.") }
             let client = try credentials.authenticate(request.headers["authorization"])
+            func requireParent() throws {
+                try requireScope(client, "policy:write")
+                guard administratorUID != nil else {
+                    throw APIError(403,"administrator_required","Unlock Kids Quota with administrator credentials to configure it.")
+                }
+            }
             let m = monotonic(), bucket = rateBuckets[client.id] ?? (m,0)
             let fresh = m - bucket.0 >= 1 ? (m,1) : (bucket.0,bucket.1+1)
             rateBuckets[client.id] = fresh
@@ -160,7 +173,7 @@ public final class ServiceController {
                     return .init(json:["policyRevision":engine.policy.revision,"childId":c.id,"items":try JSONCodec.object(engine.policy.quotas.filter {$0.childId == c.id})])
                 }
                 if parts[3] == "quotas" && request.method == "POST" && parts.count == 4 {
-                    try requireScope(client,"policy:write")
+                    try requireParent()
                     let data = try payload(request,keys:["expectedPolicyRevision","serviceId","weeklyLimitSeconds"])
                     let service = try requiredString(data,"serviceId"), seconds = try requiredInteger(data,"weeklyLimitSeconds")
                     guard !engine.policy.quotas.contains(where: {$0.childId == c.id && $0.serviceId == service}) else { throw APIError(409,"conflict","This service is already assigned.") }
@@ -169,7 +182,7 @@ public final class ServiceController {
                     return .init(status:201,json:["policyRevision":policy.revision,"quota":try JSONCodec.object(quota)])
                 }
                 if parts[3] == "quotas" && request.method == "PATCH" && parts.count == 5 {
-                    try requireScope(client,"policy:write")
+                    try requireParent()
                     guard let index = engine.policy.quotas.firstIndex(where: {$0.childId == c.id && $0.id == parts[4]}) else { throw APIError(404,"not_found","Quota not found.") }
                     let data = try payload(request,keys:["expectedPolicyRevision","weeklyLimitSeconds"])
                     let seconds = try requiredInteger(data,"weeklyLimitSeconds")
@@ -178,7 +191,7 @@ public final class ServiceController {
                 }
             }
             if parts[1] == "services" && ["POST","PATCH"].contains(request.method) {
-                try requireScope(client,"policy:write")
+                try requireParent()
                 let data = try payload(request,keys:["expectedPolicyRevision","name","domains","applicationIds"])
                 var service: ServiceDefinition
                 var index: Int?
@@ -196,7 +209,7 @@ public final class ServiceController {
                 return .init(status:index == nil ? 201 : 200,json:["policyRevision":policy.revision,"service":try JSONCodec.object(service)])
             }
             if parts.count >= 3 && parts[1] == "admin" {
-                try requireScope(client,"policy:write")
+                try requireParent()
                 if request.method == "GET" && parts == ["v1","admin","state"] {
                     return .init(json:["policyRevision":engine.policy.revision,"policy":try JSONCodec.object(engine.policy),"clients":credentials.publicClients,"filterConnected":filterConnected,"unattributedFlows":filterGaps])
                 }
@@ -210,6 +223,16 @@ public final class ServiceController {
                         for id in ["chesscom","chatgpt"] where p.services.contains(where: {$0.id == id}) {p.quotas.append(.init(childId:c.id,serviceId:id))}
                     }
                     return .init(status:201,json:["policyRevision":policy.revision,"child":["id":c.id,"displayName":c.displayName]])
+                }
+                if request.method == "POST", parts.count == 5, parts[2] == "children", parts[4] == "reset" {
+                    let c = try child(parts[3],client:client)
+                    let data = try payload(request,keys:["expectedPolicyRevision"])
+                    guard let revision = data["expectedPolicyRevision"] as? NSNumber,
+                          CFGetTypeID(revision) != CFBooleanGetTypeID(), revision.doubleValue == Double(engine.policy.revision) else {
+                        throw APIError(409,"conflict","Policy changed; refresh before resetting usage.")
+                    }
+                    let policy = try engine.resetUsage(childId:c.id,expectedRevision:revision.intValue,actorUID:administratorUID!,now:date(),monotonic:monotonic())
+                    return .init(json:["policyRevision":policy.revision,"balances":try JSONCodec.object(snapshot(childId:c.id))])
                 }
                 if request.method == "POST" && parts == ["v1","admin","applications"] {
                     let data = try payload(request,keys:["expectedPolicyRevision","path"])
@@ -278,10 +301,13 @@ public final class ServiceController {
         do {
             guard let op = object["op"] as? String else {throw APIError(400,"bad_request","Missing operation.")}
             if op == "parentHTTP" {
-                guard role == "parent", let method = object["method"] as? String, let path = object["path"] as? String,
-                      let authorization = object["authorization"] as? String else {throw APIError(403,"forbidden","Parent app identity required.")}
+                guard role == "parent", let proof = object["authorizationExternalForm"] as? String, authorizeParent(uid,proof) else {
+                    return ["status":403,"body":["error":["code":"administrator_required","message":"Unlock Kids Quota with administrator credentials."]]]
+                }
+                guard let method = object["method"] as? String, let path = object["path"] as? String,
+                      let authorization = object["authorization"] as? String else {throw APIError(400,"bad_request","Invalid parent request.")}
                 let body = try object["body"].map {try JSONSerialization.data(withJSONObject:$0)} ?? Data()
-                let response = handle(.init(method:method,path:path,headers:["host":"127.0.0.1:\(port)","authorization":authorization,"content-type":"application/json"],body:body))
+                let response = handle(.init(method:method,path:path,headers:["host":"127.0.0.1:\(port)","authorization":authorization,"content-type":"application/json"],body:body),administratorUID:uid)
                 return ["status":response.status,"body":try JSONSerialization.jsonObject(with:response.body)]
             }
             if op == "filterRules" {

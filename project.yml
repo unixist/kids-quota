@@ -107,6 +107,10 @@ targets:
       - path: macos/Tests
       - path: macos/Shared/FilterPolicy.swift
       - path: macos/ParentApp/Models.swift
+      - path: macos/ParentApp/ParentStore.swift
+      - path: macos/ParentApp/ParentAuthorization.swift
+      - path: macos/ParentApp/AccountDiscovery.swift
+      - path: macos/Shared/DaemonSocket.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kidsquota.mactests

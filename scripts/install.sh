@@ -77,6 +77,38 @@ stage_destination() {
   DESTINATIONS+=("$destination"); REPLACEMENTS+=("$stage/new${2:-}"); BACKUPS+=("$stage/previous"); CHANGED+=(0)
   STAGED_PATH="${REPLACEMENTS[$index]}"
 }
+restrict_parent_executable() {
+  local app="$1" executable parent_binary
+  executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")"
+  [[ -n "$executable" && "$executable" != */* && "$executable" != . && "$executable" != .. ]] || { echo 'Invalid parent application executable name.' >&2; return 1; }
+  parent_binary="$app/Contents/MacOS/$executable"
+  [[ -f "$parent_binary" && ! -L "$parent_binary" ]] || { echo 'Parent executable must be a regular file.' >&2; return 1; }
+  # Do not restrict the containing app: child Safari and the system-extension
+  # loader need its nested extensions and resources. Only the parent UI binary
+  # becomes unreadable and non-executable to standard accounts.
+  /bin/chmod -N "$parent_binary"
+  /usr/sbin/chown root:admin "$parent_binary"
+  /bin/chmod 0750 "$parent_binary"
+}
+activate_existing_agents() {
+  local accounts account uid domain failures=0
+  if ! accounts="$(/usr/bin/dscl . -list /Users UniqueID)"; then
+    echo 'Could not enumerate login sessions. Sign out and back in, or restart, to load account protection.' >&2
+    return 0
+  fi
+  while read -r account uid; do
+    [[ "$uid" =~ ^[0-9]+$ && "$uid" -ge 500 ]] || continue
+    domain="gui/$uid"
+    # A local account is not proof of a live GUI session. Ask launchd before
+    # bootstrapping, and never launch the GUI app or collector in root's session.
+    /bin/launchctl print "$domain" >/dev/null 2>&1 || continue
+    if /bin/launchctl print "$domain/com.kidsquota.agent" >/dev/null 2>&1; then
+      if ! /bin/launchctl bootout "$domain/com.kidsquota.agent"; then failures=1; continue; fi
+    fi
+    if ! /bin/launchctl bootstrap "$domain" "$AGENT" || ! /bin/launchctl kickstart "$domain/com.kidsquota.agent"; then failures=1; fi
+  done <<< "$accounts"
+  if [[ "$failures" == 1 ]]; then echo 'Some login sessions need a sign-out/sign-in or restart before account protection is active.' >&2; fi
+}
 # Every replacement has a private staging/backup directory on its destination's
 # filesystem. Copies and signature checks finish before stopping the old job.
 stage_destination "$DATA/bin"; BIN_STAGE="$STAGED_PATH"
@@ -88,6 +120,7 @@ stage_destination "$DEST_APP" .app; APP_STAGE="$STAGED_PATH"
 /usr/sbin/chown -R root:wheel "$BIN_STAGE" "$APP_STAGE"
 /bin/chmod -R go-w "$BIN_STAGE" "$APP_STAGE"
 /bin/chmod -R a+rX "$BIN_STAGE" "$APP_STAGE"
+restrict_parent_executable "$APP_STAGE"
 for component in service agent bridge; do verify_code "$BIN_STAGE/kids-quota-$component" "com.kidsquota.$component"; done
 verify_code "$APP_STAGE" com.kidsquota.app
 /usr/bin/codesign --verify --deep --strict "$APP_STAGE"
@@ -159,7 +192,6 @@ for attempt in 1 2 3; do
   /bin/launchctl print system/com.kidsquota.service | /usr/bin/grep -q 'state = running' || { echo 'The installed service did not remain running.' >&2; exit 1; }
 done
 COMMITTED=1
-# Existing GUI sessions load the new agent on next login. Reboot/sign out rather
-# than guessing session domains or launching a collector as the wrong user.
-echo 'Installed. Sign out and back in to load each account agent, then open Kids Quota as the parent.'
+activate_existing_agents
+echo 'Installed. Open Kids Quota from Applications in an administrator account to finish setup.'
 echo 'Browser extension enablement and app network-filter approval remain explicit setup steps.'

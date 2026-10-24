@@ -1,5 +1,6 @@
 import XCTest
 import Foundation
+import Security
 import KidsQuotaCore
 @testable import KidsQuotaService
 
@@ -15,6 +16,7 @@ final class ControllerTests: XCTestCase {
         ]
         var matchingPIDs: Set<Int32> = [80]
         var inspectedPaths: [String] = []
+        var parentAuthorized = true
         func advance(_ seconds: Double) { now.addTimeInterval(seconds); monotonic += seconds }
     }
 
@@ -32,7 +34,8 @@ final class ControllerTests: XCTestCase {
             }, verifyApplication: { path in
                 context.inspectedPaths.append(path)
                 return .init(id: "verified-app", displayName: "Verified app", status: "ready", identity: .init(signingIdentifier: "verified.application", teamIdentifier: "VERIFIEDTEAM", designatedRequirement: "identifier verified.application"))
-            }, processMatches: { pid, requirement in context.matchingPIDs.contains(pid) && requirement == "identifier chess.application" })
+            }, processMatches: { pid, requirement in context.matchingPIDs.contains(pid) && requirement == "identifier chess.application" },
+               authorizeParent: {uid,proof in context.parentAuthorized && uid == 900 && proof == "test-administrator-grant"})
             administrator = try String(contentsOf: directory.appendingPathComponent("admin.token"), encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
             var policy = controller.engine.policy
             policy.children = [
@@ -48,10 +51,10 @@ final class ControllerTests: XCTestCase {
         }
         deinit { try? FileManager.default.removeItem(at: directory) }
         var revision: Int { controller.engine.policy.revision }
-        func request(_ method: String = "GET", _ path: String = "/v1/children", token: String? = nil, body: [String:Any]? = nil, headers: [String:String] = [:]) throws -> HTTPResponse {
+        func request(_ method: String = "GET", _ path: String = "/v1/children", token: String? = nil, body: [String:Any]? = nil, headers: [String:String] = [:], authorizedParent: Bool = true) throws -> HTTPResponse {
             var fields = ["Host":"127.0.0.1:48123", "Authorization":"Bearer " + (token ?? administrator), "Content-Type":"application/json"]
             fields.merge(headers, uniquingKeysWith: { _, new in new })
-            return controller.handle(.init(method: method, path: path, headers: fields, body: try body.map { try JSONSerialization.data(withJSONObject: $0) } ?? Data()))
+            return controller.handle(.init(method: method, path: path, headers: fields, body: try body.map { try JSONSerialization.data(withJSONObject: $0) } ?? Data()),administratorUID:authorizedParent ? 900 : nil)
         }
         func grant(children: [String] = ["alice"], scopes: [String] = CredentialStore.readScopes) throws -> (String,String) {
             let response = try request("POST", "/v1/admin/clients", body: ["name":"Widget", "childIds":children, "scopes":scopes])
@@ -214,16 +217,68 @@ final class ControllerTests: XCTestCase {
 
     func testParentNativeTunnelRequiresSignedRoleAndStillChecksBearerScopes() throws {
         let f = try Fixture();let (readToken,_) = try f.grant()
-        let request: [String:Any] = ["op":"parentHTTP","method":"GET","path":"/v1/admin/state","authorization":"Bearer " + f.administrator]
-        XCTAssertNotNil(f.controller.native(request,uid:501,role:"bridge")["error"])
-        XCTAssertNotNil(f.controller.native(["op":"parentHTTP","method":"GET","path":"/v1/admin/state"],uid:501,role:"parent")["error"])
+        let request: [String:Any] = ["op":"parentHTTP","method":"GET","path":"/v1/admin/state","authorization":"Bearer " + f.administrator,"authorizationExternalForm":"test-administrator-grant"]
+        XCTAssertEqual(f.controller.native(request,uid:900,role:"bridge")["status"] as? Int,403)
+        XCTAssertEqual(f.controller.native(request,uid:501,role:"parent")["status"] as? Int,403)
+        XCTAssertEqual(f.controller.native(["op":"parentHTTP","method":"GET","path":"/v1/admin/state"],uid:900,role:"parent")["status"] as? Int,403)
         var invalid = request;invalid["authorization"] = "Bearer invalid"
-        XCTAssertEqual(f.controller.native(invalid,uid:501,role:"parent")["status"] as? Int,401)
+        XCTAssertEqual(f.controller.native(invalid,uid:900,role:"parent")["status"] as? Int,401)
         invalid["authorization"] = "Bearer " + readToken
-        XCTAssertEqual(f.controller.native(invalid,uid:501,role:"parent")["status"] as? Int,403)
-        let response = f.controller.native(request,uid:501,role:"parent")
+        XCTAssertEqual(f.controller.native(invalid,uid:900,role:"parent")["status"] as? Int,403)
+        let response = f.controller.native(request,uid:900,role:"parent")
         XCTAssertEqual(response["status"] as? Int,200)
         XCTAssertNotNil((response["body"] as? [String:Any])?["policy"])
+        f.context.parentAuthorized = false
+        XCTAssertEqual(f.controller.native(request,uid:900,role:"parent")["status"] as? Int,403)
+    }
+
+    func testPublicHTTPIsReadOnlyEvenWithAdministratorBearerAndForgedHeaders() throws {
+        let f = try Fixture()
+        XCTAssertEqual(try f.request(authorizedParent:false).status,200)
+        XCTAssertEqual(try f.request("GET","/v1/admin/state",authorizedParent:false).status,403)
+        let revision=f.revision
+        let body:[String:Any]=["expectedPolicyRevision":revision,"weeklyLimitSeconds":999]
+        XCTAssertEqual(try f.request("PATCH","/v1/children/alice/quotas/alice-chess",body:body,headers:["X-Administrator-UID":"900","AuthorizationExternalForm":"test-administrator-grant"],authorizedParent:false).status,403)
+        XCTAssertEqual(try f.request("POST","/v1/admin/children/alice/reset",body:["expectedPolicyRevision":revision],authorizedParent:false).status,403)
+        XCTAssertEqual(f.revision,revision)
+    }
+
+    func testResetRestoresOnlySelectedChildAndRejectsStaleOrReadOnlyRequests() throws {
+        let f=try Fixture();f.foreground();f.browser()
+        f.context.advance(5);try f.controller.tick()
+        f.context.console=502;f.foreground(uid:502);f.browser(uid:502)
+        f.context.advance(4);try f.controller.tick()
+        let revision=f.revision
+        let limits=f.controller.engine.policy.quotas.map(\.weeklyLimitSeconds)
+        let (readToken,_)=try f.grant()
+        XCTAssertEqual(try f.request("POST","/v1/admin/children/alice/reset",token:readToken,body:["expectedPolicyRevision":revision]).status,403)
+        let response=try f.request("POST","/v1/admin/children/alice/reset",body:["expectedPolicyRevision":revision])
+        XCTAssertEqual(response.status,200)
+        XCTAssertEqual(try f.used(),0);XCTAssertEqual(try f.used("bob"),4)
+        XCTAssertEqual(f.controller.engine.policy.quotas.map(\.weeklyLimitSeconds),limits)
+        XCTAssertEqual(f.revision,revision+1)
+        let balances=try XCTUnwrap(object(response)["balances"] as? [String:Any])
+        XCTAssertEqual((balances["items"] as? [[String:Any]])?.first?["remainingSeconds"] as? Int,100)
+        XCTAssertEqual(try f.request("POST","/v1/admin/children/alice/reset",body:["expectedPolicyRevision":revision]).status,409)
+    }
+
+    func testMalformedAdministratorProofFailsWithoutPrompting() {
+        for proof in ["", "invalid", Data(repeating:0,count:31).base64EncodedString(), String(repeating:"A",count:1024)] {
+            XCTAssertFalse(ParentAuthorization.validate(uid:0,externalForm:proof))
+        }
+    }
+
+    func testEmptyAuthorizationReferenceCannotUnlockConfiguration() throws {
+        var reference: AuthorizationRef?
+        let status=AuthorizationCreate(nil,nil,[],&reference)
+        if status == errAuthorizationInternal {throw XCTSkip("Authorization Services is unavailable in this sandbox/headless test session.")}
+        XCTAssertEqual(status,errAuthorizationSuccess)
+        let authorization=try XCTUnwrap(reference)
+        defer {AuthorizationFree(authorization,[.destroyRights])}
+        var form=AuthorizationExternalForm()
+        XCTAssertEqual(AuthorizationMakeExternalForm(authorization,&form),errAuthorizationSuccess)
+        let proof=withUnsafeBytes(of:&form){Data($0).base64EncodedString()}
+        XCTAssertFalse(ParentAuthorization.validate(uid:0,externalForm:proof))
     }
 
     func testBrowserAndNativeApplicationConsumeOneSharedServiceBalance() throws {

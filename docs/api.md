@@ -10,6 +10,11 @@ Mac. Each child is paired with a separate macOS login account. Browser adapters
 and foreground collectors use authenticated native IPC. Widgets and local
 publishers use HTTP. The parent app sends these same HTTP-shaped requests through
 a root-authenticated UNIX socket, avoiding an impostor localhost listener.
+The HTTP listener is read-only. Administrative operations below document the
+shared request schema used by the native parent connection; sending them over HTTP
+returns `403 administrator_required`, even with the administrator token. Each native
+parent request must also carry an Authorization Services external form granting
+`system.privilege.admin`, and the kernel peer UID must be an administrator.
 There is no HTTP endpoint for submitting usage, setting balances, or claiming a
 child's OS identity.
 
@@ -44,12 +49,15 @@ limit, name, or membership preserves usage.
 | `PATCH /v1/children/{childId}/quotas/{quotaId}` | Change an allowance | `policy:write` |
 | `GET /v1/admin/state` | Read policy, client grants, and filter status | `policy:write` |
 | `POST /v1/admin/children` | Verify and pair a macOS account | `policy:write` |
+| `POST /v1/admin/children/{childId}/reset` | Restore this child's current-week balances | `policy:write` |
 | `POST /v1/admin/applications` | Verify a selected app's signature | `policy:write` |
 | `PUT /v1/admin/settings` | Change the shared reset schedule | `policy:write` |
 | `POST /v1/admin/clients` | Issue a child-scoped read credential | `policy:write` |
 | `DELETE /v1/admin/clients/{clientId}` | Revoke a read credential | `policy:write` |
 
-Administrative routes require the administrator credential. Read grant creation
+Every `policy:write` operation requires the administrator credential **and** the
+OS-authorized native parent connection. No HTTP header can supply that trust.
+Administrative routes require both factors, including reading admin state. Read grant creation
 cannot confer administrative authority. v0.1 exposes no child, service, or quota
 deletion endpoints.
 
@@ -62,7 +70,8 @@ support `children:read`, `services:read`, `quotas:read`, and `balances:read`.
 Store tokens in Keychain or another protected store; never put them in a URL,
 public webpage, or log.
 
-For example, an administrator can send this to `POST /v1/admin/clients`:
+For example, the unlocked parent app sends this to `POST /v1/admin/clients`
+through its authenticated native connection:
 
 ```json
 {
@@ -116,6 +125,21 @@ The reset setting contains `weekday`, `localTime` (`HH:mm`), and IANA
 returned policy contains `pendingReset` until then, preventing an immediate
 allowance reset caused by changing the reset day.
 
+## Parent-authorized manual reset
+
+`POST /v1/admin/children/{childId}/reset` accepts only
+`{"expectedPolicyRevision": <current revision>}`. It requires the same signed
+parent role, administrator UID, OS authorization, and bearer credential as other
+configuration changes. Read tokens, browser/native collectors, and all HTTP callers
+cannot invoke it.
+
+The service settles observed elapsed time, atomically resets only that child's
+current-period counters, increments the policy revision, and records the actor UID,
+time, child, period, and previous usage in its private audit table. It preserves
+weekly limits, the next scheduled reset, other children, and prior periods. Live
+tracking resumes from the reset instant. The response contains `policyRevision`
+and `balances` (a BalanceSnapshot). Stale/repeated revisions return `409`.
+
 ## Balances and protection status
 
 Snapshots contain `asOf`, `policyRevision`, `childId`, and `items`.
@@ -138,7 +162,7 @@ Polling does not grant time or drive enforcement; the daemon remains authoritati
 while widgets are closed.
 
 Errors use `{"error":{"code":"...","message":"..."}}`: `400` malformed request,
-`401` invalid credential, `403` missing permission or invalid host/origin,
+`401` invalid credential, `403` missing permission, administrator authorization, or invalid host/origin,
 `404` missing or unauthorized resource, `409` conflict, `422` invalid policy,
 `429` rate limit, and `503` unavailable storage. Re-read before retrying an
 ambiguous policy write.

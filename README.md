@@ -24,15 +24,48 @@ on-device acceptance checks before this is relied on as parental control.
 - Resets Monday at 00:00 by default in the saved timezone. Weekday/time/timezone
   are editable; schedule changes take effect after the current period. Handles
   DST, sleep, restarts, and clock rollback.
+- Provides a parent-only **Reset this week** button. It restores the selected
+  child's current-week balances, preserves their limits and next reset date, and
+  records an audit event. Other children and earlier weeks are untouched.
 - Exposes authenticated `http://127.0.0.1:48123/v1` JSON endpoints for widgets or
   local publishers. Revocable read tokens have explicit child grants. No client
   endpoint can post usage or set remaining balances.
 
-The parent app shows a child sidebar, remaining-time cards, **Edit hours**,
-**Includes**, custom services, and settings for protection, resets, and clients.
+The parent app opens directly to the child's remaining-time cards, with a child
+picker when multiple accounts are linked, **Edit hours**, **Includes**, custom
+services, and settings for protection, resets, and clients.
 Service membership is shared; hours belong to the selected child. Website-only
 services need no app selection. Presets do not guess app identities: use **Manage
 included websites and apps → Choose app** to include the installed app.
+
+## Install and set up
+
+The signed release is distributed as **KidsQuota-<version>.dmg**:
+
+1. Mount the DMG and open **Install Kids Quota.pkg**. The macOS Installer requests
+   administrator permission and installs the app and background components.
+2. Open **Kids Quota** from Applications in your parent/administrator account.
+   Choose **Unlock parent settings** to authorize configuration with macOS administrator credentials.
+3. Select the child's existing standard Mac login account and choose
+   **Set up account**. Chess.com and ChatGPT are created automatically,
+   each with six hours per week and a Monday reset. No token entry or terminal is needed.
+4. Complete the browser-extension and app-filter approval prompts shown in the app.
+   macOS/browser permission prompts cannot be silently accepted by an ordinary installer.
+
+The installed parent executable is `root:admin` with mode `0750`; a standard child
+cannot read or execute it. Its embedded browser/filter extensions remain accessible
+so enforcement can run in the child's account. The parent UI starts locked, clears
+its credentials on lock/close, and uses Authorization Services; the root daemon
+independently verifies the administrator's OS identity and authorization on every
+configuration request. The GUI itself does not run as root.
+
+The REST listener is **read-only**, even with an administrator bearer token.
+Configuration and resets require the authenticated parent IPC connection. A copied
+app or HTTP request from the child cannot change thresholds.
+
+This checkout includes the release packaging tools. Producing a real installable
+DMG still requires Developer ID Application and Installer signing certificates;
+the instructions-only preview image is not an installer. See [deployment](docs/deployment.md).
 
 ## Build and test
 
@@ -43,6 +76,7 @@ Uses system SQLite; no third-party Swift/JavaScript runtime dependencies.
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 swift test
 npm test
+python3 -m unittest discover -s Tests/packaging
 npm run build:extensions
 xcodegen generate
 xcodebuild -project KidsQuota.xcodeproj -scheme KidsQuotaMacTests \
@@ -52,7 +86,7 @@ python3 scripts/smoke-service.py
 ```
 
 The smoke test starts an unprivileged localhost service in a temporary directory,
-checks HTTP authorization, writes, native-peer rejection, and crash recovery, then
+checks HTTP authorization, rejected configuration writes, native-peer rejection, and crash recovery, then
 stops it. It never installs a launch service or activates filtering.
 
 See [macOS build details](docs/macos-build.md) and [signed deployment](docs/deployment.md).
@@ -91,7 +125,7 @@ flowchart LR
   B[Chrome / Safari] --> H[Native browser bridges]
   A[Per-login foreground agent] --> Q[Protected quota service]
   H -->|OS-authenticated IPC| Q
-  P[Parent app] -->|Root-authenticated IPC + parent token| Q
+  P[Parent app] -->|Authenticated IPC + administrator authorization| Q
   Q <--> D[(SQLite policy and usage)]
   Q --> B
   Q --> F[App filter: source UID + signature]

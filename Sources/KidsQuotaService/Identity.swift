@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import AppKit
 import OpenDirectory
 import Security
@@ -6,6 +7,23 @@ import SystemConfiguration
 import KidsQuotaCore
 
 public enum NativeIdentity {
+    public static func isAdministrator(uid: UInt32) -> Bool {
+        administratorMembership(uid:uid) == true
+    }
+    private static func administratorMembership(uid: UInt32) -> Bool? {
+        if uid == 0 { return true }
+        guard let user = getpwuid(uid) else { return nil }
+        let name = String(cString:user.pointee.pw_name), primary = Int32(bitPattern:user.pointee.pw_gid)
+        guard let administrators = getgrnam("admin") else { return nil }
+        let administratorGroup = Int32(bitPattern:administrators.pointee.gr_gid)
+        var count: Int32 = 16, groups = [Int32](repeating:0,count:16)
+        if getgrouplist(name,primary,&groups,&count) < 0 {
+            guard count > 0, count <= 65_536 else { return nil }
+            groups = [Int32](repeating:0,count:Int(count))
+            guard getgrouplist(name,primary,&groups,&count) >= 0 else { return nil }
+        }
+        return groups.prefix(Int(count)).contains(administratorGroup)
+    }
     public static func consoleUID() -> UInt32? {
         var uid: uid_t = 0, gid: gid_t = 0
         guard let name = SCDynamicStoreCopyConsoleUser(nil, &uid, &gid) as String?, name != "loginwindow", uid >= 500 else { return nil }
@@ -20,10 +38,7 @@ public enum NativeIdentity {
               let stable = try records[0].values(forAttribute: kODAttributeTypeGUID).first as? String else {
             throw APIError(422,"invalid_policy","Choose an existing local user account.")
         }
-        let administrators = try node.record(withRecordType:kODRecordTypeGroups,name:"admin",attributes:nil)
-        var isAdministrator = false
-        do {try administrators.isMemberRecord(records[0]);isAdministrator=true} catch { }
-        guard !isAdministrator else {throw APIError(422,"invalid_policy","Use a standard macOS account for a child.")}
+        guard administratorMembership(uid: uid) == false else {throw APIError(422,"invalid_policy","Choose a verified standard macOS account for a child.")}
         return .init(status: "ready", generatedUid: stable, uid: uid)
     }
     public static func application(path: String) throws -> ApplicationBinding {

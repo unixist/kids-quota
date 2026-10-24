@@ -7,36 +7,46 @@ or activated on the development Mac; no real child accounts were linked.
 
 | Suite | Result | Coverage |
 | --- | --- | --- |
-| Swift quota core | 47 passing tests | Domain boundaries/IDNA/public suffixes, policy validation, per-child shared usage, calendar/DST resets, clock changes, stale reports, persistence and rollback |
-| Swift service | 32 passing tests | Authorization, child scopes, revocation, revisions, verified setup, native roles, profile switching, account GUID reuse, filter isolation, unhealthy collectors, bootstrap recovery, HTTP/native framing |
-| Browser JavaScript | 19 passing tests | Chrome/Safari packaging, focus reports, DNR matching, open-tab replacement, native disconnects/timeouts, persisted fail-closed rules, event ordering and permission failures |
-| Native Mac models | 7 passing tests | Filter UID isolation, stale rules, audit-token UID layout, malformed policy, presentation, generated entitlements |
+| Swift quota core | 60 passing tests | Domain boundaries/IDNA/public suffixes, policy validation, per-child shared usage, calendar/DST resets, clock changes, stale reports, persistence, reset audits and transaction rollback |
+| Swift service | 36 passing tests | Authorization, child scopes, revocation, revisions, verified setup, native roles, administrator proof, read-only HTTP, scoped reset, profile switching, account GUID reuse, filter isolation, unhealthy collectors, bootstrap recovery, framing |
+| Browser JavaScript | 20 passing tests | Chrome/Safari packaging, focus reports, DNR matching, open-tab replacement, native disconnects/timeouts, persisted fail-closed rules, event ordering, same-week parent resets and permission failures |
+| Native Mac models and parent session | 13 passing tests | Filter UID isolation, stale rules, audit-token UID layout, malformed policy, presentation, generated entitlements, locked startup, authorization proof, relock and async races |
+| Packaging | 11 passing tests | Parent-only executable access, accessible child extensions, verified GUI-session activation, upgrade rollback, DMG layout, signing-team validation and explicit notarization |
 
-**105 automated tests pass.** The filter model and browser tests use deterministic
+**140 automated tests pass.** The OS authorization test creates an empty reference
+and confirms it cannot grant access, without displaying a credential prompt. It can
+skip when Authorization Services is unavailable in a sandbox/headless environment;
+it passed in the local unsandboxed run. The filter model and browser tests use deterministic
 fixtures/mocks; they do not substitute for running signed extensions inside macOS.
 
 The real daemon also passes `scripts/smoke-service.py`: localhost HTTP requests,
-Host/Origin rejection, bearer checks, custom-service persistence, stale revision
-rejection, malformed framing, unauthorized native peers, a forced process crash,
+Host/Origin rejection, bearer checks, administrator-only configuration/reset boundaries,
+fixture-policy persistence, malformed framing, unauthorized native peers, a forced process crash,
 and recovery of the stale socket and SQLite policy. Tokens are never logged.
 
 `scripts/build-macos.sh --unsigned` compiles/stages all three CLI executables, the
 parent app, Safari extension, and network system extension. Bundle resource checks
 confirm that Safari contains its generated manifest/scripts and the daemon has
-the bundled Public Suffix List. The native app was launched against isolated demo
-data and its child sidebar, preset allowances, and coverage labels were inspected.
+the bundled Public Suffix List. The earlier native layout was launched against
+isolated demo data to inspect preset allowances and coverage labels. The current
+account-only setup and administrator lock flow compile and pass model/session
+tests; interactive authorization still needs the signed acceptance run below.
 No real accounts, browser permissions, or network-filter settings were changed.
 
 Installer scripts passed shell syntax and plist checks. Generated MDM examples
-passed plist/JSON validation. An unprivileged transaction harness checked clean
-upgrade replacement and rollback, including preserving usage files. Actual signed
+passed plist/JSON validation. Unprivileged packaging fixtures checked clean upgrade
+replacement and rollback, preserving usage files, `root:admin 0750` policy for the
+parent executable while retaining child extension access, and signed-DMG layout.
+A real instructions-only preview DMG was created, checksum-verified and mounted
+read-only to confirm it contains no runnable installer. Actual signed
 installation, notarization, and MDM deployment have not been performed.
 
 ## Signed runtime acceptance still required
 
 1. Sign every component with one Developer ID team, install as administrator,
    and link two **standard** macOS accounts. Verify the child cannot read
-   `admin.token`, change the ledger/binaries, or load a user-level fake Chrome
+   or execute the parent main binary, read `admin.token`, change the ledger/binaries,
+   or load a user-level fake Chrome
    native host when the supplied management policy is applied.
 2. Enable Chrome and Safari adapters, including site permissions. Verify both
    return live coverage and the signed Safari sandbox permits its native socket.
@@ -50,6 +60,9 @@ installation, notarization, and MDM deployment have not been performed.
 5. Verify fast user switching, locking/unlocking, restart while locked, sleep/wake,
    daemon/adapter loss, restart, and weekly reset. Confirm no background or locked
    time is billed, and stale policies cannot reopen exhausted services.
+   Confirm the administrator authorization prompt succeeds, cancellation stays
+   locked, close/session switch revokes access, and **Reset this week** restores
+   only the selected child without changing thresholds or the scheduled reset.
 6. Test cold-start ordering and pre-activation sockets. The filter has no durable
    cache before its first valid policy. Restart limited apps after activation;
    do not treat missing coverage as successful enforcement.

@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import socket
+import sqlite3
 import subprocess
 import tempfile
 import time
@@ -27,6 +28,14 @@ with tempfile.TemporaryDirectory(prefix='kq-smoke-', dir='/private/tmp') as temp
     command = [str(binary), '--development', '--data-dir', str(folder), '--socket', str(folder / 'native.sock'), '--port', str(port)]
     log = (folder / 'service.log').open('wb')
     process = None
+    subprocess.run(command + ['--init'], stdout=log, stderr=log, check=True)
+    # Prepare test-only persistent policy offline. HTTP is intentionally read-only
+    # even with the bootstrap token; real mutations need OS-authorized parent IPC.
+    with sqlite3.connect(folder / 'quota.sqlite') as database:
+        policy = json.loads(database.execute("SELECT value FROM metadata WHERE key='policy'").fetchone()[0])
+        policy['revision'] = 1
+        policy['services'].append({'id':'smoke-reading','name':'Books','domains':[{'hostname':'example.org','includeSubdomains':True}],'applicationIds':[]})
+        database.execute("UPDATE metadata SET value=? WHERE key='policy'",(json.dumps(policy).encode(),))
 
     def start():
         global process
@@ -71,15 +80,13 @@ with tempfile.TemporaryDirectory(prefix='kq-smoke-', dir='/private/tmp') as temp
         status, children = request('GET', '/children')
         assert status == 200 and children['items'] == []
         revision = children['policyRevision']
-        status, created = request('POST', '/services', {
+        status, _ = request('POST', '/services', {
             'expectedPolicyRevision': revision, 'name': 'Reading',
             'domains': [{'hostname': 'example.org', 'includeSubdomains': True}], 'applicationIds': []})
-        assert status == 201
-        service = created['service']['id']
-        assert request('PATCH', '/services/' + service, {'expectedPolicyRevision': revision, 'name': 'Stale'})[0] == 409
-        status, saved = request('PATCH', '/services/' + service, {
-            'expectedPolicyRevision': created['policyRevision'], 'name': 'Books'})
-        assert status == 200 and saved['service']['name'] == 'Books'
+        assert status == 403
+        assert request('GET', '/admin/state')[0] == 403
+        assert request('PATCH', '/services/smoke-reading', {'expectedPolicyRevision':revision,'name':'Forbidden'})[0] == 403
+        assert request('POST', '/admin/children/not-a-child/reset', {'expectedPolicyRevision':revision})[0] == 403
         assert request('POST', '/usage', {'seconds': 999})[0] == 404
         with socket.create_connection(('127.0.0.1', port), timeout=3) as connection:
             connection.sendall(b'POST /v1/services HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\nContent-Length: 1\r\n\r\n')
@@ -93,9 +100,9 @@ with tempfile.TemporaryDirectory(prefix='kq-smoke-', dir='/private/tmp') as temp
         start()  # Recovers SQLite and its own stale UNIX socket after a crash.
         status, services = request('GET', '/services')
         assert status == 200 and any(item['name'] == 'Books' for item in services['items'])
-        assert services['policyRevision'] == saved['policyRevision']
+        assert services['policyRevision'] == revision
         assert (folder / 'admin.token').read_text().strip() == parent_token
-        print('PASS: live HTTP auth, Origin/Host protection, policy revisions, framing, native peer rejection, crash recovery and persistence.')
+        print('PASS: live HTTP auth, Origin/Host protection, administrator-only mutation boundary, framing, native peer rejection, crash recovery and persistence.')
     finally:
         stop()
         log.close()

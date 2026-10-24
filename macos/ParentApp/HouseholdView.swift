@@ -4,50 +4,49 @@ import AppKit
 struct HouseholdView: View {
     @EnvironmentObject private var store: ParentStore
     @State private var sheet: HouseholdSheet?
+    @State private var resetTarget: ResetWeekTarget?
+    @State private var resetting = false
     var body: some View {
-        NavigationSplitView {
-            List(selection: $store.selectedChild) {
-                Section("Children") { ForEach(store.children) { child in Label(child.displayName, systemImage: "person.crop.circle").tag(child.id) } }
-            }
-            .safeAreaInset(edge: .bottom) {
-                Button { sheet = .child } label: { Label("Add child", systemImage: "plus") }.padding().frame(maxWidth: .infinity)
-            }
-            .navigationSplitViewColumnWidth(min: 160, ideal: 190)
-        } detail: {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(store.selectedChild.isEmpty ? "Welcome to Kids Quota" : "\(store.childName)'s week").font(.largeTitle.bold())
-                            Text("One weekly allowance for each service's websites and selected apps.").foregroundStyle(.secondary)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(store.children.isEmpty ? "Welcome to Kids Quota" : "\(store.childName)'s week").font(.largeTitle.bold())
+                        Text("One weekly allowance for each service's websites and selected apps.").foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if store.children.count > 1 {
+                        Picker("Child", selection: $store.selectedChild) { ForEach(store.children) { Text($0.displayName).tag($0.id) } }.frame(width: 160)
+                    }
+                }
+                if let error = store.error { Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange).padding().frame(maxWidth: .infinity, alignment: .leading).background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 12)) }
+                if store.children.isEmpty {
+                    if store.connected { AddChildView(isFirstRun: true).frame(maxWidth: .infinity) }
+                    else if store.busy { ProgressView("Loading parent settings…").frame(maxWidth: .infinity).padding(40) }
+                    else { ContentUnavailableView("Connect the system service", systemImage: "network", description: Text("Open Settings to check the parent connection, then refresh.")) }
+                } else {
+                    HStack {
+                        Text("Weekly allowances").font(.title2.bold()); Spacer()
+                        Button { sheet = .service } label: { Label("Add service", systemImage: "plus") }.buttonStyle(.borderedProminent)
+                    }
+                    if store.quotas.isEmpty { Text("Add Chess.com, ChatGPT, or any other website.").foregroundStyle(.secondary).padding(.vertical, 30) }
+                    ForEach(store.quotas) { quota in
+                        if let service = store.services.first(where: { $0.id == quota.serviceId }) {
+                            ServiceCard(service: service, quota: quota, balance: store.balances.first { $0.quotaId == quota.id }, editHours: { sheet = .hours(quota) }, manage: { sheet = .manage(service) })
                         }
+                    }
+                    HStack {
+                        if let reset = store.state?.policy.reset { Label("Resets \(reset.weekday.capitalized) at \(reset.localTime) · \(reset.timeZone)", systemImage: "arrow.clockwise").font(.callout).foregroundStyle(.secondary) }
                         Spacer()
-                        Button { sheet = .settings } label: { Image(systemName: "gearshape") }.help("Settings")
+                        Button(resetting ? "Resetting…" : "Reset this week") {
+                            guard let revision = store.state?.policyRevision else { return }
+                            resetTarget = .init(childID: store.selectedChild, name: store.childName, policyRevision: revision)
+                        }.disabled(resetting || !store.connected || store.quotas.isEmpty)
                     }
-                    if let error = store.error { Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange).padding().frame(maxWidth: .infinity, alignment: .leading).background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 12)) }
-                    if store.children.isEmpty {
-                        ContentUnavailableView { Label("Start with a child account", systemImage: "person.badge.plus") } description: {
-                            Text("Create a standard macOS login for each child in System Settings, then link it here.")
-                        } actions: { Button("Add child") { sheet = .child }.buttonStyle(.borderedProminent) }
-                    } else {
-                        HStack {
-                            Text("Weekly allowances").font(.title2.bold()); Spacer()
-                            Button { sheet = .service } label: { Label("Add service", systemImage: "plus") }.buttonStyle(.borderedProminent)
-                        }
-                        if store.quotas.isEmpty { Text("Add Chess.com, ChatGPT, or any other website. Each service starts with six hours per week.").foregroundStyle(.secondary).padding(.vertical, 30) }
-                        ForEach(store.quotas) { quota in
-                            if let service = store.services.first(where: { $0.id == quota.serviceId }) {
-                                ServiceCard(service: service, quota: quota, balance: store.balances.first { $0.quotaId == quota.id }, editHours: { sheet = .hours(quota) }, manage: { sheet = .manage(service) })
-                            }
-                        }
-                        if let reset = store.state?.policy.reset {
-                            Label("Resets \(reset.weekday.capitalized) at \(reset.localTime) · \(reset.timeZone)", systemImage: "arrow.clockwise").font(.callout).foregroundStyle(.secondary)
-                        }
-                        if let pending = store.state?.policy.pendingReset { Text("Next schedule: \(pending.schedule.weekday.capitalized) at \(pending.schedule.localTime) · starts after this week").font(.caption).foregroundStyle(.secondary) }
-                        Text("Websites require the browser extension. App limits block internet access; cached and offline features can still work.").font(.caption).foregroundStyle(.secondary)
-                    }
-                }.padding(28)
-            }
+                    if let pending = store.state?.policy.pendingReset { Text("Next schedule: \(pending.schedule.weekday.capitalized) at \(pending.schedule.localTime) · starts after this week").font(.caption).foregroundStyle(.secondary) }
+                    Text("Websites require the browser extension. App limits block internet access; cached and offline features can still work.").font(.caption).foregroundStyle(.secondary)
+                }
+            }.padding(28)
         }
         .sheet(item: $sheet) { value in
             switch value {
@@ -58,9 +57,27 @@ struct HouseholdView: View {
             case .settings: SettingsView().frame(width: 650, height: 570)
             }
         }
+        .confirmationDialog(resetTarget?.title ?? "Reset this week?", isPresented: Binding(get: { resetTarget != nil }, set: { if !$0 { resetTarget = nil } }), titleVisibility: .visible, presenting: resetTarget) { target in
+            Button("Reset \(target.name)'s time", role: .destructive) {
+                resetting = true
+                Task {
+                    do { _ = try await store.mutate("POST", "/admin/children/\(target.childID)/reset", [:], expectedRevision: target.policyRevision) }
+                    catch { if store.isUnlocked { store.error = error.localizedDescription } }
+                    resetting = false
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { target in Text(target.explanation) }
         .task { while !Task.isCancelled { await store.refresh(); try? await Task.sleep(for: .seconds(3)) } }
         .onChange(of: store.selectedChild) { _, _ in Task { await store.refresh() } }
-        .toolbar { Button { Task { await store.refresh() } } label: { Label("Refresh", systemImage: "arrow.clockwise") } }
+        .toolbar {
+            Button { Task { await store.refresh() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+            Menu {
+                if !store.children.isEmpty { Button("Add another child") { sheet = .child } }
+                Button("Settings") { sheet = .settings }
+            } label: { Label("Settings", systemImage: "gearshape") }
+            Button { store.lock() } label: { Label("Lock", systemImage: "lock") }
+        }
     }
 }
 private enum HouseholdSheet: Identifiable {

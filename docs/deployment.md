@@ -3,8 +3,29 @@
 The repository can compile without signing credentials. A working installation
 requires your Apple Developer ID certificates and approved Network Extension
 provisioning, plus a stable Chrome extension ID. None is invented or bundled.
-The scripts do not install anything during a build, upload anything, or enable a
-network filter. Use a dedicated test Mac for the first signed installation.
+Builds do not install anything or enable a network filter. Apple submissions occur
+only with the explicit `--notarize` release option. Use a dedicated test Mac for the
+first signed installation.
+
+## Install from the disk image
+
+For a signed release, the parent opens `KidsQuota-<version>.dmg`, then double-clicks
+**Install Kids Quota.pkg**. macOS Installer requests an administrator name and
+password. No Terminal commands are needed. The image also contains a one-page
+**Start here.txt** with the remaining setup steps.
+
+Open **Kids Quota** from Applications in the parent's administrator account,
+choose **Unlock parent settings**, then confirm the child's standard Mac account.
+Each child starts with separate six-hour
+weekly allowances for Chess.com and ChatGPT, resetting Monday. Select any companion
+applications and finish the browser/filter approvals. The installer does not guess
+application signers or publish/install a Chrome extension without a real release ID.
+
+macOS requires approval for the Network Extension and Safari extension permissions;
+an ordinary installer cannot silently grant them. Chrome also needs its published or
+managed browser extension. These permissions remain necessary after the package
+finishes. A file named `PREVIEW.dmg` is an instructions-only demonstration and
+contains no application or installer.
 
 ## Compile and sign
 
@@ -50,7 +71,7 @@ An unsigned build proves compilation only. It does not prove that approved
 entitlements, Safari's runtime transport, app attribution, or live filtering work.
 See the signed validation cases in [macOS build notes](macos-build.md).
 
-## Administrator installation
+## Direct administrator installation (development/deployment)
 
 After setting `CHROME_EXTENSION_ID` to the real published or managed release's ID:
 
@@ -68,14 +89,25 @@ The installer copies root-owned binaries and their SwiftPM resource bundle to
 `/Library/Application Support/KidsQuota/bin`, copies `Kids Quota.app` to
 `/Applications`, installs a root LaunchDaemon and an Aqua LaunchAgent, initializes
 the database, then starts the daemon. Standard users cannot modify these installed
-files. The data directory grants others traversal only so child accounts can run
+files. Only the parent app's main executable is `root:admin`, mode `0750`, with
+its ACL removed: standard accounts cannot read, copy, or run that installed binary.
+The containing bundle, embedded Safari/filter extensions, and their resources stay
+traversable and executable for the child and OS extension host. The service and
+native helpers remain `root:wheel`, mode `0755`. The installer verifies signatures
+after setting these permissions; it does not weaken native/API authorization.
+
+The data directory grants others traversal only so child accounts can run
 the agent and native host. Its database and credential registry are root-only;
 `admin.token` is `root:admin`, mode `0640`. Never distribute that token to children,
-widgets, websites, or extensions. The parent app reads it once and saves it in the
-parent's Keychain; issue scoped read-only clients from Settings for integrations.
+widgets, websites, or extensions. The parent app reads its credential only after
+administrator unlock; credentials entered in Settings are saved in the parent's
+Keychain. Issue scoped read-only clients from Settings for integrations.
 
-Sign out and back in to each account, or reboot, to load the new agent. Open Kids
-Quota as the parent, bind the children's standard accounts, set service allowances,
+The installer discovers local accounts and starts the collector only in GUI
+sessions that launchd confirms exist, including existing child sessions. It never
+opens the parent app or runs a GUI collector as root. Accounts without a current GUI
+session load it at next login. If a session cannot load the agent, sign out and back
+in or restart the Mac. Open Kids Quota as the parent, bind the children's standard accounts, set service allowances,
 and select any companion apps. Use Settings → Protection to request app-filter
 activation and approve the system prompts. Enable Safari's extension and its
 website permissions in each child's account, and install the Chrome extension.
@@ -83,36 +115,56 @@ Restart limited apps after activating the filter to include existing connections
 The service listens only on `127.0.0.1:48123` and uses `/var/run/kids-quota.sock`
 for authenticated native clients.
 
-## Signed package and notarization
+## Build the signed disk image
 
-The optional package wraps the same verified installer. Set
-`INSTALLER_IDENTITY` to your full `Developer ID Installer: …` certificate name:
+The package wraps the same verified installer. In addition to `TEAM_ID` and
+`SIGN_IDENTITY` used for the application build, set `INSTALLER_IDENTITY` to your
+full `Developer ID Installer: …` certificate name:
 
 ```sh
-export INSTALLER_IDENTITY CHROME_EXTENSION_ID
+export TEAM_ID SIGN_IDENTITY INSTALLER_IDENTITY CHROME_EXTENSION_ID
 scripts/package.sh
 ```
 
-This creates `dist/KidsQuota-0.1.0.pkg`. Set `VERSION=major.minor.patch` for another
-release. It is a script-based package that runs only on the startup volume; its
+This creates `dist/KidsQuota-0.1.0.pkg` and a signed `dist/KidsQuota-0.1.0.dmg`.
+The DMG contains the package named **Install Kids Quota.pkg** and **Start here.txt**.
+Set `CHROME_INSTALL_URL` to your actual HTTPS extension installation link to add it
+to the instructions. Set `VERSION=major.minor.patch` for another release.
+Use `scripts/package.sh --pkg-only` for MDM deployments that need only a package.
+An existing signed package can be wrapped with
+`scripts/create-dmg.sh --package /absolute/path/to/release.pkg`.
+
+The installer is a script-based package that runs only on the startup volume; its
 receipt does not enumerate installed payload files. Existing policy/usage data
-is retained by the installer. The package is signed but has not been notarized.
+is retained by the installer. Normal packaging signs both artifacts but does not
+notarize them.
 Updates stage clean app and binary directories, verify their signatures, and keep
 the previous artifacts until service startup succeeds. A trapped installation
 failure restores the prior artifacts and restarts the prior service registration.
 Power loss or a forced kill during replacement still requires administrator recovery;
 the script leaves private staging directories available in that case.
-For distribution, use your configured Apple notarytool Keychain profile:
+For distribution, explicitly request notarization using your configured Apple
+notarytool Keychain profile:
 
 ```sh
-xcrun notarytool submit dist/KidsQuota-0.1.0.pkg --keychain-profile "$NOTARY_PROFILE" --wait
-xcrun stapler staple dist/KidsQuota-0.1.0.pkg
-spctl --assess --type install --verbose dist/KidsQuota-0.1.0.pkg
+export NOTARY_PROFILE
+scripts/package.sh --notarize
 ```
 
-The submission above uploads the package to Apple and is a separate release step.
-Confirm the returned notarization result and test the installed signed release;
-signing alone is not approval or proof of enforcement.
+This uploads the package to Apple, waits, staples and validates its ticket, then
+does the same for the enclosing signed disk image. The script stops on a failed
+submission or staple validation. Confirm the returned results and test the installed
+release; signing alone is not approval or proof of enforcement. See Apple's
+[notarization guidance](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution).
+
+Without signing credentials, `scripts/create-dmg.sh --preview` makes
+`dist/KidsQuota-0.1.0-PREVIEW.dmg` containing instructions only. It cannot install
+or enable protection. Packaging unit tests use temporary fixtures and mock signing,
+launchd, and disk-image utilities:
+
+```sh
+python3 -B -m unittest discover -s Tests/packaging -v
+```
 
 ## Managed browser installation
 

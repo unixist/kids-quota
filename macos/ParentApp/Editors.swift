@@ -9,28 +9,46 @@ struct FormFooter: View {
 struct AddChildView: View {
     @EnvironmentObject var store: ParentStore
     @Environment(\.dismiss) var dismiss
+    var isFirstRun = false
     @State private var accounts: [LocalAccount] = []
     @State private var accountID = ""
-    @State private var name = ""
     @State private var error: String?
     @State private var busy = false
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("Add a child").font(.title2.bold())
-            Text("Link a standard macOS login account. The child keeps a separate allowance when switching accounts.").foregroundStyle(.secondary)
-            Picker("Mac login", selection: $accountID) { Text("Choose account").tag(""); ForEach(accounts) { account in Text("\(account.displayName) (\(account.name))").tag(account.id) } }
+        VStack(alignment: .leading, spacing: 20) {
+            Text(isFirstRun ? "Choose the Mac account to limit" : "Add another child").font(.title2.bold())
+            Text("Choose one standard macOS login. Kids Quota will use that account's name.").foregroundStyle(.secondary)
+            Picker("Username", selection: $accountID) {
+                Text("Choose account").tag("")
+                ForEach(accounts) { account in Text("\(account.name) — \(account.displayName)").tag(account.id) }
+            }
             if accounts.isEmpty { Text("No standard accounts found. Add one in System Settings → Users & Groups.").font(.callout) }
-            TextField("Child's name", text: $name)
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Ready to start").font(.headline)
+                Label("Chess.com · 6 hours per week", systemImage: "checkmark.circle")
+                Label("ChatGPT · 6 hours per week", systemImage: "checkmark.circle")
+                Text("You can change hours and choose accompanying Mac apps after setup.").font(.caption).foregroundStyle(.secondary)
+            }.padding(16).frame(maxWidth: .infinity, alignment: .leading).background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 12))
             if let error { Text(error).foregroundStyle(.red) }
-            FormFooter(busy: busy || accountID.isEmpty || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, title: "Add child", cancel: { dismiss() }, save: save)
-        }.padding(25).frame(width: 480)
-        .task { do { accounts = try AccountDiscovery.children() } catch { self.error = error.localizedDescription } }
-        .onChange(of: accountID) { _, id in if let account = accounts.first(where: { $0.id == id }) { name = account.displayName } }
+            HStack {
+                if !isFirstRun { Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction) }
+                Spacer()
+                Button(busy ? "Setting up…" : isFirstRun ? "Set up account" : "Add child", action: save)
+                    .buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction).disabled(busy || accountID.isEmpty)
+            }
+        }.padding(25).frame(width: 500)
+        .task { do { accounts = try AccountDiscovery.children(); if accounts.count == 1 { accountID = accounts[0].id } } catch { self.error = error.localizedDescription } }
     }
     private func save() {
         guard let account = accounts.first(where: { $0.id == accountID }) else { return }
         busy = true
-        Task { do { let response = try await store.mutate("POST", "/admin/children", ["displayName": name, "generatedUid": account.generatedUID, "uid": account.uid]); if let child = response["child"] as? [String: Any], let id = child["id"] as? String { store.selectedChild = id }; dismiss() } catch { self.error = error.localizedDescription; busy = false } }
+        Task {
+            do {
+                let response = try await store.mutate("POST", "/admin/children", ["displayName": account.displayName, "generatedUid": account.generatedUID, "uid": account.uid])
+                if let child = response["child"] as? [String: Any], let id = child["id"] as? String { store.selectedChild = id }
+                if !isFirstRun { dismiss() }
+            } catch { self.error = error.localizedDescription; busy = false }
+        }
     }
 }
 struct EditHoursView: View {

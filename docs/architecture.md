@@ -59,8 +59,8 @@ Sources: [Chrome permissions](https://developer.chrome.com/docs/extensions/devel
   `childId`, `quotaId`, and calendar-period start. Store protected account bindings
   separately from child display names. Do not store page contents or full URL history.
 - **HTTP API:** a versioned, authenticated JSON interface allows independently
-  developed clients to read permitted balances and parent-authorized clients to
-  manage policy. Widgets and publishers do not receive usage-writing privileges.
+  developed clients to read permitted balances. Configuration uses the shared
+  schemas over administrator-authorized native IPC. HTTP cannot mutate policy.
 - **Browser adapters:** report the selected top-level hostname and focus changes,
   receive remaining time and deadlines, and apply blocking. A Chrome native host
   and Safari native app-extension bridge both connect to the same service.
@@ -111,13 +111,18 @@ Use the loopback endpoint `http://127.0.0.1:48123/v1` with JSON resources
 for children, services, per-child quotas, and balances. Parent administrative
 routes also manage verified account/app selection, reset settings, and read tokens.
 The parent UI uses root-authenticated UNIX IPC so a process occupying the HTTP
-port cannot impersonate the daemon and harvest its administrator token. See
+port cannot impersonate the daemon and harvest its administrator token. Its executable
+is restricted to root/admin users, and each native parent request requires a
+current `system.privilege.admin` Authorization Services grant and an administrator
+peer UID. The GUI stays unprivileged; the daemon performs privileged changes. See
 [API behavior](api.md) and the [OpenAPI contract](../api/openapi.yaml).
 
 Require credentials even on loopback because other local accounts and applications
 can reach it. Parent-paired, revocable clients receive only their necessary scopes
 and an explicit child allowlist. Read scopes such as `balances:read` grant no policy
-editing or usage submission; parent clients need `policy:write` for mutations.
+editing or usage submission; the parent needs `policy:write` plus OS authorization
+on the authenticated native connection for mutations. HTTP is read-only even when
+presented with a parent token.
 Authorize every requested object and filter collections to the allowed children.
 Never return a sibling's record just because its ID is known. Store credentials
 outside public website code and protect them with the client's OS account.
@@ -255,7 +260,14 @@ activity and continue the same balance. Deduplicate simultaneous reports from we
 and native adapters. A browser left open behind the app cannot charge a second
 interval, and background network requests do not create usage intervals.
 
-## Weekly reset
+## Parent reset and weekly reset
+
+The unlocked parent app offers **Reset this week** for the selected child. The
+daemon settles current observed elapsed time, resets only that child's current
+period counters, increments revision, and records a private audit event in one
+transaction. Limits, the next scheduled reset, earlier periods, and siblings stay
+unchanged. A stale revision cannot repeat the reset. Public HTTP callers and
+collectors cannot authorize this action.
 
 The household-wide default boundary is Monday 00:00 in the policy's named IANA
 timezone. Select the timezone during setup, then store it explicitly. The example

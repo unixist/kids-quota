@@ -2,14 +2,25 @@
 set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
+PKG_ONLY=0; NOTARIZE=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --pkg-only) PKG_ONLY=1; shift ;;
+    --notarize) NOTARIZE=1; shift ;;
+    *) echo 'Usage: package.sh [--pkg-only] [--notarize]' >&2; exit 2 ;;
+  esac
+done
 : "${TEAM_ID:?Set the actual Apple developer team ID}"
 : "${INSTALLER_IDENTITY:?Set the full Developer ID Installer certificate name}"
 [[ "$TEAM_ID" =~ ^[A-Z0-9]{10}$ && "$INSTALLER_IDENTITY" == 'Developer ID Installer:'* ]] || { echo 'Invalid signing team or installer identity.' >&2; exit 2; }
+if [[ "$PKG_ONLY" == 0 ]]; then : "${SIGN_IDENTITY:?Set the Developer ID Application identity to sign the disk image}"; fi
+if [[ "$NOTARIZE" == 1 ]]; then : "${NOTARY_PROFILE:?Set a configured notarytool Keychain profile}"; fi
 CHROME_EXTENSION_ID="${CHROME_EXTENSION_ID:-}"
 [[ -z "$CHROME_EXTENSION_ID" || "$CHROME_EXTENSION_ID" =~ ^[a-p]{32}$ ]] || { echo 'Invalid Chrome extension ID.' >&2; exit 2; }
 VERSION="${VERSION:-0.1.0}"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Version must be major.minor.patch.' >&2; exit 2; }
 "$REPO_ROOT/scripts/install.sh" --check --artifacts "$REPO_ROOT/dist/signed" --team-id "$TEAM_ID"
+mkdir -p "$REPO_ROOT/.build" "$REPO_ROOT/dist"
 STAGE="$(/usr/bin/mktemp -d "$REPO_ROOT/.build/package.XXXXXX")"
 trap '/bin/rm -rf "$STAGE"' EXIT
 mkdir -p "$STAGE/scripts" "$REPO_ROOT/dist"
@@ -28,4 +39,11 @@ chmod 0755 "$STAGE/scripts/postinstall"
 /usr/bin/pkgbuild --nopayload --scripts "$STAGE/scripts" --identifier com.kidsquota.installer \
   --version "$VERSION" --sign "$INSTALLER_IDENTITY" "$REPO_ROOT/dist/KidsQuota-$VERSION.pkg"
 /usr/sbin/pkgutil --check-signature "$REPO_ROOT/dist/KidsQuota-$VERSION.pkg"
-echo 'Signed installer created. Notarization/stapling remains a distribution step; no Apple submission was performed.'
+if [[ "$PKG_ONLY" == 0 ]]; then
+  if [[ "$NOTARIZE" == 1 ]]; then "$REPO_ROOT/scripts/create-dmg.sh" --notarize
+  else "$REPO_ROOT/scripts/create-dmg.sh"; fi
+elif [[ "$NOTARIZE" == 1 ]]; then
+  /usr/bin/xcrun notarytool submit "$REPO_ROOT/dist/KidsQuota-$VERSION.pkg" --keychain-profile "$NOTARY_PROFILE" --wait
+  /usr/bin/xcrun stapler staple "$REPO_ROOT/dist/KidsQuota-$VERSION.pkg"
+  /usr/bin/xcrun stapler validate "$REPO_ROOT/dist/KidsQuota-$VERSION.pkg"
+else echo 'Signed installer created. Notarization/stapling remains a distribution step; no Apple submission was performed.'; fi

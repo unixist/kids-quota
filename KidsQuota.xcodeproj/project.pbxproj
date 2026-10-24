@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0A804CFC1343DFE58573DA2A /* pages.css in Resources */ = {isa = PBXBuildFile; fileRef = 438D684D08F5BF9DFE5BB20E /* pages.css */; };
+		0C2076C093BB20E4786190F5 /* ParentStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34C0C8CBA3370EC5CD0D9406 /* ParentStore.swift */; };
 		13C9689127140E0F76B308BA /* FilterPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C85D794878CFF5AAE3F8C22 /* FilterPolicy.swift */; };
 		19A75D99C86731A3F674B26E /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 996356B88C15A8A949E4F7F6 /* Models.swift */; };
 		1D64391A68A62DFE2F6644EA /* AccountDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = E91A0E3F4E3798DB46C7CB48 /* AccountDiscovery.swift */; };
@@ -19,7 +20,10 @@
 		45B23497BF48E822C9900AFD /* FilterActivation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0E74CDD4AB71C40305D044A /* FilterActivation.swift */; };
 		5198C3A39370C0DF81D65A0F /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC75DCACB973DD8A68844FA /* main.swift */; };
 		5297C1AC147D1EC5C06208CA /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4D4758042C5FB07BD053919A /* Security.framework */; };
+		74661C558690D4B08B57D159 /* AccountDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = E91A0E3F4E3798DB46C7CB48 /* AccountDiscovery.swift */; };
 		749C9926E996DEB38EF44182 /* popup.js in Resources */ = {isa = PBXBuildFile; fileRef = 868443CEC3154221C14E2B8B /* popup.js */; };
+		74CE77A300153B870CA284AC /* ParentSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCC04888CF38282387641C81 /* ParentSessionTests.swift */; };
+		82E01B387D86B86E9C6294DA /* ParentAuthorization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23BBAF1D4C99B04DD0A3F92A /* ParentAuthorization.swift */; };
 		8BD0A8AFC80E4E14B42705F5 /* content.js in Resources */ = {isa = PBXBuildFile; fileRef = A8C27909B3EDFAA62A945FE2 /* content.js */; };
 		9243702DF859087639A91F28 /* blocked.html in Resources */ = {isa = PBXBuildFile; fileRef = 6DC96A4666268F04B0584523 /* blocked.html */; };
 		96F7EBED28522711E2CF6348 /* DaemonSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FA76F5B23B64EEA26CF951F /* DaemonSocket.swift */; };
@@ -29,10 +33,13 @@
 		A9A7AEA9DEBE25523F51BECC /* popup.html in Resources */ = {isa = PBXBuildFile; fileRef = BB1B22E8D2EB2C4C94649A03 /* popup.html */; };
 		AB1ECB3A2E351CB72E3572D7 /* PolicyAndPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB6AB19DFF7BCBFA3935E0A1 /* PolicyAndPresentationTests.swift */; };
 		B1FB7EA7D88ED42803711FD3 /* HouseholdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D29850FADA13EA105BDE693 /* HouseholdView.swift */; };
+		BDE0415A0183BC3C021BEA51 /* ParentAuthorization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23BBAF1D4C99B04DD0A3F92A /* ParentAuthorization.swift */; };
 		BED98CE4E5C7ECCC40735E41 /* FilterDataProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE86FA2C0A56221DCC85D48E /* FilterDataProvider.swift */; };
 		D172204FAE0F286790478583 /* ParentStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34C0C8CBA3370EC5CD0D9406 /* ParentStore.swift */; };
 		D2F7EF0ED9E7B45BEC4165AE /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = FCB3EE697E64AC130374AEB0 /* manifest.json */; };
 		DBF73CE2A915CAB6CA75D0C8 /* KidsQuotaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79726C89A0A8759010F74649 /* KidsQuotaApp.swift */; };
+		E10360FB0463921A54A28827 /* DaemonSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FA76F5B23B64EEA26CF951F /* DaemonSocket.swift */; };
+		E424E37475F8159409D8089F /* ParentAccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24FC2B5BEF3EAC36F94A70E5 /* ParentAccessView.swift */; };
 		E444904B11C855DB3411FB86 /* blocked.js in Resources */ = {isa = PBXBuildFile; fileRef = 6A231BBECEC8FF80ECF74B49 /* blocked.js */; };
 		E45AB5CFDA08111D09CD745A /* background.js in Resources */ = {isa = PBXBuildFile; fileRef = A6A9601D36F2488AA82BB3A7 /* background.js */; };
 		F0ACE04AD0C96999A8C92068 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B69D825D3E3E70581161834F /* SettingsView.swift */; };
@@ -87,6 +94,8 @@
 
 /* Begin PBXFileReference section */
 		0F0E95C2D75EE13A82F06352 /* NetworkFilter.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NetworkFilter.entitlements; sourceTree = "<group>"; };
+		23BBAF1D4C99B04DD0A3F92A /* ParentAuthorization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentAuthorization.swift; sourceTree = "<group>"; };
+		24FC2B5BEF3EAC36F94A70E5 /* ParentAccessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentAccessView.swift; sourceTree = "<group>"; };
 		2F22CD224F461DED2BFEF6DD /* KidsQuotaMacTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KidsQuotaMacTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		313138D9232594F8EEA7E139 /* Editors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Editors.swift; sourceTree = "<group>"; };
 		34C0C8CBA3370EC5CD0D9406 /* ParentStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentStore.swift; sourceTree = "<group>"; };
@@ -116,6 +125,7 @@
 		BFC75DCACB973DD8A68844FA /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		CE86FA2C0A56221DCC85D48E /* FilterDataProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterDataProvider.swift; sourceTree = "<group>"; };
 		D0E74CDD4AB71C40305D044A /* FilterActivation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterActivation.swift; sourceTree = "<group>"; };
+		DCC04888CF38282387641C81 /* ParentSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParentSessionTests.swift; sourceTree = "<group>"; };
 		E34C78A741C5F0D98BBCB17A /* ParentApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ParentApp.entitlements; sourceTree = "<group>"; };
 		E91A0E3F4E3798DB46C7CB48 /* AccountDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountDiscovery.swift; sourceTree = "<group>"; };
 		EFB13A15D4B83FA583C5DDD8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -230,7 +240,9 @@
 				4D29850FADA13EA105BDE693 /* HouseholdView.swift */,
 				79726C89A0A8759010F74649 /* KidsQuotaApp.swift */,
 				996356B88C15A8A949E4F7F6 /* Models.swift */,
+				24FC2B5BEF3EAC36F94A70E5 /* ParentAccessView.swift */,
 				E34C78A741C5F0D98BBCB17A /* ParentApp.entitlements */,
+				23BBAF1D4C99B04DD0A3F92A /* ParentAuthorization.swift */,
 				34C0C8CBA3370EC5CD0D9406 /* ParentStore.swift */,
 				B69D825D3E3E70581161834F /* SettingsView.swift */,
 			);
@@ -251,6 +263,7 @@
 		C9C46645A6342C18C0EF4604 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				DCC04888CF38282387641C81 /* ParentSessionTests.swift */,
 				BB6AB19DFF7BCBFA3935E0A1 /* PolicyAndPresentationTests.swift */,
 			);
 			path = Tests;
@@ -441,8 +454,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				74661C558690D4B08B57D159 /* AccountDiscovery.swift in Sources */,
+				E10360FB0463921A54A28827 /* DaemonSocket.swift in Sources */,
 				13C9689127140E0F76B308BA /* FilterPolicy.swift in Sources */,
 				19A75D99C86731A3F674B26E /* Models.swift in Sources */,
+				BDE0415A0183BC3C021BEA51 /* ParentAuthorization.swift in Sources */,
+				74CE77A300153B870CA284AC /* ParentSessionTests.swift in Sources */,
+				0C2076C093BB20E4786190F5 /* ParentStore.swift in Sources */,
 				AB1ECB3A2E351CB72E3572D7 /* PolicyAndPresentationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -458,6 +476,8 @@
 				B1FB7EA7D88ED42803711FD3 /* HouseholdView.swift in Sources */,
 				DBF73CE2A915CAB6CA75D0C8 /* KidsQuotaApp.swift in Sources */,
 				22A7C0DAA40A2D9717BFB86D /* Models.swift in Sources */,
+				E424E37475F8159409D8089F /* ParentAccessView.swift in Sources */,
+				82E01B387D86B86E9C6294DA /* ParentAuthorization.swift in Sources */,
 				D172204FAE0F286790478583 /* ParentStore.swift in Sources */,
 				F0ACE04AD0C96999A8C92068 /* SettingsView.swift in Sources */,
 			);

@@ -11,6 +11,16 @@ public struct UsageIncrement {
     }
 }
 
+// Administrative audit stays in the protected database, outside public balances.
+struct UsageResetRecord: Equatable {
+    var occurredAt: Date
+    var actorUID: UInt32
+    var childId: String
+    var periodStart: Date
+    var priorSeconds: Double
+    var policyRevision: Int
+}
+
 /// Caller-serialized SQLite store. Counters and policy metadata are written in a
 /// single transaction; SQLite WAL and FULL synchronization provide crash recovery.
 public final class QuotaStore {
@@ -30,6 +40,7 @@ public final class QuotaStore {
         try execute("PRAGMA synchronous=FULL")
         try execute("CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value BLOB NOT NULL)")
         try execute("CREATE TABLE IF NOT EXISTS usage (child_id TEXT NOT NULL, quota_id TEXT NOT NULL, period_start REAL NOT NULL, seconds REAL NOT NULL CHECK(seconds >= 0), PRIMARY KEY(child_id, quota_id, period_start))")
+        try execute("CREATE TABLE IF NOT EXISTS reset_events (id INTEGER PRIMARY KEY AUTOINCREMENT, occurred_at REAL NOT NULL, actor_uid INTEGER NOT NULL CHECK(actor_uid >= 0), child_id TEXT NOT NULL, period_start REAL NOT NULL, prior_seconds REAL NOT NULL CHECK(prior_seconds >= 0), policy_revision INTEGER NOT NULL UNIQUE)")
         if path != ":memory:" {
             try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: path)
         }
@@ -122,4 +133,58 @@ public final class QuotaStore {
     }
 
     public func addUsage(_ increments: [UsageIncrement]) throws { try recordUsage(increments, periodFloor: nil) }
+
+    /// Reset counters, audit the prior total, and advance policy as one commit.
+    /// The caller has already settled observed activity up to occurredAt.
+    func resetUsage(childId: String, periodStart: Date, actorUID: UInt32, occurredAt: Date,
+                    expectedRevision: Int, policy: Policy) throws {
+        guard periodStart.timeIntervalSince1970.isFinite, occurredAt.timeIntervalSince1970.isFinite,
+              expectedRevision >= 0, expectedRevision < Int.max, policy.revision == expectedRevision + 1 else {
+            throw QuotaError.invalidPolicy("Invalid usage reset.")
+        }
+        try execute("BEGIN IMMEDIATE")
+        do {
+            guard try loadPolicy()?.revision == expectedRevision else { throw QuotaError.conflict }
+            guard policy.children.contains(where: { $0.id == childId }) else { throw QuotaError.unknownChild }
+            let total = try statement("SELECT COALESCE(SUM(seconds),0) FROM usage WHERE child_id=? AND period_start=?")
+            defer { sqlite3_finalize(total) }
+            bind(childId, 1, total); sqlite3_bind_double(total, 2, periodStart.timeIntervalSince1970)
+            guard sqlite3_step(total) == SQLITE_ROW else { throw error() }
+            let prior = sqlite3_column_double(total, 0)
+            guard prior.isFinite, prior >= 0 else { throw QuotaError.persistence("Invalid stored usage total.") }
+
+            let reset = try statement("UPDATE usage SET seconds=0 WHERE child_id=? AND period_start=?")
+            defer { sqlite3_finalize(reset) }
+            bind(childId, 1, reset); sqlite3_bind_double(reset, 2, periodStart.timeIntervalSince1970)
+            guard sqlite3_step(reset) == SQLITE_DONE else { throw error() }
+
+            let audit = try statement("INSERT INTO reset_events(occurred_at,actor_uid,child_id,period_start,prior_seconds,policy_revision) VALUES(?,?,?,?,?,?)")
+            defer { sqlite3_finalize(audit) }
+            sqlite3_bind_double(audit, 1, occurredAt.timeIntervalSince1970)
+            sqlite3_bind_int64(audit, 2, Int64(actorUID)); bind(childId, 3, audit)
+            sqlite3_bind_double(audit, 4, periodStart.timeIntervalSince1970)
+            sqlite3_bind_double(audit, 5, prior); sqlite3_bind_int64(audit, 6, Int64(policy.revision))
+            guard sqlite3_step(audit) == SQLITE_DONE else { throw error() }
+            try savePolicy(policy)
+            try execute("COMMIT")
+        } catch {
+            try? execute("ROLLBACK")
+            throw error
+        }
+    }
+
+    func resetAuditEvents() throws -> [UsageResetRecord] {
+        let query = try statement("SELECT occurred_at,actor_uid,child_id,period_start,prior_seconds,policy_revision FROM reset_events ORDER BY id")
+        defer { sqlite3_finalize(query) }
+        var events: [UsageResetRecord] = []
+        while true {
+            let result = sqlite3_step(query)
+            if result == SQLITE_DONE { return events }
+            guard result == SQLITE_ROW, let child = sqlite3_column_text(query, 2),
+                  let actor = UInt32(exactly: sqlite3_column_int64(query, 1)) else { throw error() }
+            events.append(.init(occurredAt: Date(timeIntervalSince1970: sqlite3_column_double(query, 0)), actorUID: actor,
+                                childId: String(cString: child), periodStart: Date(timeIntervalSince1970: sqlite3_column_double(query, 3)),
+                                priorSeconds: sqlite3_column_double(query, 4), policyRevision: Int(sqlite3_column_int64(query, 5))))
+        }
+    }
 }

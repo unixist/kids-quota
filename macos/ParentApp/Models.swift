@@ -40,3 +40,11 @@ enum Presentation {
         return host.hasSuffix(".") ? String(host.dropLast()) : host
     }
 }
+
+struct ResetWeekTarget: Equatable {
+    let childID: String
+    let name: String
+    let policyRevision: Int
+    var title: String { "Reset \(name)'s time this week?" }
+    var explanation: String { "Clear time used this week for all of \(name)'s services. Weekly allowances and the next scheduled reset stay the same. Other children's balances are unchanged." }
+}

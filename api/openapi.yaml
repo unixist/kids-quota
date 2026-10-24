@@ -5,10 +5,13 @@ info:
   description: |
     Implemented loopback API. Every request requires an opaque bearer token;
     scopes and child grants are enforced by the service. policy:write additionally
-    requires the protected administrator credential. Read grants cannot confer
-    write authority. The parent app tunnels these same requests over authenticated
-    native IPC; the HTTP administrator routes are also supported. Clients cannot
-    submit usage, set balances, or supply verified app signing identities.
+    requires the protected administrator credential AND the OS-authorized native
+    parent connection. The HTTP listener is read-only, including for administrator
+    bearers. Operations marked x-required-transport: authenticated-native-ipc
+    document the shared parent request schema; HTTP attempts return 403. The daemon
+    verifies the parent peer UID and Authorization Services external form for
+    system.privilege.admin on every such request. Read grants cannot confer write
+    authority. Clients cannot submit usage or supply verified app identities.
     All responses use Cache-Control: no-store. Origin headers are rejected.
     JSON bodies are limited to 65536 bytes, with 60 requests per second per token.
     x-required-scopes documents scopes for the HTTP bearer scheme.
@@ -61,6 +64,7 @@ paths:
       operationId: createService
       summary: Create a custom domain and app group
       x-required-scopes: ["policy:write"]
+      x-required-transport: authenticated-native-ipc
       requestBody:
         required: true
         content:
@@ -80,6 +84,7 @@ paths:
         Changes affect all children assigned this service. At least one actual
         change field is required alongside expectedPolicyRevision.
       x-required-scopes: ["policy:write"]
+      x-required-transport: authenticated-native-ipc
       requestBody:
         required: true
         content:
@@ -114,6 +119,7 @@ paths:
       summary: Assign one service to a child with an independent allowance
       description: A duplicate child/service assignment returns 409.
       x-required-scopes: ["policy:write"]
+      x-required-transport: authenticated-native-ipc
       requestBody:
         required: true
         content:
@@ -140,6 +146,7 @@ paths:
         Reducing the limit below usage exhausts the quota. Increasing it may
         restore access. The stable quota ID and service assignment do not change.
       x-required-scopes: ["policy:write"]
+      x-required-transport: authenticated-native-ipc
       requestBody:
         required: true
         content:
@@ -192,6 +199,7 @@ paths:
       operationId: readAdministrativeState
       summary: Read full policy, public client grants, and filter status
       x-required-scopes: ["policy:write"]
+      x-required-transport: authenticated-native-ipc
       responses:
         '200':
           description: Administrator-only state; tokens and credential digests are omitted
@@ -213,6 +221,7 @@ paths:
       summary: Verify the selected macOS account and create its child profile
       description: Assigns default six-hour Chess.com and ChatGPT quotas when those presets exist.
       x-required-scopes: ["policy:write"]
+      x-required-transport: authenticated-native-ipc
       requestBody:
         required: true
         content:
@@ -247,6 +256,7 @@ paths:
         and readiness are derived by the daemon and cannot be supplied by clients.
         An existing signing identity is returned without a policy mutation.
       x-required-scopes: ["policy:write"]
+      x-required-transport: authenticated-native-ipc
       requestBody:
         required: true
         content:
@@ -268,6 +278,7 @@ paths:
       summary: Schedule a new household reset day, time, and timezone
       description: Takes effect at the existing period end; does not refill current balances.
       x-required-scopes: ["policy:write"]
+      x-required-transport: authenticated-native-ipc
       requestBody:
         required: true
         content:
@@ -297,6 +308,7 @@ paths:
       summary: Issue a read-only token for explicitly granted children
       description: Does not require or change policyRevision. The plaintext token is returned once.
       x-required-scopes: ["policy:write"]
+      x-required-transport: authenticated-native-ipc
       requestBody:
         required: true
         content:
@@ -339,6 +351,7 @@ paths:
       summary: Revoke a previously issued read token
       description: Does not require or change policyRevision. The administrator credential is protected.
       x-required-scopes: ["policy:write"]
+      x-required-transport: authenticated-native-ipc
       responses:
         '200':
           description: Revocation persisted and effective immediately
@@ -349,6 +362,42 @@ paths:
                 required: [revoked]
                 properties:
                   revoked: {type: boolean, const: true}
+        default: {$ref: '#/components/responses/Error'}
+  /v1/admin/children/{childId}/reset:
+    parameters:
+      - $ref: '#/components/parameters/ChildId'
+    post:
+      operationId: resetChildWeek
+      summary: Restore one child's current-week allowances after parent authorization
+      x-required-scopes: ["policy:write"]
+      x-required-transport: authenticated-native-ipc
+      description: |
+        Parent native IPC only. Settles live usage, resets this child's current
+        period counters, records a private audit event, and increments revision
+        atomically. Other children, prior periods, limits, and reset schedule remain.
+        The native peer must be the signed parent app running as an administrator
+        and supply a valid system.privilege.admin AuthorizationExternalForm.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expectedPolicyRevision]
+              properties:
+                expectedPolicyRevision: {$ref: '#/components/schemas/Revision'}
+      responses:
+        '200':
+          description: This child's current week was reset; revision advanced
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [policyRevision, balances]
+                properties:
+                  policyRevision: {$ref: '#/components/schemas/Revision'}
+                  balances: {$ref: '#/components/schemas/BalanceSnapshot'}
         default: {$ref: '#/components/responses/Error'}
 components:
   securitySchemes:
@@ -402,7 +451,7 @@ components:
                 properties:
                   code:
                     type: string
-                    enum: [bad_request, unauthenticated, forbidden, not_found, conflict, invalid_policy, rate_limited, unavailable]
+                    enum: [bad_request, unauthenticated, forbidden, administrator_required, not_found, conflict, invalid_policy, rate_limited, unavailable]
                   message: {type: string}
     ServiceWrite:
       description: Service saved transactionally; revision advanced

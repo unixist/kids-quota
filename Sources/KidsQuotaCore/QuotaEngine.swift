@@ -134,6 +134,24 @@ public final class QuotaEngine {
     }
 
     @discardableResult
+    public func resetUsage(childId: String, expectedRevision: Int, actorUID: UInt32, now: Date, monotonic: Double) throws -> Policy {
+        guard expectedRevision == policy.revision else { throw QuotaError.conflict }
+        guard policy.children.contains(where: { $0.id == childId }) else { throw QuotaError.unknownChild }
+        guard now.timeIntervalSince1970.isFinite else { throw QuotaError.invalidPolicy("Invalid reset time.") }
+        // Settle first. This also anchors active usage at the reset instant, so
+        // subsequent ticks never charge pre-reset seconds back to the allowance.
+        try tick(now: now, monotonic: monotonic)
+        guard expectedRevision == policy.revision else { throw QuotaError.conflict }
+        let current = try period(at: now)
+        guard policy.revision < Int.max else { throw QuotaError.invalidPolicy("Policy revision limit reached.") }
+        var next = policy; next.revision += 1
+        try store.resetUsage(childId: childId, periodStart: current.start, actorUID: actorUID, occurredAt: now,
+                             expectedRevision: expectedRevision, policy: next)
+        policy = next
+        return next
+    }
+
+    @discardableResult
     public func replacePolicy(_ proposed: Policy, expectedRevision: Int, now: Date, monotonic: Double) throws -> Policy {
         guard expectedRevision == policy.revision else { throw QuotaError.conflict }
         try tick(now: now, monotonic: monotonic)

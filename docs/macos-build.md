@@ -48,7 +48,12 @@ The release packaging and Apple provisioning credentials are not supplied here.
 
 Install the signed containing app in `/Applications`, and install the daemon and
 login agent using the repository's administrator installation steps. Open Kids
-Quota in the parent's account. Its initial token comes from
+Quota in an administrator's account. The app starts locked, without reading tokens
+or loading household configuration. **Unlock parent settings** requests
+`system.privilege.admin` using macOS Authorization Services; the app itself stays at
+ordinary user privilege. The daemon verifies both the peer's administrator membership
+and the external authorization form on every parent request. The initial token is
+read only after authorization, from
 `/Library/Application Support/KidsQuota/admin.token`, readable only by root and
 administrators. A manually entered token is validated before saving to the parent's
 Keychain. For local UI smoke tests, a Debug build can use `KIDS_QUOTA_DATA_DIR` for the
@@ -68,20 +73,34 @@ native messaging host using the browser setup instructions.
 
 ## Parent workflow
 
-1. Create a standard macOS account for each child, then **Add child**. The picker
-   excludes administrator accounts and stores the verified account's GeneratedUID.
-2. Select the child, **Add service**, choose Chess.com, ChatGPT, or Custom website,
-   then set hours. Presets start at six hours per week and are website-only until
-   an app is explicitly selected and verified.
+1. Unlock parent settings, then choose one standard macOS username on the first-run
+   screen. Its account display name is used automatically. The picker excludes
+   administrator accounts and stores the verified account's GeneratedUID.
+2. Chess.com and ChatGPT are added with six hours per week each. The main screen
+   shows this child's allowances directly. **Add service** adds custom websites;
+   Settings → **Add another child** adds another login later. A child selector appears
+   when more than one child is configured. Presets are website-only until an app is
+   explicitly selected and verified.
 3. Expand **Includes → Manage included websites and apps** to select an app using
    the macOS app picker. The daemon verifies its code signature. No guessed vendor
    signer or filename match is treated as verified. This screen names all children
    affected by the shared service definition. Moving a signed app does not change
    its identity; a different signer requires review.
 4. Use **Edit hours** to change one child's allowance without clearing consumed
-   time. Reset schedule changes take effect after the current week.
+   time. **Reset this week** confirms the selected child's name and clears that
+   child's consumed time across all their services. It preserves weekly allowances,
+   the scheduled reset, and other children's balances. Reset schedule changes take
+   effect after the current week.
 5. Settings → API clients creates revocable, read-only tokens restricted to selected
    children. Copy a new token when displayed; it is not retrievable afterward.
+
+**Lock**, closing the main window, quitting, or switching login sessions destroys
+the app's authorization reference and clears the in-memory token and configuration.
+A late service response cannot repopulate the locked screen. Standard logins see
+only a parent-only locked screen and cannot start an unlock. macOS selects the
+available authentication method and may honor its own valid authorization cache;
+the app does not collect a password or launch an elevated GUI. Read-only HTTP
+clients remain independent from this parent authorization session.
 
 A compatible preset signer catalog, automatic app discovery, and automatic adoption
 of future installed apps are not included. A browser/PWA launcher shared with other

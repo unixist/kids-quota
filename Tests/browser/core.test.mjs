@@ -67,6 +67,21 @@ test('late replies, old policy revisions and old week snapshots cannot undo curr
   assert.deepEqual(state.rules(300),[]); // An explicit valid parent configuration can remove a restriction.
 });
 
+test('a parent reset restores allowance in the same week and older policies cannot undo it',()=>{
+  const state=new PolicyState();
+  const exhausted=policy({revision:4,requestSequence:6});
+  exhausted.rules[0].remainingSeconds=0;exhausted.rules[0].blocked=true;
+  assert.equal(state.accept(exhausted,100),true);
+  assert.equal(state.rules(100)[0].blocked,true);
+  const reset=policy({revision:5,requestSequence:7});
+  assert.equal(reset.rules[0].resetAt,exhausted.rules[0].resetAt);
+  assert.equal(state.accept(reset,200),true);
+  assert.equal(state.rules(200)[0].blocked,false);
+  assert.equal(state.rules(200)[0].remainingSeconds,21600);
+  assert.equal(state.accept({...exhausted,requestSequence:8},300),false);
+  assert.equal(state.rules(300)[0].blocked,false);
+});
+
 test('browser state includes only the selected host and never an elapsed-time claim or full URL',()=>{
   const input={browser:'chrome',sessionId:'test',sequence:9,window:{id:4,focused:true},tab:{id:10,windowId:4,active:true,url:'https://chess.com/game/secret?q=private'}};
   assert.deepEqual(makeBrowserState(input),{type:'browserState',browser:'chrome',sessionId:'test',sequence:9,hostname:'chess.com',focused:true,tabId:10});
