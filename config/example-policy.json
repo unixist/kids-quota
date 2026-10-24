@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "reset": {
     "weekday": "monday",
     "localTime": "00:00",
@@ -16,6 +16,31 @@
     "websites": "browser-extension",
     "applications": "network-content-filter"
   },
+  "api": {
+    "bindAddress": "127.0.0.1",
+    "port": 48123,
+    "basePath": "/v1",
+    "authentication": "scoped-bearer-token",
+    "allowedBrowserOrigins": []
+  },
+  "children": [
+    {
+      "id": "child-one",
+      "displayName": "Child 1 (example)",
+      "macOSAccount": {
+        "status": "needs-selection",
+        "generatedUid": null
+      }
+    },
+    {
+      "id": "child-two",
+      "displayName": "Child 2 (example)",
+      "macOSAccount": {
+        "status": "needs-selection",
+        "generatedUid": null
+      }
+    }
+  ],
   "applicationBindings": [
     {
       "id": "chesscom-macos",
@@ -30,24 +55,58 @@
       "identity": null
     }
   ],
-  "quotas": [
+  "services": [
     {
       "id": "chesscom",
       "name": "Chess.com",
-      "hoursPerWeek": 6,
       "domains": [
-        { "hostname": "chess.com", "includeSubdomains": true }
+        {
+          "hostname": "chess.com",
+          "includeSubdomains": true
+        }
       ],
-      "applicationIds": ["chesscom-macos"]
+      "applicationIds": [
+        "chesscom-macos"
+      ]
     },
     {
       "id": "chatgpt",
       "name": "ChatGPT",
-      "hoursPerWeek": 6,
       "domains": [
-        { "hostname": "chatgpt.com", "includeSubdomains": true }
+        {
+          "hostname": "chatgpt.com",
+          "includeSubdomains": true
+        }
       ],
-      "applicationIds": ["chatgpt-macos"]
+      "applicationIds": [
+        "chatgpt-macos"
+      ]
+    }
+  ],
+  "quotas": [
+    {
+      "id": "child-one-chesscom",
+      "childId": "child-one",
+      "serviceId": "chesscom",
+      "weeklyLimitSeconds": 21600
+    },
+    {
+      "id": "child-one-chatgpt",
+      "childId": "child-one",
+      "serviceId": "chatgpt",
+      "weeklyLimitSeconds": 21600
+    },
+    {
+      "id": "child-two-chesscom",
+      "childId": "child-two",
+      "serviceId": "chesscom",
+      "weeklyLimitSeconds": 21600
+    },
+    {
+      "id": "child-two-chatgpt",
+      "childId": "child-two",
+      "serviceId": "chatgpt",
+      "weeklyLimitSeconds": 21600
     }
   ]
 }

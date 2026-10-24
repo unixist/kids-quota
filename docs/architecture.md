@@ -2,12 +2,22 @@
 
 This document describes intended behavior, not an implemented system.
 
-## Initial supported services
+## Services and children
 
 - **Chess.com:** `chess.com` and subdomains, plus the selected Chess.com Mac app,
   share a six-hour weekly allowance.
 - **ChatGPT:** `chatgpt.com` and subdomains, plus the selected ChatGPT Mac app,
   share a separate six-hour weekly allowance.
+
+These are starter services, not a fixed allowlist. A parent can create additional
+named service groups with one or more domains, optional subdomain matching, and
+optional selected apps. Each child receives independent quotas for the services
+assigned to them; the initial Chess.com and ChatGPT allowances are each 21,600
+seconds per child. Changing one child's allowance never changes a sibling's.
+
+The first release supports multiple children on one Mac, each using a separate
+macOS login account. It does not automatically synchronize or pool usage across
+multiple Macs. Parent-facing child names are labels, not authentication identities.
 
 Chrome and Safari extensions enforce website quotas. A macOS Network Extension
 content filter cuts off network access for the selected apps at exhaustion. The
@@ -34,15 +44,21 @@ Sources: [Chrome permissions](https://developer.chrome.com/docs/extensions/devel
 
 ## Components and authority
 
-- **Swift macOS app:** parent settings, weekly hours, domain/app groups, reset day and
-  timezone, remaining time, and explicit temporary overrides. Keep the main view
-  simple: one row per service with used/remaining time and blocking state, a clear
-  hours editor, and one shared reset setting. Show incomplete setup plainly.
-- **Quota service:** the single owner of balances for a macOS user. A per-user
-  background agent is sufficient for an initial prototype; privileged service
-  design and deployment policy are separate work for stronger tamper resistance.
-- **SQLite store:** validated policies and durable usage indexed by user, stable
-  quota ID, and calendar-period start. Do not store page contents or full URL history.
+- **Swift macOS app:** parent settings, children, weekly hours, domain/app groups,
+  reset day and timezone, remaining time, and explicit temporary overrides. Keep
+  the main view simple: a child switcher, one row per assigned service with
+  used/remaining time and blocking state, an hours editor, an **Add website or
+  group** action, and one shared reset setting. Put client connection settings in
+  a separate settings view. Show incomplete setup plainly.
+- **Quota service:** one protected machine-wide daemon owns account mappings,
+  policy, API credentials, and balances. Per-user collectors report to this daemon;
+  they cannot maintain competing authoritative copies of a child's balance.
+- **SQLite store:** validated policies and durable usage indexed by stable
+  `childId`, `quotaId`, and calendar-period start. Store protected account bindings
+  separately from child display names. Do not store page contents or full URL history.
+- **HTTP API:** a versioned, authenticated JSON interface allows independently
+  developed clients to read permitted balances and parent-authorized clients to
+  manage policy. Widgets and publishers do not receive usage-writing privileges.
 - **Browser adapters:** report the selected top-level hostname and focus changes,
   receive remaining time and deadlines, and apply blocking. A Chrome native host
   and Safari native app-extension bridge both connect to the same service.
@@ -51,28 +67,102 @@ Sources: [Chrome permissions](https://developer.chrome.com/docs/extensions/devel
   same quota service; a running background process does not imply use.
 - **Application network filter:** a Network Extension content filter applies an
   exhausted group's policy to traffic from its selected apps and explicitly bound
-  helper processes. It handles new flows and existing connections, independently
+  helper processes, scoped to the originating child/account. It handles new flows
+  and existing connections, independently
   of whether an app is foreground, background, already running, or newly launched.
   It does not prevent launch or stop offline app features.
 
 Browser/native messages must be versioned, bounded, and restricted to the intended
-extension identities. Do not expose an unauthenticated localhost control server.
+extension and authenticated OS-session identities. Do not expose an unauthenticated
+localhost control server.
 Policy updates require parent authorization in the intended product, not merely
 a browser message. A parent PIN alone is not an OS-level security boundary.
 
+## Child identification and account isolation
+
+During parent-authorized setup, bind a stable child ID to the selected macOS
+account's durable directory identity. Resolve that binding to the account's current
+UID at runtime; a display name, login-name string, reusable UID alone, or request's
+claimed `childId` is insufficient identity. Account deletion/recreation requires
+binding review rather than inheriting a previous child's quota accidentally.
+
+Authenticate collector IPC using the connecting process's OS credentials/audit
+identity and expected code identity. The daemon derives the child from that
+verified session and its stored account binding. A collector in one account cannot
+charge another child or change its own mapping. An unbound account reports setup
+needed and must not be silently assigned to another child's balance.
+
+Fast user switching pauses metering for the session losing interactive foreground
+ownership. On switching, login, logout, lock, and wake, reconcile the active session
+and its foreground app/tab before resuming. A browser left running in another
+login session is background activity, not additional foreground use.
+
+Network enforcement must resolve both the verified source app and originating
+user. Exhausting one child's ChatGPT allowance must not block the same installed
+ChatGPT binary for a sibling or parent. Keep per-account rules and test system
+helpers that open connections on an app's behalf. Unknown attribution is an
+explicit coverage gap, never a reason to apply a machine-wide app ban.
+
+## Open HTTP interface and additional clients
+
+Use the proposed loopback endpoint `http://127.0.0.1:48123/v1` with JSON resources
+for children, services, per-child quotas, and balances. Shared reset settings and
+account pairing remain native parent-app operations in the first API draft. The
+port is a design choice; no listener has been implemented or opened. See
+[API behavior](api.md) and the [OpenAPI contract](../api/openapi.yaml).
+
+Require credentials even on loopback because other local accounts and applications
+can reach it. Parent-paired, revocable clients receive only their necessary scopes
+and an explicit child allowlist. Read scopes such as `balances:read` grant no policy
+editing or usage submission; parent clients need `policy:write` for mutations.
+Authorize every requested object and filter collections to the allowed children.
+Never return a sibling's record just because its ID is known. Store credentials
+outside public website code and protect them with the client's OS account.
+
+Trusted activity collectors continue to use authenticated native IPC. The public
+REST contract has no endpoint that accepts arbitrary elapsed seconds or writes a
+balance. Adding a new measurement client later requires a defined trust and
+registration protocol, not an ordinary balance-reading token.
+
+Balance responses include the child's current period boundaries, an `asOf`
+timestamp, the policy revision, limit/used/remaining seconds, quota state, and
+separate enforcement-coverage status. The service includes current live elapsed
+usage in the snapshot rather than waiting for a disk checkpoint. A widget polls
+when it refreshes and clearly labels stale or disconnected data; it cannot promise
+an always-live countdown or enforcement state from a cached response. Private
+responses use `Cache-Control: no-store`; clients receive summaries, not browsing
+history or page contents.
+
+A local publishing client can read selected balances and, when explicitly enabled
+by the parent, send chosen summaries to a separately hosted website. That website
+cannot directly reach the Mac's loopback API. Do not put a parent/API credential
+into public JavaScript or publish child identities or balances automatically.
+Remote API access, if added, needs a separately paired TLS-protected gateway; the
+initial service must not simply bind to all network interfaces. No cross-device
+quota synchronization is implied by having multiple API clients.
+
 ## Shared website and application quotas
 
-A quota is a stable group ID with one allowance and one usage ledger per user and
-calendar period. Group membership can include both domains and application IDs.
-Members never receive separate copies of the allowance.
+A shared service definition has a stable `id`, `name`, `domains`, and
+`applicationIds`. Each child has separate quota records with stable IDs, a
+`serviceId`, and `weeklyLimitSeconds`. The ledger belongs to the child/quota/period,
+not the service catalog entry or the client reading it. Service members never
+receive separate copies of the allowance.
 
-The `chesscom` group has six hours per week shared by `chess.com` and subdomains
-in Chrome/Safari, and the explicitly selected installed Chess.com app.
+Each child's starter `chesscom` quota has six hours per week shared by `chess.com`
+and subdomains in Chrome/Safari, and the explicitly selected installed Chess.com app.
 Two hours in Chrome plus one in Safari plus two in the native app use five hours,
 leaving one hour. Exhaustion and the Monday reset apply to the entire group.
 The separate `chatgpt` group applies the same model to `chatgpt.com` and the selected
 ChatGPT Mac app, with its own six-hour allowance and balance. Using or exhausting one
-service does not change the other service's balance or access.
+service does not change the other service's balance or access. Nor does it change
+any other child's balance, even when they use the same service and app installation.
+
+Editing a catalog service's domain/app membership affects every child assigned
+that service; the parent UI shows that scope before saving. Existing quota IDs and
+usage are preserved. To give a child a different membership group, create a separate
+service definition and assignment. Validation rejects overlapping assigned service
+selectors for the same child, while different children may have different rules.
 
 Policy `applicationIds` reference logical IDs in `applicationBindings`; those IDs
 are internal references, not claimed bundle identifiers. The example's
@@ -89,8 +179,8 @@ Resolve legitimate helper processes as part of a tested app-specific binding;
 never allow a broad vendor identity to capture unrelated apps or shared processes.
 Updates that satisfy the stored identity preserve the binding and usage; identity
 changes require review rather than silently losing coverage. Reject unresolved
-application ID references, duplicate verified identities under different bindings,
-and overlapping app membership across quota groups.
+application ID references and duplicate verified identities under different bindings.
+Reject overlapping app membership across quota groups assigned to the same child.
 
 Associate apps with services explicitly. An app making a request to `chess.com`
 does not establish that all its foreground time is Chess.com use. Selecting an
@@ -118,8 +208,15 @@ label-boundary rule to `chatgpt.com`.
   include all of `openai.com` or shared authentication/CDN domains in ChatGPT's
   website quota merely because the service contacts them.
 - Reject IP literals, schemes, paths, empty names, public-suffix-only entries such
-  as `com` or `co.uk`, and overlapping rules that would make quota attribution ambiguous.
+  as `com` or `co.uk`, and overlapping assigned rules for a child that would make
+  quota attribution ambiguous.
 - Support explicit related-domain groups; do not infer site ownership from IPs.
+
+Custom domain additions use the same validation and matching pipeline as starter
+services. Request or verify the required permissions in every enabled browser
+profile before reporting complete website coverage. A website-only service is
+valid: application membership is optional. A configuration write alone must not
+claim that missing browser permissions have been granted.
 
 Blocking a site's navigation should not globally block a shared CDN just because
 that site uses it. Third-party embeds, alternate domains, installed web apps, and
@@ -146,8 +243,8 @@ Resolve the actual current tab on startup, wake, reconnection, and focus changes
 Also reconcile the current foreground application on those transitions. Do not
 infer that an old tab or application stayed active through a long unobserved interval.
 
-Charge at most one foreground activity per user at a time. Persist short increments
-transactionally and settle on transitions. Identify duplicate/out-of-order events
+Charge at most one foreground activity for the interactive child at a time. Persist
+short increments transactionally and settle on transitions. Identify duplicate/out-of-order events
 with session IDs and sequence numbers. Target a small documented overshoot bound
 and measure it under suspension and disconnects before promising timing precision.
 For a browser-to-app transition within the same quota group, settle the previous
@@ -157,8 +254,9 @@ interval, and background network requests do not create usage intervals.
 
 ## Weekly reset
 
-The default boundary is Monday 00:00 in the policy's named IANA timezone. Select the
-timezone during setup, then store it explicitly. The example uses America/Chicago.
+The household-wide default boundary is Monday 00:00 in the policy's named IANA
+timezone. Select the timezone during setup, then store it explicitly. The example
+uses America/Chicago. Children share that schedule, not balances or allowances.
 
 Compute the most recent and next calendar boundary, not an elapsed 604,800-second
 timer. Weeks spanning daylight-saving transitions are not always 168 hours.
@@ -205,8 +303,9 @@ Unrestricted browsing remains available. This requires the extension to be runni
 it cannot guarantee enforcement if the extension is removed or disabled.
 
 The same exhausted quota decision must reach the application's Network Extension
-content filter. Match flows using verified source-app identity and tested helper
-attribution; do not try to discover every API or CDN domain used by the native app.
+content filter with its child/account scope. Match flows using verified source-app
+identity and tested helper attribution; do not try to discover every API or CDN
+domain used by the native app.
 This app-specific denial applies to its network traffic regardless of the target
 IP, hostname visibility, or whether the app uses its own DNS implementation. No
 TLS decryption is part of the design.
@@ -275,6 +374,16 @@ Sources: [ScreenTime](https://developer.apple.com/documentation/screentime),
 ## Acceptance checks for implementation
 
 - Correct exact/subdomain boundaries, IDNA, suffix validation, aliases, and overlap rejection.
+- Custom domain groups work with optional apps, and missing browser permissions show incomplete coverage.
+- Each child's independent Chess.com and ChatGPT quotas default to 21,600 seconds.
+- Account binding uses durable identity and authenticated collector credentials; claimed child IDs cannot spoof attribution.
+- Fast user switching, login/logout, and lock/wake change metering ownership correctly.
+- Exhaustion for one child does not block the same app or website for siblings or the parent.
+- Global service edits preserve all assigned children's usage and show their affected scope.
+- Scoped API clients cannot read sibling balances or mutate policy with read-only credentials.
+- Balance snapshots include live elapsed use, period boundaries, coverage, and freshness metadata.
+- Widgets handle stale/disconnected state; a local publisher exports only parent-selected summaries.
+- Multiple API clients do not duplicate usage or imply cross-Mac synchronization.
 - Shared balance when switching between Chrome and Safari, profiles, windows, and tabs.
 - Chess.com six-hour balance shared across Chrome, Safari, and its bound standalone app.
 - ChatGPT six-hour balance shared across Chrome, Safari, and its bound standalone app.

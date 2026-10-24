@@ -1,0 +1,11 @@
+{
+  "expectedPolicyRevision": 0,
+  "name": "Reading",
+  "domains": [
+    {
+      "hostname": "example.org",
+      "includeSubdomains": true
+    }
+  ],
+  "applicationIds": []
+}

@@ -1,0 +1,382 @@
+openapi: 3.1.0
+info:
+  title: kids-quota HTTP API
+  version: 0.1.0-draft
+  description: |
+    Proposed local API; no server is implemented. Every request requires a
+    parent-issued opaque token. Scopes and child grants are enforced server-side.
+    policy:write is household-admin authority issued only to parent clients with
+    all-child grants. Read-only clients can have narrower child grants.
+    x-required-scopes documents scopes for the HTTP bearer scheme. Normal clients
+    cannot submit usage, change balances, pair OS accounts, or verify app identities.
+    Child creation, pairing, and the shared reset schedule are native parent-app
+    operations in this draft. All responses use Cache-Control: no-store.
+servers:
+  - url: http://127.0.0.1:48123
+    description: Proposed loopback-only listener; not a deployed service
+security:
+  - bearerAuth: []
+paths:
+  /v1/children:
+    get:
+      operationId: listChildren
+      summary: List only children granted to this client
+      x-required-scopes: ["children:read"]
+      responses:
+        '200':
+          description: Authorized children; no OS-account identifiers
+          headers: {Cache-Control: {$ref: '#/components/headers/NoStore'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [policyRevision, items]
+                properties:
+                  policyRevision: {$ref: '#/components/schemas/Revision'}
+                  items: {type: array, items: {$ref: '#/components/schemas/Child'}}
+        default: {$ref: '#/components/responses/Error'}
+  /v1/services:
+    get:
+      operationId: listServices
+      summary: List visible service definitions
+      description: |
+        Ordinary clients see only services assigned to granted children. A parent
+        policy administrator with services:read may see the entire catalog.
+      x-required-scopes: ["services:read"]
+      responses:
+        '200':
+          description: Visible services
+          headers: {Cache-Control: {$ref: '#/components/headers/NoStore'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [policyRevision, items]
+                properties:
+                  policyRevision: {$ref: '#/components/schemas/Revision'}
+                  items: {type: array, items: {$ref: '#/components/schemas/Service'}}
+        default: {$ref: '#/components/responses/Error'}
+    post:
+      operationId: createService
+      summary: Create a custom domain and app group
+      x-required-scopes: ["policy:write"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ServiceCreate'}
+      responses:
+        '201': {$ref: '#/components/responses/ServiceWrite'}
+        default: {$ref: '#/components/responses/Error'}
+  /v1/services/{serviceId}:
+    parameters:
+      - $ref: '#/components/parameters/ServiceId'
+    patch:
+      operationId: updateService
+      summary: Edit membership or name without discarding existing usage
+      description: |
+        Provided arrays replace prior arrays. Unspecified fields are unchanged.
+        Changes affect all children assigned this service. At least one actual
+        change field is required alongside expectedPolicyRevision.
+      x-required-scopes: ["policy:write"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ServicePatch'}
+      responses:
+        '200': {$ref: '#/components/responses/ServiceWrite'}
+        default: {$ref: '#/components/responses/Error'}
+  /v1/children/{childId}/quotas:
+    parameters:
+      - $ref: '#/components/parameters/ChildId'
+    get:
+      operationId: listChildQuotas
+      summary: Read one authorized child's service allowances
+      x-required-scopes: ["quotas:read"]
+      responses:
+        '200':
+          description: Assigned quotas, independent from other children
+          headers: {Cache-Control: {$ref: '#/components/headers/NoStore'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [policyRevision, childId, items]
+                properties:
+                  policyRevision: {$ref: '#/components/schemas/Revision'}
+                  childId: {$ref: '#/components/schemas/Id'}
+                  items: {type: array, items: {$ref: '#/components/schemas/Quota'}}
+        default: {$ref: '#/components/responses/Error'}
+    post:
+      operationId: assignChildQuota
+      summary: Assign one service to a child with an independent allowance
+      description: A duplicate child/service assignment returns 409.
+      x-required-scopes: ["policy:write"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expectedPolicyRevision, serviceId, weeklyLimitSeconds]
+              properties:
+                expectedPolicyRevision: {$ref: '#/components/schemas/Revision'}
+                serviceId: {$ref: '#/components/schemas/Id'}
+                weeklyLimitSeconds: {$ref: '#/components/schemas/Seconds'}
+      responses:
+        '201': {$ref: '#/components/responses/QuotaWrite'}
+        default: {$ref: '#/components/responses/Error'}
+  /v1/children/{childId}/quotas/{quotaId}:
+    parameters:
+      - $ref: '#/components/parameters/ChildId'
+      - $ref: '#/components/parameters/QuotaId'
+    patch:
+      operationId: updateChildQuota
+      summary: Change the allowance while preserving current usage
+      description: |
+        Reducing the limit below usage exhausts the quota. Increasing it may
+        restore access. The stable quota ID and service assignment do not change.
+      x-required-scopes: ["policy:write"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expectedPolicyRevision, weeklyLimitSeconds]
+              properties:
+                expectedPolicyRevision: {$ref: '#/components/schemas/Revision'}
+                weeklyLimitSeconds: {$ref: '#/components/schemas/Seconds'}
+      responses:
+        '200': {$ref: '#/components/responses/QuotaWrite'}
+        default: {$ref: '#/components/responses/Error'}
+  /v1/children/{childId}/balances:
+    parameters:
+      - $ref: '#/components/parameters/ChildId'
+    get:
+      operationId: readChildBalances
+      summary: Read current balances, including live foreground elapsed time
+      description: |
+        Reads do not grant time or reset the ledger. The service computes the
+        current calendar period before answering. Clients display asOf and mark
+        stale or failed reads accordingly; polling does not drive enforcement.
+      x-required-scopes: ["balances:read"]
+      responses:
+        '200':
+          description: A consistent snapshot for the authorized child
+          headers: {Cache-Control: {$ref: '#/components/headers/NoStore'}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BalanceSnapshot'}
+              example:
+                asOf: '2026-10-23T20:00:00Z'
+                policyRevision: 7
+                childId: child-1
+                items:
+                  - quotaId: child-1-chesscom
+                    serviceId: chesscom
+                    periodStart: '2026-10-19T05:00:00Z'
+                    periodEnd: '2026-10-26T05:00:00Z'
+                    limitSeconds: 21600
+                    usedSeconds: 7200
+                    remainingSeconds: 14400
+                    quotaState: available
+                    coverage: complete
+        default: {$ref: '#/components/responses/Error'}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+      description: |
+        Revocable token issued through parent-approved native pairing. Required
+        even on loopback. Each token carries explicit scopes and child grants;
+        callers cannot broaden grants by changing a path or request body.
+  headers:
+    NoStore:
+      description: Child and policy data must not be cached by intermediaries.
+      schema: {type: string, const: no-store}
+  parameters:
+    ChildId:
+      name: childId
+      in: path
+      required: true
+      description: Must be granted to the caller; unauthorized IDs return 404.
+      schema: {$ref: '#/components/schemas/Id'}
+    ServiceId:
+      name: serviceId
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/Id'}
+    QuotaId:
+      name: quotaId
+      in: path
+      required: true
+      description: Must belong to the child in this path.
+      schema: {$ref: '#/components/schemas/Id'}
+  responses:
+    Error:
+      description: |
+        400 malformed request; 401 missing/invalid token; 403 missing scope;
+        404 absent or unauthorized resource; 409 stale revision or duplicate
+        assignment; 422 invalid policy; 429 rate limited; 503 unavailable.
+        No unrelated child, credential, or OS-account details are disclosed.
+      headers: {Cache-Control: {$ref: '#/components/headers/NoStore'}}
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error]
+            properties:
+              error:
+                type: object
+                required: [code, message]
+                properties:
+                  code:
+                    type: string
+                    enum: [bad_request, unauthenticated, forbidden, not_found, conflict, invalid_policy, rate_limited, unavailable]
+                  message: {type: string}
+    ServiceWrite:
+      description: Service saved transactionally; revision advanced
+      headers: {Cache-Control: {$ref: '#/components/headers/NoStore'}}
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [policyRevision, service]
+            properties:
+              policyRevision: {$ref: '#/components/schemas/Revision'}
+              service: {$ref: '#/components/schemas/Service'}
+    QuotaWrite:
+      description: Quota saved transactionally; existing usage retained
+      headers: {Cache-Control: {$ref: '#/components/headers/NoStore'}}
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [policyRevision, quota]
+            properties:
+              policyRevision: {$ref: '#/components/schemas/Revision'}
+              quota: {$ref: '#/components/schemas/Quota'}
+  schemas:
+    Id:
+      type: string
+      minLength: 1
+      maxLength: 128
+      pattern: '^[A-Za-z0-9_-]+$'
+      description: Stable opaque identifier. Example slugs are illustrative.
+    Revision:
+      type: integer
+      minimum: 0
+      maximum: 9007199254740991
+    Seconds:
+      type: integer
+      minimum: 0
+      maximum: 9007199254740991
+      description: Integer seconds. Zero allowance means exhausted immediately.
+    Child:
+      type: object
+      required: [id, displayName]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        displayName: {type: string, minLength: 1, maxLength: 100}
+    Domain:
+      type: object
+      additionalProperties: false
+      required: [hostname, includeSubdomains]
+      properties:
+        hostname:
+          type: string
+          format: hostname
+          maxLength: 253
+          description: |
+            Canonical lowercase ASCII/IDNA hostname. No scheme, path, wildcard,
+            IP literal, or bare public suffix. Semantic validation is required.
+        includeSubdomains: {type: boolean}
+    Service:
+      type: object
+      required: [id, name, domains, applicationIds]
+      anyOf:
+        - properties: {domains: {minItems: 1}}
+        - properties: {applicationIds: {minItems: 1}}
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        name: {type: string, minLength: 1, maxLength: 100}
+        domains:
+          type: array
+          items: {$ref: '#/components/schemas/Domain'}
+        applicationIds:
+          type: array
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/Id'}
+      description: At least one domain or existing logical application binding is required.
+    ServiceCreate:
+      type: object
+      additionalProperties: false
+      required: [expectedPolicyRevision, name, domains, applicationIds]
+      anyOf:
+        - properties: {domains: {minItems: 1}}
+        - properties: {applicationIds: {minItems: 1}}
+      properties:
+        expectedPolicyRevision: {$ref: '#/components/schemas/Revision'}
+        name: {type: string, minLength: 1, maxLength: 100}
+        domains: {type: array, items: {$ref: '#/components/schemas/Domain'}}
+        applicationIds:
+          type: array
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/Id'}
+      description: |
+        Server assigns the ID. At least one domain or application binding must
+        remain. Unknown bindings and ambiguous overlapping policy return 422.
+        Clients cannot supply signing identities; native setup owns verification.
+    ServicePatch:
+      type: object
+      additionalProperties: false
+      minProperties: 2
+      required: [expectedPolicyRevision]
+      properties:
+        expectedPolicyRevision: {$ref: '#/components/schemas/Revision'}
+        name: {type: string, minLength: 1, maxLength: 100}
+        domains: {type: array, items: {$ref: '#/components/schemas/Domain'}}
+        applicationIds:
+          type: array
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/Id'}
+      description: Validate the resulting service and every affected child's policy.
+    Quota:
+      type: object
+      required: [id, childId, serviceId, weeklyLimitSeconds]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        childId: {$ref: '#/components/schemas/Id'}
+        serviceId: {$ref: '#/components/schemas/Id'}
+        weeklyLimitSeconds: {$ref: '#/components/schemas/Seconds'}
+    Balance:
+      type: object
+      required: [quotaId, serviceId, periodStart, periodEnd, limitSeconds, usedSeconds, remainingSeconds, quotaState, coverage]
+      properties:
+        quotaId: {$ref: '#/components/schemas/Id'}
+        serviceId: {$ref: '#/components/schemas/Id'}
+        periodStart: {type: string, format: date-time}
+        periodEnd: {type: string, format: date-time}
+        limitSeconds: {$ref: '#/components/schemas/Seconds'}
+        usedSeconds: {$ref: '#/components/schemas/Seconds'}
+        remainingSeconds: {$ref: '#/components/schemas/Seconds'}
+        quotaState: {type: string, enum: [available, exhausted]}
+        coverage: {type: string, enum: [complete, incomplete]}
+      description: |
+        remainingSeconds = max(0, limitSeconds - usedSeconds). Exhausted iff
+        remainingSeconds is zero. Coverage is independent of quota state and
+        reports whether the assigned account, apps, browsers, and filter are ready.
+    BalanceSnapshot:
+      type: object
+      required: [asOf, policyRevision, childId, items]
+      properties:
+        asOf: {type: string, format: date-time}
+        policyRevision: {$ref: '#/components/schemas/Revision'}
+        childId: {$ref: '#/components/schemas/Id'}
+        items: {type: array, items: {$ref: '#/components/schemas/Balance'}}
