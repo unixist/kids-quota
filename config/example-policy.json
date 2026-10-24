@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "reset": {
+    "weekday": "monday",
+    "localTime": "00:00",
+    "timeZone": "America/Chicago"
+  },
+  "metering": {
+    "mode": "foreground-tab",
+    "countPassiveViewing": true,
+    "countBackgroundMedia": false,
+    "pauseWhenLocked": true,
+    "pauseWhenAsleep": true
+  },
+  "quotas": [
+    {
+      "id": "youtube",
+      "name": "YouTube",
+      "hoursPerWeek": 5,
+      "domains": [
+        { "hostname": "youtube.com", "includeSubdomains": true },
+        { "hostname": "youtu.be", "includeSubdomains": false }
+      ]
+    },
+    {
+      "id": "roblox",
+      "name": "Roblox website",
+      "hoursPerWeek": 3,
+      "domains": [
+        { "hostname": "roblox.com", "includeSubdomains": true }
+      ]
+    }
+  ]
+}
