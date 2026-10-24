@@ -1,0 +1,46 @@
+flowchart LR
+    subgraph child["Child's macOS login session"]
+        browser["Chrome / Safari extensions<br/>Observe foreground hostname<br/>Enforce domain blocks"]
+        bridges["Native browser bridges<br/>QuotaBridge / Safari handler"]
+        agent["Per-login activity agent<br/>Foreground app + session state"]
+        browser <-->|"state / policy reply"| bridges
+    end
+
+    subgraph service["Protected root service · one process"]
+        ipc["Native IPC<br/>OS process identity + account UID"]
+        http["Read-only HTTP<br/>127.0.0.1:48123/v1"]
+        controller["ServiceController<br/>Authorization + activity selection"]
+        engine["QuotaEngine<br/>Authoritative time + balances"]
+        db[("SQLite<br/>Policy + usage + reset audit")]
+        ipc --> controller
+        http --> controller
+        controller --> engine
+        engine <--> db
+    end
+
+    subgraph parent["Parent account"]
+        gui["Parent app<br/>Administrator unlock<br/>Setup, settings, reset"]
+    end
+
+    subgraph integrations["Independent local clients"]
+        readers["Read-client example<br/>Future widget / publisher"]
+    end
+
+    subgraph os["macOS network system extension"]
+        filter["App network filter<br/>Source UID + app signature<br/>Network denial only"]
+    end
+
+    bridges <-->|"native request / policy reply"| ipc
+    agent -->|"native observation · 1 s + events"| ipc
+    gui <-->|"native IPC + admin grant + bearer"| ipc
+    readers <-->|"GET + scoped bearer / JSON"| http
+    filter <-->|"native rule poll / reply · 1 s"| ipc
+
+    classDef childNode fill:#edf4fd,stroke:#b9cee7,color:#192d40
+    classDef serviceNode fill:#edf7f4,stroke:#accfc2,color:#192d40
+    classDef parentNode fill:#f4f1fc,stroke:#cdc1e8,color:#192d40
+    classDef filterNode fill:#fff7e9,stroke:#ddc89e,color:#192d40
+    class browser,bridges,agent childNode
+    class ipc,http,controller,engine,db serviceNode
+    class gui,readers parentNode
+    class filter filterNode

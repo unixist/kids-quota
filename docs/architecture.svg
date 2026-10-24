@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1420" height="1010" viewBox="0 0 1420 1010" role="img" aria-labelledby="title description">
+<title id="title">Kids Quota architecture</title>
+<desc id="description">One protected root daemon owns each child's weekly balances. Chrome and Safari report foreground hostnames through native bridges; a per-login agent reports the foreground app and session state. The parent app uses administrator-authorized native IPC, while integration clients use read-only HTTP. Browser extensions enforce domains; a macOS network filter polls for per-user app rules. SQLite persists policy, usage and reset audit records.</desc>
+<defs>
+  <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 Z" fill="#536779"/></marker>
+  <style>
+    text {font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; fill: #192d40;}
+    .title {font-size: 35px; font-weight: 700;}
+    .subtitle {font-size: 18px; fill: #526477;}
+    .group {font-size: 18px; font-weight: 650;}
+    .label {font-size: 19px; font-weight: 650;}
+    .body {font-size: 16px; fill: #44596c;}
+    .small {font-size: 14px; fill: #526477;}
+    .mono {font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; fill: #526477;}
+    .edge {fill:none; stroke:#536779; stroke-width:2; stroke-linejoin:round; marker-end:url(#arrow);}
+    .both {marker-start:url(#arrow);}
+  </style>
+</defs>
+<rect width="1420" height="1010" fill="#ffffff"/>
+<text x="40" y="63" class="title">kids-quota architecture</text>
+<text x="40" y="98" class="subtitle">One Mac. One authoritative ledger. Separate weekly balances for each child.</text>
+
+<rect x="40" y="145" width="390" height="760" rx="16" fill="#edf4fd" stroke="#cedced"/>
+<text x="66" y="181" class="group">Child&#x27;s login session</text>
+<rect x="505" y="145" width="400" height="760" rx="16" fill="#edf7f4" stroke="#c4ded6"/>
+<text x="531" y="181" class="group">Machine service · root</text>
+<rect x="980" y="145" width="400" height="427" rx="16" fill="#f4f1fc" stroke="#d9d1ec"/>
+<text x="1006" y="181" class="group">Parent and integrations</text>
+<rect x="980" y="610" width="400" height="295" rx="16" fill="#fff7e9" stroke="#e8d6b5"/>
+<text x="1006" y="648" class="group">macOS system extension</text>
+<rect x="65" y="210" width="340" height="125" rx="12" fill="#ffffff" stroke="#b9cee7"/>
+<text x="85" y="243" class="label">Chrome / Safari extensions</text>
+<text x="85" y="274" class="body">Report the foreground hostname</text>
+<text x="85" y="298" class="body">Apply domain blocks and replace tabs</text>
+<rect x="65" y="385" width="340" height="125" rx="12" fill="#ffffff" stroke="#b9cee7"/>
+<text x="85" y="418" class="label">Native browser bridges</text>
+<text x="85" y="449" class="body">Chrome: QuotaBridge</text>
+<text x="85" y="473" class="body">Safari: SafariWebExtensionHandler</text>
+<path d="M 235 335 L 235 385" class="edge both"/>
+<text x="251" y="363" class="small">reports / policy replies</text>
+<rect x="65" y="620" width="340" height="140" rx="12" fill="#ffffff" stroke="#b9cee7"/>
+<text x="85" y="653" class="label">Per-login activity agent</text>
+<text x="85" y="684" class="body">Foreground app PID + session state</text>
+<text x="85" y="708" class="body">Awake, unlocked, active login</text>
+<text x="85" y="732" class="body">Every 1 s and on session/app events</text>
+<text x="65" y="803" class="small">The collectors report observations.</text>
+<text x="65" y="827" class="small">They do not set balances or elapsed time.</text>
+<rect x="535" y="210" width="340" height="175" rx="12" fill="#ffffff" stroke="#accfc2"/>
+<text x="555" y="241" class="label">Native IPC</text>
+<text x="555" y="267" class="mono">/var/run/kids-quota.sock</text>
+<text x="555" y="289" class="small">Verified process identity + account UID</text>
+<path d="M 551 304 H 859" stroke="#d9e6df"/>
+<text x="555" y="332" class="label">Read-only HTTP</text>
+<text x="555" y="357" class="mono">127.0.0.1:48123/v1</text>
+<rect x="535" y="435" width="340" height="112" rx="12" fill="#ffffff" stroke="#accfc2"/>
+<text x="555" y="468" class="label">ServiceController</text>
+<text x="555" y="499" class="body">Authorize and route requests</text>
+<text x="555" y="523" class="body">Combine app and browser evidence</text>
+<rect x="535" y="590" width="340" height="100" rx="12" fill="#ffffff" stroke="#accfc2"/>
+<text x="555" y="623" class="label">QuotaEngine</text>
+<text x="555" y="654" class="body">Meter time, settle usage, compute balances</text>
+<rect x="535" y="737" width="340" height="119" rx="12" fill="#ffffff" stroke="#accfc2"/>
+<text x="555" y="770" class="label">SQLite · QuotaStore</text>
+<text x="555" y="801" class="body">Policy, usage counters, reset audit</text>
+<text x="555" y="825" class="body">Key: child + quota + week start</text>
+<path d="M 705 385 L 705 435" class="edge"/>
+<path d="M 705 547 L 705 590" class="edge"/>
+<path d="M 705 690 L 705 737" class="edge both"/>
+<text x="721" y="720" class="small">durable state</text>
+<text x="535" y="884" class="small">WeeklyCalendar + DomainMatcher support the engine.</text>
+<path d="M 405 437 H 461 V 245 H 535" class="edge both"/>
+<path d="M 405 690 H 490 V 280 H 535" class="edge"/>
+<rect x="1005" y="210" width="350" height="118" rx="12" fill="#ffffff" stroke="#cdc1e8"/>
+<text x="1025" y="243" class="label">Parent app · administrator</text>
+<text x="1025" y="274" class="body">OS authorization + parent bearer</text>
+<text x="1025" y="298" class="body">Settings, account setup, manual reset</text>
+<path d="M 1005 258 H 875" class="edge both"/>
+<rect x="1005" y="395" width="350" height="115" rx="12" fill="#ffffff" stroke="#cdc1e8"/>
+<text x="1025" y="428" class="label">Read clients</text>
+<text x="1025" y="459" class="body">Scoped bearer: selected children only</text>
+<text x="1025" y="483" class="body">Example client; future widget / publisher</text>
+<path d="M 1005 449 H 947 V 342 H 875" class="edge both"/>
+<text x="1005" y="544" class="small">The GUI runs as the parent, not as root.</text>
+<rect x="1005" y="680" width="350" height="174" rx="12" fill="#ffffff" stroke="#ddc89e"/>
+<text x="1025" y="713" class="label">App network filter</text>
+<text x="1025" y="744" class="body">Poll rules via native IPC every 1 s</text>
+<text x="1025" y="768" class="body">Match source UID + app signature</text>
+<text x="1025" y="792" class="body">Allow / drop monitored socket traffic</text>
+<text x="1025" y="816" class="body">Network access only; offline use remains</text>
+<path d="M 1005 764 H 959 V 513 H 875" class="edge both"/>
+<text x="1005" y="882" class="small">Policy decisions come from the same balances.</text>
+<text x="40" y="947" class="small">Arrows show reports, requests and replies; there is no daemon broadcast channel.</text>
+<text x="40" y="973" class="small">Credentials live in separate protected files. No DNS proxy, TLS decryption, or offline app denial is implemented.</text>
+</svg>

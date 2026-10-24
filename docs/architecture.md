@@ -4,6 +4,28 @@ This document records the design and acceptance criteria. The development releas
 implements the core components; [README](../README.md) distinguishes implemented
 behavior from signed runtime checks and later features.
 
+## Runtime diagram
+
+![Kids Quota processes and data flow](architecture.svg)
+
+The [SVG](architecture.svg) shows the current implementation on one Mac. The
+[Mermaid version](architecture.mmd) is an editable structural view of the same
+components. For a source-by-source tour, read the [code walkthrough](code-guide.md).
+
+| Connection | What actually travels over it |
+| --- | --- |
+| Extension → native browser bridge → daemon | Active hostname, focus, session ID, and sequence number; the reply carries domain rules and remaining time. Browser refreshes are event-driven plus a roughly five-second timer while running. |
+| Per-login agent → daemon | Frontmost PID and awake/unlocked/active-session observations, every second and on relevant events. The daemon verifies identity and resolves the child. |
+| Parent app ↔ daemon | `parentHTTP` envelopes over authenticated UNIX IPC, with OS administrator authorization and a bearer token. Configuration does not use the public HTTP listener. |
+| Read client ↔ HTTP listener | Scoped bearer-authenticated reads at `127.0.0.1:48123/v1`, restricted to explicitly granted children. |
+| App filter ↔ daemon | A `filterRules` poll every second, returning blocked states associated with child UIDs and verified app requirements. The filter enforces those decisions on socket flows. |
+| Engine ↔ SQLite | Policy, per-child/per-quota/per-period counters, period floor, and reset audit. API credentials are separate protected files. |
+
+The central boxes are modules inside one service process. Browser bridges, the
+login agent, the parent GUI, and the network extension run separately. The service
+does not push unsolicited rules to adapters: they receive updated state through
+request/reply exchanges. Neither an extension nor the filter owns a balance.
+
 ## Services and children
 
 - **Chess.com:** `chess.com` and subdomains, plus the selected Chess.com Mac app,
