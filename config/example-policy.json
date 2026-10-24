@@ -12,10 +12,20 @@
     "pauseWhenLocked": true,
     "pauseWhenAsleep": true
   },
+  "enforcement": {
+    "websites": "browser-extension",
+    "applications": "network-content-filter"
+  },
   "applicationBindings": [
     {
       "id": "chesscom-macos",
       "displayName": "Chess.com macOS app",
+      "status": "needs-selection",
+      "identity": null
+    },
+    {
+      "id": "chatgpt-macos",
+      "displayName": "ChatGPT macOS app",
       "status": "needs-selection",
       "identity": null
     }
@@ -31,23 +41,13 @@
       "applicationIds": ["chesscom-macos"]
     },
     {
-      "id": "youtube",
-      "name": "YouTube",
-      "hoursPerWeek": 5,
+      "id": "chatgpt",
+      "name": "ChatGPT",
+      "hoursPerWeek": 6,
       "domains": [
-        { "hostname": "youtube.com", "includeSubdomains": true },
-        { "hostname": "youtu.be", "includeSubdomains": false }
+        { "hostname": "chatgpt.com", "includeSubdomains": true }
       ],
-      "applicationIds": []
-    },
-    {
-      "id": "roblox",
-      "name": "Roblox website",
-      "hoursPerWeek": 3,
-      "domains": [
-        { "hostname": "roblox.com", "includeSubdomains": true }
-      ],
-      "applicationIds": []
+      "applicationIds": ["chatgpt-macos"]
     }
   ]
 }
