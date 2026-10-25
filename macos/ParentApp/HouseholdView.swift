@@ -20,6 +20,13 @@ struct HouseholdView: View {
                     }
                 }
                 if let error = store.error { Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange).padding().frame(maxWidth: .infinity, alignment: .leading).background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 12)) }
+                if BuildFeatures.current.isLocalInstall {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Label("Local build · website blocking only", systemImage: "exclamationmark.shield").font(.headline)
+                        Text(BuildFeatures.current.networkFilterNotice).font(.callout)
+                        Text("Set up each child's browser extensions in Settings → Protection. Safari's unsigned-extension permission resets when Safari quits.").font(.caption)
+                    }.foregroundStyle(.orange).padding().frame(maxWidth: .infinity, alignment: .leading).background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                }
                 if store.children.isEmpty {
                     if store.connected { AddChildView(isFirstRun: true).frame(maxWidth: .infinity) }
                     else if store.busy { ProgressView("Loading parent settings…").frame(maxWidth: .infinity).padding(40) }
@@ -44,7 +51,7 @@ struct HouseholdView: View {
                         }.disabled(resetting || !store.connected || store.quotas.isEmpty)
                     }
                     if let pending = store.state?.policy.pendingReset { Text("Next schedule: \(pending.schedule.weekday.capitalized) at \(pending.schedule.localTime) · starts after this week").font(.caption).foregroundStyle(.secondary) }
-                    Text("Websites require the browser extension. App limits block internet access; cached and offline features can still work.").font(.caption).foregroundStyle(.secondary)
+                    Text(BuildFeatures.current.isLocalInstall ? "Websites require an enabled browser extension. App network blocking is unavailable in this build." : "Websites require the browser extension. App limits block internet access; cached and offline features can still work.").font(.caption).foregroundStyle(.secondary)
                 }
             }.padding(28)
         }
@@ -109,8 +116,9 @@ private struct ServiceCard: View {
                 VStack(alignment: .leading, spacing: 7) {
                     ForEach(service.domains, id: \.self) { domain in Label(domain.hostname + (domain.includeSubdomains ? " and subdomains" : ""), systemImage: "globe") }
                     ForEach(service.applicationIds, id: \.self) { id in Label(store.state?.policy.applicationBindings.first { $0.id == id }?.displayName ?? "App needs review", systemImage: "app") }
+                    if BuildFeatures.current.isLocalInstall && !service.applicationIds.isEmpty { Text("App usage is tracked; app network blocking is off.").foregroundStyle(.orange) }
                     if service.applicationIds.isEmpty { Text("Website only · Choose an app to share this allowance with its Mac app.").foregroundStyle(.secondary) }
-                    if balance?.coverage != "complete" { Text("Open both browsers in the child's account to check coverage. Also check website permissions, the login agent, and app filter in Settings.").foregroundStyle(.orange) }
+                    if balance?.coverage != "complete" { Text(BuildFeatures.current.isLocalInstall ? "Check both browser extensions and website permissions in the child's account. Services with a selected Mac app remain partially covered because app network blocking is off." : "Open both browsers in the child's account to check coverage. Also check website permissions, the login agent, and app filter in Settings.").foregroundStyle(.orange) }
                     Button("Manage included websites and apps", action: manage)
                 }.font(.callout).frame(maxWidth: .infinity, alignment: .leading).padding(.top, 6)
             }

@@ -3,10 +3,17 @@ import NetworkExtension
 import SystemExtensions
 
 @MainActor final class FilterActivation: NSObject, ObservableObject, OSSystemExtensionRequestDelegate {
-    @Published var status = "App network filter has not been enabled from this app."
+    @Published var status: String
     @Published var working = false
+    let features: BuildFeatures
     private let identifier = "com.kidsquota.app.networkfilter"
+    init(features: BuildFeatures = .current) {
+        self.features = features
+        status = features.canActivateNetworkFilter ? "App network filter has not been enabled from this app." : features.networkFilterNotice
+        super.init()
+    }
     func enable() {
+        guard features.canActivateNetworkFilter else { status = features.networkFilterNotice; working = false; return }
         working = true; status = "Requesting macOS approval…"
         let request = OSSystemExtensionRequest.activationRequest(forExtensionWithIdentifier: identifier, queue: .main)
         request.delegate = self; OSSystemExtensionManager.shared.submitRequest(request)

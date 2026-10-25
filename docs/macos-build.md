@@ -6,6 +6,14 @@ The UI uses the same REST handlers through a root-authenticated Unix socket.
 Read clients can use `http://127.0.0.1:48123/v1`. The privileged parent bearer is
 never sent to an unverified loopback TCP listener.
 
+For the current membership-free installer, use `scripts/build-macos.sh --local`
+followed by `scripts/package.sh --local`. This builds universal ad-hoc-signed
+components, installs exact code-hash trust pins, and keeps the Network Extension
+inactive. The parent app omits restricted network-extension entitlements in this
+profile. See [local setup](local-install.md) for manual browser setup and Safari's
+unsigned-permission reset behavior. The Developer ID steps below describe the
+separate optional full-filter release.
+
 ## Build and unit tests
 
 Install Xcode and XcodeGen, then, from the repository root:
@@ -27,10 +35,10 @@ must be allowed to launch; an outer sandbox can otherwise produce misleading
 “external macro implementation type could not be found” errors.
 
 `project.yml` is the project source. Generate the Xcode project after rebuilding
-browser resources. `Kids Quota.app` embeds both extensions. The Safari manifest and
+browser resources. The full-profile `Kids Quota.app` embeds both extensions. The Safari manifest and
 scripts are copied directly into its extension's Resources directory.
 
-## Signing and enabling
+## Developer ID signing and enabling the optional filter
 
 For independent distribution, sign the app and system extension with your Apple
 Developer ID team, provision the Network Extension capability, use the supplied

@@ -10,6 +10,11 @@ commands. This guide follows the implementation. [Architecture](architecture.md)
 contains the wider design rationale; [validation](validation.md) distinguishes
 automated checks from the signed runtime tests still required.
 
+The [local installer profile](local-install.md) keeps the network filter inactive.
+Its root daemon uses [LocalInstallTrust.swift](../Sources/KidsQuotaService/LocalInstallTrust.swift)
+to authenticate pinned ad-hoc builds at protected paths instead of requiring an
+Apple Team ID. The full filter flow below describes the optional signed profile.
+
 ## A useful reading order
 
 | Read | What to look for |

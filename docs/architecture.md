@@ -26,6 +26,11 @@ login agent, the parent GUI, and the network extension run separately. The servi
 does not push unsolicited rules to adapters: they receive updated state through
 request/reply exchanges. Neither an extension nor the filter owns a balance.
 
+The current [local DMG](local-install.md) keeps the optional network filter
+inactive. Its service uses root-protected code-hash pins instead of an Apple
+Team ID for native-client authentication. Browser quotas and parent controls
+remain, while selected native apps are tracking-only.
+
 ## Services and children
 
 - **Chess.com:** `chess.com` and subdomains, plus the selected Chess.com Mac app,

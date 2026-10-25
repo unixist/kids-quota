@@ -4,6 +4,49 @@ Run `npm run build:extensions` at the repository root. The dependency-free build
 creates `extensions/build/chrome` and `extensions/build/safari` from shared sources.
 Run `npm test` for the pure-policy and browser-controller tests.
 
+## Browser setup for the local DMG
+
+The local installer includes the browser files and native hosts. It does not
+silently enable extensions. Complete these steps in **each child's macOS login**.
+The Network Extension is included but inactive in this build; native app usage
+can consume time, but native apps retain network access after exhaustion.
+
+### Chrome
+
+1. Open `chrome://extensions` and enable **Developer mode**.
+2. Choose **Load unpacked**.
+3. Select `/Library/Application Support/KidsQuota/BrowserExtensions/Chrome`.
+4. Allow Kids Quota to access its requested websites. Enable it for every browser
+   profile the child uses; incognito access is a separate browser setting.
+
+The installed folder remains in place after ejecting the DMG. The public manifest
+key in [chrome-public-key.json](chrome-public-key.json) gives this local build a
+stable extension ID on every Mac and installation path. The builder writes that
+ID to `extensions/build/chrome-extension-id.txt`; the local installer registers
+the native host for that exact ID. This file contains only a public key, not a
+private signing key. A future Chrome Web Store release must use the store's real
+key/ID and keep the host registration consistent.
+
+### Safari
+
+The containing Kids Quota app includes a native Safari extension. A temporary
+raw JavaScript extension cannot replace it because Kids Quota uses native messaging.
+
+1. In Safari **Settings → Advanced**, enable **Show features for web developers**.
+2. In **Settings → Developer**, enable **Allow unsigned extensions**. Safari may
+   request administrator authentication.
+3. In **Settings → Extensions**, enable Kids Quota and grant website access.
+4. If Safari has multiple profiles, enable it in each relevant profile as well.
+
+**Safari resets “Allow unsigned extensions” every time it quits.** Repeat that
+step after each restart. This local Safari adapter is suitable for testing and
+does not provide persistent removal-resistant protection. The parent app shows
+missing coverage when the adapter stops reporting.
+
+Apple documents these steps in [Running your Safari web extension](https://developer.apple.com/documentation/safariservices/running-your-safari-web-extension).
+
+## Development and signed deployment
+
 Chrome development: load `extensions/build/chrome` using **Load unpacked** in
 `chrome://extensions`, then register the bundled native host using the install
 instructions. An unpacked extension can be disabled by its user. Managed deployment

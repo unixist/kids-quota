@@ -1,15 +1,43 @@
 # Build and install
 
-The repository can compile without signing credentials. A working installation
-requires your Apple Developer ID certificates and approved Network Extension
-provisioning, plus a stable Chrome extension ID. None is invented or bundled.
+The repository has two installation profiles. The **local profile** requires no
+Apple developer membership, bundles a stable unpacked Chrome extension, and keeps
+the Network Extension inactive. The **Developer ID profile** enables the signed
+distribution path and requires Apple signing/provisioning for the native filter.
 Builds do not install anything or enable a network filter. Apple submissions occur
 only with the explicit `--notarize` release option. Use a dedicated test Mac for the
 first signed installation.
 
+## Membership-free local DMG
+
+```sh
+scripts/build-macos.sh --local
+scripts/package.sh --local
+```
+
+This builds universal Apple Silicon/Intel artifacts and creates the real
+`dist/KidsQuota-0.1.0-Local.pkg` and `dist/KidsQuota-0.1.0-Local.dmg`. Only the DMG
+needs to be copied to the new Mac. It contains **Install Kids Quota.pkg** and
+**Start here.txt**. The package needs no development tools on the destination.
+See [local installation](local-install.md) for Gatekeeper approval, child browser
+setup, and Safari's permission-reset limitation.
+
+Local code uses ad-hoc hardened-runtime signatures and exact build hashes rather
+than an Apple Team ID. The root installer pins the service, agent, Chrome host,
+parent app, and Safari handler in `local-trust.json`. The daemon runs with
+`--local-install`, validates its own pin, and checks incoming clients' pins,
+protected paths, roles, and OS account identities. The existing parent grant/token
+checks remain. Neither a root daemon nor any client runs with `--development`.
+
+The network filter is stored under the app's `Contents/Resources/DisabledExtensions`
+and cannot be activated through the local UI. Native-app usage can still be
+counted but cannot be blocked by this release. These limitations are displayed
+in the parent interface. No Apple signing credentials or notarization submissions
+are used by the local packaging path.
+
 ## Install from the disk image
 
-For a signed release, the parent opens `KidsQuota-<version>.dmg`, then double-clicks
+For the separate Developer ID release, the parent opens `KidsQuota-<version>.dmg`, then double-clicks
 **Install Kids Quota.pkg**. macOS Installer requests an administrator name and
 password. No Terminal commands are needed. The image also contains a one-page
 **Start here.txt** with the remaining setup steps.

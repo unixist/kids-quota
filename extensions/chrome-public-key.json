@@ -1,0 +1,4 @@
+{
+  "description": "Public manifest key for the local unpacked Chrome build. This is not a secret or a signing credential. Keep stable so native-host registration matches across Macs.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuJpLlBP3ohC7KNUYSsu562XVM7ojHE07r96CdC85yAr9hUoT3kXeQPvjoj3j91ii1ILdGa3WUGMg+h6ylOdzQl6mNhYkVS9R+eYgHC9dowIoM3jqWv459iDdKrWmsIjmKj7idf9AFpdzzEsv3gziUtgjqorZkurOtuW8oyACpf/rsx7NXYXucDd42x8sBN/epLScZx0UZz/DWP+riDXUGL2Wt6DYANFjWA/9WbahSzFnUJojWCxJAMj/JNcaXbLCubQd4WB/7Lb+dwXzcnuB+Vr4/T5AX+GgmuVlSamRh9sXuj/qhllDvd4VLT6fcvGlWH11V07fqaSm8+xDtFZ7NwIDAQAB"
+}

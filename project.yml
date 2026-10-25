@@ -29,6 +29,7 @@ targets:
       - sdk: NetworkExtension.framework
       - sdk: SystemExtensions.framework
       - sdk: OpenDirectory.framework
+      - sdk: SafariServices.framework
     entitlements:
       path: macos/ParentApp/ParentApp.entitlements
       properties:
@@ -110,6 +111,7 @@ targets:
       - path: macos/ParentApp/ParentStore.swift
       - path: macos/ParentApp/ParentAuthorization.swift
       - path: macos/ParentApp/AccountDiscovery.swift
+      - path: macos/ParentApp/FilterActivation.swift
       - path: macos/Shared/DaemonSocket.swift
     settings:
       base:

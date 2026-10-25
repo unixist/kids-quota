@@ -27,7 +27,7 @@ flowchart LR
     end
 
     subgraph os["macOS network system extension"]
-        filter["App network filter<br/>Source UID + app signature<br/>Network denial only"]
+        filter["Optional app network filter<br/>Inactive in local DMG<br/>Source UID + app signature"]
     end
 
     bridges <-->|"native request / policy reply"| ipc

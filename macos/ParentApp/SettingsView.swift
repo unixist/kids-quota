@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import SafariServices
 
 struct SettingsView: View {
     @EnvironmentObject var store: ParentStore
@@ -8,6 +9,7 @@ struct SettingsView: View {
     @State private var openedRevision: Int?
     @State private var token = ""; @State private var clientName = ""; @State private var childIDs: Set<String> = []
     @State private var issuedToken: String?; @State private var message: String?; @State private var busy = false
+    private let features = BuildFeatures.current
     private let weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
     var body: some View {
         TabView {
@@ -29,20 +31,38 @@ struct SettingsView: View {
             }.formStyle(.grouped).tabItem { Label("General", systemImage: "gearshape") }
             Form {
                 Section("Mac apps") {
-                    Text("Enable the network filter after installing a signed Kids Quota app in Applications.")
-                    Button("Enable app network filter") { filter.enable() }.disabled(filter.working)
-                    Text(filter.status).foregroundStyle(.secondary)
-                    Label(store.state?.filterConnected == true ? "Filter is responding to the service" : "Service has no live filter connection", systemImage: store.state?.filterConnected == true ? "checkmark.circle" : "exclamationmark.circle").foregroundStyle(store.state?.filterConnected == true ? .green : .orange)
-                    if let gaps = store.state?.unattributedFlows, gaps > 0 { Text("Some connections could not be attributed to a signed app. Review app coverage before relying on its limit.").font(.caption).foregroundStyle(.orange) }
-                    Text("macOS will request administrator approval. The filter blocks the selected apps' network traffic after the allowance runs out. Offline content can remain available.").font(.caption).foregroundStyle(.secondary)
+                    if features.isLocalInstall {
+                        Label("App network blocking is off", systemImage: "exclamationmark.shield").foregroundStyle(.orange)
+                        Text(filter.status)
+                        Text("The Network Extension is included but inactive. Enabling it later requires a build with Apple's signing and provisioning.").font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        Text("Enable the network filter after installing a signed Kids Quota app in Applications.")
+                        Button("Enable app network filter") { filter.enable() }.disabled(filter.working)
+                        Text(filter.status).foregroundStyle(.secondary)
+                        Label(store.state?.filterConnected == true ? "Filter is responding to the service" : "Service has no live filter connection", systemImage: store.state?.filterConnected == true ? "checkmark.circle" : "exclamationmark.circle").foregroundStyle(store.state?.filterConnected == true ? .green : .orange)
+                        if let gaps = store.state?.unattributedFlows, gaps > 0 { Text("Some connections could not be attributed to a signed app. Review app coverage before relying on its limit.").font(.caption).foregroundStyle(.orange) }
+                        Text("macOS will request administrator approval. The filter blocks the selected apps' network traffic after the allowance runs out. Offline content can remain available.").font(.caption).foregroundStyle(.secondary)
+                    }
                 }
                 Section("Browser setup") {
                     Text("Enable Kids Quota in Chrome and Safari for each child's login. Allow it on all websites so it can identify the active site and show the time-limit page.")
-                    Button("Open Safari extension settings") { NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Safari.ExtensionsPreferences")!) }
-                    Text("The developer Chrome extension can be removed by that login. For stronger enforcement, deploy the signed release through managed browser policies; see the repository's installation guide.").font(.caption).foregroundStyle(.secondary)
+                    if features.isLocalInstall {
+                        Text("Chrome").font(.headline)
+                        Text("In the child's account, open chrome://extensions, turn on Developer mode, choose Load unpacked, and select this installed folder:").font(.callout)
+                        Text(BuildFeatures.chromeExtensionPath).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
+                        Button("Show Chrome extension folder") { NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: BuildFeatures.chromeExtensionPath) }
+                        Text("Safari").font(.headline)
+                        Text("In Safari Settings → Advanced, enable Show features for web developers. In Settings → Developer, enable Allow unsigned extensions, then enable Kids Quota under Extensions and allow website access.").font(.callout)
+                        Text("Safari turns off Allow unsigned extensions every time it quits. Repeat that step after each restart; Safari protection is unavailable until the extension is enabled again.").font(.caption).foregroundStyle(.orange)
+                    }
+                    Button("Open Safari extension settings for this login", action: openSafariPreferences)
+                    Text("Each child can disable these manually enabled browser extensions. Stronger removal protection requires a later managed deployment.").font(.caption).foregroundStyle(.secondary)
+                    if let message { Text(message).font(.caption).foregroundStyle(.secondary) }
                 }
                 Section("Verify coverage") {
-                    Text("Sign in as each child, open a limited website and selected app, and check that time decreases. Set a short test allowance to verify new and already-open network connections stop at exhaustion.")
+                    Text(features.isLocalInstall
+                         ? "Sign in as each child and open a limited website. Check that time decreases, then set a short test allowance and verify that both new and already-open pages are blocked. Selected app use can count toward time, but app internet access will not be blocked in this build."
+                         : "Sign in as each child, open a limited website and selected app, and check that time decreases. Set a short test allowance to verify new and already-open network connections stop at exhaustion.")
                 }
             }.formStyle(.grouped).tabItem { Label("Protection", systemImage: "shield") }
             Form {
@@ -68,6 +88,11 @@ struct SettingsView: View {
             }.formStyle(.grouped).tabItem { Label("API clients", systemImage: "key") }
         }.padding(12)
         .onAppear { openedRevision = store.state?.policyRevision; if let reset = store.state?.policy.pendingReset?.schedule ?? store.state?.policy.reset { weekday = reset.weekday; localTime = reset.localTime; timeZone = reset.timeZone } }
+    }
+    private func openSafariPreferences() {
+        SFSafariApplication.showPreferencesForExtension(withIdentifier: "com.kidsquota.app.safari") { error in
+            if let error { Task { @MainActor in message = "Open Safari Settings → Extensions manually. " + error.localizedDescription } }
+        }
     }
     private func run(_ action: @escaping @MainActor () async throws -> Void) {
         busy = true; message = nil

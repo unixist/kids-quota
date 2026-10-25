@@ -111,7 +111,7 @@ public enum SocketIO {
 
 public struct PeerIdentity { public let uid: UInt32; public let role: String }
 public enum PeerVerifier {
-    public static func verify(fd: Int32, team: String?, development: Bool) throws -> PeerIdentity {
+    public static func verify(fd: Int32, team: String?, development: Bool, localTrust: LocalInstallTrust? = nil) throws -> PeerIdentity {
         var uid: uid_t = 0, gid: gid_t = 0, pid: pid_t = 0
         var size = socklen_t(MemoryLayout<pid_t>.size)
         guard getpeereid(fd,&uid,&gid) == 0, getsockopt(fd,SOL_LOCAL,LOCAL_PEERPID,&pid,&size) == 0 else {throw TransportError.unauthorized}
@@ -120,8 +120,14 @@ public enum PeerVerifier {
         let executable = String(cString:path), basename = URL(fileURLWithPath:executable).lastPathComponent
         let roles = ["kids-quota-agent":"agent","kids-quota-bridge":"bridge","KidsQuotaSafari":"safari","com.kidsquota.app.networkfilter":"filter","Kids Quota":"parent"]
         if development {
+            guard localTrust == nil else { throw TransportError.unauthorized }
             guard uid == getuid(), let role = roles[basename] else {throw TransportError.unauthorized}
             return .init(uid:uid,role:role)
+        }
+        if let localTrust {
+            let role = try localTrust.verifyPeer(pid: pid, path: executable)
+            if role == "bridge" { try verifyChromeParent(pid: pid) }
+            return .init(uid: uid, role: role)
         }
         guard let team else {throw TransportError.unauthorized}
         var info = stat()
@@ -137,14 +143,17 @@ public enum PeerVerifier {
         guard let role = identifiers[identifier], role != "filter" || uid == 0,
               SecCodeCheckValidity(code,SecCSFlags(rawValue:kSecCSStrictValidate),nil) == errSecSuccess else {throw TransportError.unauthorized}
         if role == "bridge" {
-            // A child must not be able to run our signed host directly and forge
-            // tab reports. Chrome launches native hosts from its browser process.
-            var process = proc_bsdinfo()
-            let length = Int32(MemoryLayout<proc_bsdinfo>.size)
-            guard proc_pidinfo(pid,PROC_PIDTBSDINFO,0,&process,length) == length,
-                  NativeIdentity.processMatches(pid:Int32(process.pbi_ppid),requirement:"anchor apple generic and identifier \"com.google.Chrome\" and certificate leaf[subject.OU] = \"EQHXZ8M8AV\"") else {throw TransportError.unauthorized}
+            try verifyChromeParent(pid: pid)
         }
         return .init(uid:uid,role:role)
+    }
+    private static func verifyChromeParent(pid: Int32) throws {
+        // A child must not be able to run our native host directly and forge tab
+        // reports. Both install modes retain the signed Chrome parent check.
+        var process = proc_bsdinfo()
+        let length = Int32(MemoryLayout<proc_bsdinfo>.size)
+        guard proc_pidinfo(pid,PROC_PIDTBSDINFO,0,&process,length) == length,
+              NativeIdentity.processMatches(pid:Int32(process.pbi_ppid),requirement:"anchor apple generic and identifier \"com.google.Chrome\" and certificate leaf[subject.OU] = \"EQHXZ8M8AV\"") else {throw TransportError.unauthorized}
     }
 }
 
@@ -153,11 +162,12 @@ public final class LocalServers {
     private let path: String
     private let development: Bool
     private let team: String?
+    private let localTrust: LocalInstallTrust?
     private var listeners: [Int32] = []
     private var ownsSocket = false
     private let slots = DispatchSemaphore(value:32)
-    public init(controller: ServiceController, socketPath: String, development: Bool) {
-        self.controller=controller; path=socketPath; self.development=development; team=NativeIdentity.ownTeam()
+    public init(controller: ServiceController, socketPath: String, development: Bool, localTrust: LocalInstallTrust? = nil) {
+        self.controller=controller; path=socketPath; self.development=development; team=NativeIdentity.ownTeam(); self.localTrust=localTrust
     }
     public func start() throws {
         try startHTTP(); do {try startUnix()} catch {stop(); throw error}
@@ -216,7 +226,7 @@ public final class LocalServers {
         chmod(path,development ? 0o600 : 0o666)
         try serve(fd) { [self] client in
             do {
-                let peer=try PeerVerifier.verify(fd:client,team:team,development:development)
+                let peer=try PeerVerifier.verify(fd:client,team:team,development:development,localTrust:localTrust)
                 guard let object=try JSONSerialization.jsonObject(with:SocketIO.readLine(client)) as? [String:Any] else {throw TransportError.invalidRequest}
                 var reply=try JSONSerialization.data(withJSONObject:controller.native(object,uid:peer.uid,role:peer.role));reply.append(10)
                 try SocketIO.write(reply,to:client)

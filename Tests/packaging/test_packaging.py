@@ -1,5 +1,8 @@
 """Non-root packaging checks. All signing, launchd, and image creation calls are mocked."""
 import os
+import base64
+import hashlib
+import json
 from pathlib import Path
 import plistlib
 import re
@@ -37,7 +40,7 @@ class PackagingTests(unittest.TestCase):
         return subprocess.run(["/bin/bash", str(script)], text=True, capture_output=True, env=dict(os.environ, **environment))
 
     def test_all_shell_scripts_and_launchd_plists_parse(self):
-        for name in ["install.sh", "package.sh", "create-dmg.sh", "build-macos.sh"]:
+        for name in ["install.sh", "package.sh", "create-dmg.sh", "create-local-trust.sh", "build-macos.sh"]:
             subprocess.run(["/bin/bash", "-n", str(ROOT / "scripts" / name)], check=True)
         plists = re.findall(r"<<'PLIST'\n(.*?)\nPLIST", self.installer, re.S)
         self.assertEqual(len(plists), 2)
@@ -115,6 +118,7 @@ esac
         app = self.work / "App.app"; app.mkdir()
         (app / "obsolete").write_text("resource removed in next release")
         database = self.work / "quota.sqlite"; database.write_text("keep usage")
+        trust = self.work / "local-trust.json"; trust.write_text("previous trust")
         log = self.work / "launch.log"
         launchctl = executable(self.work / "launchctl", '#!/bin/bash\nprintf "%s\\n" "$*" >> "$LAUNCH_LOG"\n')
         functions = self.installer[self.installer.index("STAGING_DIRS=();"):self.installer.index("# Every replacement")]
@@ -123,10 +127,12 @@ esac
         body = 'DAEMON="/fixture/daemon.plist"\n' + functions
         for path in [bin_path, app]:
             body += "\nstage_destination " + shlex.quote(str(path)) + '; mkdir "$STAGED_PATH"; printf current > "$STAGED_PATH/new"\n'
+        body += "\nstage_destination " + shlex.quote(str(trust)) + '; printf current-trust > "$STAGED_PATH"\n'
         body += "HAD_SERVICE=1; SERVICE_STOPPED=1\n" + swap + ("false\n" if fail else "COMMITTED=1\n")
         result = self.shell(body, LAUNCH_LOG=str(log))
         self.assertEqual(result.returncode, 1 if fail else 0, result.stderr)
         self.assertEqual(database.read_text(), "keep usage")
+        self.assertEqual(trust.read_text(), "previous trust" if fail else "current-trust")
         self.assertFalse(list(self.work.glob(".kidsquota-install.*")))
         return bin_path, app, log
 
@@ -148,6 +154,7 @@ esac
         (repo / "scripts").mkdir(parents=True)
         (repo / "dist").mkdir()
         (repo / "dist/KidsQuota-0.1.0.pkg").write_text("non-runnable package fixture")
+        (repo / "dist/KidsQuota-0.1.0-Local.pkg").write_text("non-runnable local package fixture")
         capture = self.work / "image-contents"
         log = self.work / "release.log"
         pkgutil = executable(self.work / "pkgutil", '#!/bin/bash\nprintf "Developer ID Installer: Fixture (%s)\\n" "$PACKAGE_TEAM"\n')
@@ -198,6 +205,146 @@ fi
         result, contents, _ = self.disk_image([], package_team="OTHERTEAM0")
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(contents.exists())
+
+    def test_local_image_contains_installer_and_explains_disabled_filter(self):
+        result, contents, log = self.disk_image(["--local"])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(sorted(path.name for path in contents.iterdir()), ["Install Kids Quota.pkg", "Start here.txt"])
+        self.assertIn("local package fixture", (contents / "Install Kids Quota.pkg").read_text())
+        welcome = (contents / "Start here.txt").read_text()
+        for required in ["Open Anyway", "Load unpacked", "BrowserExtensions/Chrome", "after every Safari restart", "does NOT cut off", "inactive resource"]:
+            self.assertIn(required, welcome)
+        self.assertFalse(log.exists(), "Local packaging must not sign or submit to Apple")
+        self.assertIn("Local.dmg", result.stdout)
+
+    def test_local_image_rejects_notarization_and_conflicting_modes(self):
+        result, contents, _ = self.disk_image(["--local", "--notarize"])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(contents.exists())
+        self.assertIn("cannot be notarized", result.stderr)
+
+    def test_local_package_has_no_certificate_requirement_or_build_dependencies(self):
+        repo = self.work / "repo"
+        (repo / "scripts").mkdir(parents=True)
+        (repo / "dist/local").mkdir(parents=True)
+        (repo / "dist/local/local-release.json").write_text('{"fixture":true}')
+        executable(repo / "scripts/install.sh", '#!/bin/bash\nprintf "%s\\n" "$*" > "$CHECK_LOG"\n')
+        executable(repo / "scripts/create-local-trust.sh", '#!/bin/bash\nexit 0\n')
+        captured = self.work / "package-scripts"
+        pkgbuild = executable(self.work / "pkgbuild", '''#!/bin/bash
+printf '%s\n' "$*" > "$PACKAGE_LOG"
+while [[ $# -gt 0 ]]; do
+  if [[ "$1" == --scripts ]]; then cp -R "$2" "$CAPTURE"; shift 2; else output="$1"; shift; fi
+done
+printf fixture > "$output"
+''')
+        source = (ROOT / "scripts/package.sh").read_text().replace("/usr/bin/pkgbuild", shlex.quote(str(pkgbuild)))
+        script = executable(repo / "scripts/package.sh", source)
+        env = {key: value for key, value in os.environ.items() if key not in ["TEAM_ID", "SIGN_IDENTITY", "INSTALLER_IDENTITY", "CHROME_EXTENSION_ID", "NOTARY_PROFILE"]}
+        env.update(CAPTURE=str(captured), PACKAGE_LOG=str(self.work / "package.log"), CHECK_LOG=str(self.work / "check.log"))
+        result = subprocess.run([str(script), "--local", "--pkg-only"], env=env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("--local", (self.work / "check.log").read_text())
+        self.assertNotIn("--sign", (self.work / "package.log").read_text())
+        self.assertTrue((repo / "dist/KidsQuota-0.1.0-Local.pkg").exists())
+        self.assertTrue((captured / "create-local-trust.sh").exists())
+        postinstall = (captured / "postinstall").read_text()
+        self.assertIn("--local", postinstall)
+        self.assertNotIn("--development", postinstall)
+        self.assertNotIn("python", postinstall)
+
+    def local_trust(self, invalid_hash=False):
+        cli = self.work / "bin"
+        cli.mkdir()
+        app = self.work / "App.app"
+        paths = [cli / ("kids-quota-" + component) for component in ["service", "agent", "bridge"]]
+        paths += [app / "Contents/MacOS/Kids Quota", app / "Contents/PlugIns/KidsQuotaSafari.appex/Contents/MacOS/KidsQuotaSafari"]
+        for path in paths:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("not executable")
+        codesign = executable(self.work / "codesign", '''#!/bin/bash
+if [[ "$1" == --display ]]; then
+  if [[ "$BAD_HASH" == 1 ]]; then printf 'CDHash=not-a-code-hash\n'
+  elif [[ "$*" == *'--arch arm64 '* ]]; then printf 'CDHash=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n'
+  else printf 'CDHash=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n'; fi
+fi
+''')
+        source = (ROOT / "scripts/create-local-trust.sh").read_text().replace("/usr/bin/codesign", shlex.quote(str(codesign)))
+        script = executable(self.work / "trust.sh", source)
+        return subprocess.run([str(script), str(cli), str(app)], env=dict(os.environ, BAD_HASH="1" if invalid_hash else "0"), capture_output=True, text=True)
+
+    def test_local_trust_pins_every_component_and_both_architectures(self):
+        result = self.local_trust()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        manifest = json.loads(result.stdout)
+        self.assertEqual(manifest["version"], 1)
+        self.assertEqual([entry["role"] for entry in manifest["entries"]], ["service", "agent", "bridge", "parent", "safari"])
+        for entry in manifest["entries"]:
+            self.assertEqual(entry["cdhashes"], ["a" * 40, "b" * 40])
+            self.assertTrue(entry["path"].startswith(("/Applications/Kids Quota.app/", "/Library/Application Support/KidsQuota/bin/")))
+            self.assertNotIn(str(self.work), entry["path"])
+        self.assertFalse(any(entry["role"] == "filter" for entry in manifest["entries"]))
+
+    def test_local_trust_rejects_malformed_code_hash(self):
+        result = self.local_trust(invalid_hash=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Invalid code-directory hash", result.stderr)
+
+    def local_check(self, wrong_key=False, activatable_filter=False):
+        repo = self.work / "repo"
+        scripts = repo / "scripts"; scripts.mkdir(parents=True)
+        artifacts = repo / "dist/local"; artifacts.mkdir(parents=True)
+        # A public-key fixture exercises the actual hash-to-Chromium-ID calculation.
+        key = base64.b64encode(b"public-key-test-fixture").decode()
+        extension_id = hashlib.sha256(base64.b64decode(key)).hexdigest()[:32].translate(str.maketrans("0123456789abcdef", "abcdefghijklmnop"))
+        (artifacts / "local-release.json").write_text(json.dumps({"schemaVersion": 1, "networkFilterEnabled": False, "chromeExtensionId": "a" * 32 if wrong_key else extension_id}))
+        chrome = artifacts / "browser/chrome"; chrome.mkdir(parents=True)
+        (chrome / "manifest.json").write_text(json.dumps({"key": key}))
+        resources = artifacts / "bin/kids-quota_KidsQuotaCore.bundle"; resources.mkdir(parents=True)
+        (resources / "public_suffix_list.dat").write_text("com\n")
+        if activatable_filter:
+            (artifacts / "Kids Quota.app/Contents/Library/SystemExtensions").mkdir(parents=True)
+        executable(scripts / "create-local-trust.sh", "#!/bin/bash\nexit 0\n")
+        codesign = executable(self.work / "codesign", "#!/bin/bash\nprintf 'Signature=adhoc\\nflags=0x10000(runtime)\\n'\n")
+        source = self.installer.replace("/usr/bin/codesign", shlex.quote(str(codesign)))
+        script = executable(scripts / "install.sh", source)
+        return subprocess.run([str(script), "--local", "--check", "--artifacts", str(artifacts)], capture_output=True, text=True)
+
+    def test_local_installer_check_accepts_matching_browser_id_without_team(self):
+        result = self.local_check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("local signatures", result.stdout)
+
+    def test_signature_output_is_drained_before_matching_under_pipefail(self):
+        calls = self.work / "codesign.log"
+        codesign = executable(self.work / "codesign", '''#!/bin/bash
+set -e
+printf '%s\n' "$*" >> "$CODESIGN_LOG"
+if [[ "$1" == --display ]]; then
+  printf 'Signature=adhoc\nflags=0x10000(runtime)\n'
+  /bin/sleep 0.05
+  for ((i=0; i<1000; i++)); do
+    printf 'Certificate detail written after the signature and runtime lines\n'
+  done
+fi
+''')
+        code = function(self.installer, "verify_code").replace("/usr/bin/codesign", shlex.quote(str(codesign)))
+        result = self.shell('MODE=local\n' + code + '\nverify_code /fixture/app com.kidsquota.app\n', CODESIGN_LOG=str(calls))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        log = calls.read_text()
+        self.assertEqual(log.count("--display"), 1)
+        self.assertIn("--verify --strict --all-architectures", log)
+        self.assertIn('--test-requirement =identifier "com.kidsquota.app"', log)
+
+    def test_local_installer_rejects_mismatched_browser_id(self):
+        result = self.local_check(wrong_key=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("does not match", result.stderr)
+
+    def test_local_installer_rejects_activatable_filter_bundle(self):
+        result = self.local_check(activatable_filter=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("activatable system extension", result.stderr)
 
 
 if __name__ == "__main__":

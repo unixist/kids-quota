@@ -1,5 +1,16 @@
 import Foundation
 
+struct BuildFeatures: Equatable {
+    let isLocalInstall: Bool
+    static var current: BuildFeatures { .init(info: Bundle.main.infoDictionary ?? [:]) }
+    init(info: [String: Any]) { isLocalInstall = info["KidsQuotaLocalInstall"] as? Bool == true }
+    var canActivateNetworkFilter: Bool { !isLocalInstall }
+    var networkFilterNotice: String {
+        "App network blocking is unavailable in this local build. Selected app usage can count toward the weekly allowance, but apps keep their internet access when time runs out."
+    }
+    static let chromeExtensionPath = "/Library/Application Support/KidsQuota/BrowserExtensions/Chrome"
+}
+
 struct ChildItem: Identifiable, Decodable { let id: String; let displayName: String }
 struct DomainItem: Codable, Hashable { let hostname: String; let includeSubdomains: Bool }
 struct ServiceItem: Identifiable, Decodable { let id: String; let name: String; let domains: [DomainItem]; let applicationIds: [String] }

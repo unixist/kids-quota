@@ -7,15 +7,20 @@ MODE=signed; NOTARIZE=0
 PACKAGE=''
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --preview) MODE=preview; shift ;;
+    --preview) [[ "$MODE" == signed ]] || { echo 'Choose only one image mode.' >&2; exit 2; }; MODE=preview; shift ;;
+    --local) [[ "$MODE" == signed ]] || { echo 'Choose only one image mode.' >&2; exit 2; }; MODE=local; shift ;;
     --package) PACKAGE="${2:?Missing package path}"; shift 2 ;;
     --notarize) NOTARIZE=1; shift ;;
-    *) echo 'Usage: create-dmg.sh [--package SIGNED_PKG] [--notarize] | --preview' >&2; exit 2 ;;
+    *) echo 'Usage: create-dmg.sh [--local] [--package PKG] [--notarize] | --preview' >&2; exit 2 ;;
   esac
 done
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Version must be major.minor.patch.' >&2; exit 2; }
 if [[ "$MODE" == preview ]]; then
   [[ "$NOTARIZE" == 0 && -z "$PACKAGE" ]] || { echo 'A preview cannot contain an installer or be notarized.' >&2; exit 2; }
+elif [[ "$MODE" == local ]]; then
+  [[ "$NOTARIZE" == 0 ]] || { echo 'Local disk images cannot be notarized without Developer ID signing.' >&2; exit 2; }
+  PACKAGE="${PACKAGE:-$REPO_ROOT/dist/KidsQuota-$VERSION-Local.pkg}"
+  [[ -f "$PACKAGE" ]] || { echo 'Build a local installer with scripts/package.sh --local first.' >&2; exit 1; }
 else
   : "${TEAM_ID:?Set the actual Apple developer team ID}"
   : "${SIGN_IDENTITY:?Set the full Developer ID Application certificate name}"
@@ -23,7 +28,7 @@ else
   PACKAGE="${PACKAGE:-$REPO_ROOT/dist/KidsQuota-$VERSION.pkg}"
   [[ -f "$PACKAGE" ]] || { echo 'Build a signed installer with scripts/package.sh first.' >&2; exit 1; }
   SIGNATURE="$(/usr/sbin/pkgutil --check-signature "$PACKAGE")"
-  printf '%s\n' "$SIGNATURE" | /usr/bin/grep -E -q "Developer ID Installer: .*\($TEAM_ID\)" || { echo 'Installer is not signed by the requested Developer ID team.' >&2; exit 1; }
+  /usr/bin/grep -E -q "Developer ID Installer: .*\($TEAM_ID\)" <<< "$SIGNATURE" || { echo 'Installer is not signed by the requested Developer ID team.' >&2; exit 1; }
   if [[ "$NOTARIZE" == 1 ]]; then
     : "${NOTARY_PROFILE:?Set a configured notarytool Keychain profile}"
     /usr/bin/xcrun notarytool submit "$PACKAGE" --keychain-profile "$NOTARY_PROFILE" --wait
@@ -57,6 +62,61 @@ A real release requires the developer's Apple signing/provisioning credentials.
 PREVIEW
   OUTPUT="$REPO_ROOT/dist/KidsQuota-$VERSION-PREVIEW.dmg"
   VOLUME='Kids Quota Preview'
+elif [[ "$MODE" == local ]]; then
+  /usr/bin/ditto "$PACKAGE" "$STAGE/Install Kids Quota.pkg"
+  cat > "$STAGE/Start here.txt" <<'LOCAL'
+KIDS QUOTA — LOCAL EDITION
+
+This is a real installer for macOS 14 or later, including Apple silicon and Intel.
+No Apple developer membership, Xcode, Node.js, or Terminal commands are needed.
+It is not Apple-notarized. App network blocking is intentionally disabled.
+
+1. Open “Install Kids Quota.pkg” and follow Installer's administrator prompt.
+   If macOS blocks it because the developer cannot be verified, try opening it
+   once, then use System Settings → Privacy & Security → Open Anyway and confirm
+   only this installer. No global Gatekeeper or SIP changes are needed.
+
+2. Open Kids Quota from Applications in the parent's administrator account.
+   Unlock parent settings and select the child's standard Mac login. Chess.com
+   and ChatGPT each start with six hours per week, resetting Monday. Repeat
+   “Add another child” for other accounts. The background service stays running
+   when the parent window is closed. Settings and resets require parent unlock.
+
+3. In EACH child's Chrome, open chrome://extensions, turn on Developer mode,
+   choose “Load unpacked”, press Command-Shift-G in the folder picker, and enter:
+   /Library/Application Support/KidsQuota/BrowserExtensions/Chrome
+   Select that folder. This browser extension is included in the installation;
+   there is no Chrome Web Store download. The child can still disable/remove it.
+
+4. Safari uses the bundled native Safari extension. In EACH child's Safari,
+   open Settings → Advanced and enable “Show features for web developers”.
+   In Settings → Developer, enable “Allow unsigned extensions” (administrator
+   authentication may be requested). Enable Kids Quota under Settings → Extensions
+   and allow website access. Safari resets the unsigned-extension setting when
+   it quits: re-enable it after every Safari restart. This is temporary developer
+   installation, not dependable removal-resistant Safari protection.
+
+5. Check coverage in Kids Quota. Sign out and back in, or restart, if an account
+   helper is unavailable. Test a short website allowance in each browser.
+   After an upgrade, quit and reopen Kids Quota, Chrome, and Safari to use the
+   updated components. Re-enable Safari's unsigned-extension permission.
+
+Known limits: selected native-app usage can be counted, but reaching a quota
+does NOT cut off a native app's network access in this edition. The Network
+Extension is retained as an inactive resource for a future signed release; the
+app cannot enable it here. Offline app use is not blocked. Other browsers and
+disabled extensions are not protected. Browser permissions are per login account.
+
+“Reset this week” restores only the selected child's current-week time, preserving
+weekly limits and the scheduled reset. Scoped read-only HTTP clients remain usable.
+
+All application components are locally ad-hoc signed. The administrator installer
+pins their exact code identities in protected storage; ordinary child accounts
+cannot edit the service, identity pins, policy, or balances. Never give a child
+administrator privileges. This local build is not a managed deployment.
+LOCAL
+  OUTPUT="$REPO_ROOT/dist/KidsQuota-$VERSION-Local.dmg"
+  VOLUME='Kids Quota Local'
 else
   /usr/bin/ditto "$PACKAGE" "$STAGE/Install Kids Quota.pkg"
   cat > "$STAGE/Start here.txt" <<'WELCOME'
@@ -101,11 +161,12 @@ fi
 /usr/bin/hdiutil verify "$OUTPUT"
 if [[ "$MODE" == signed ]]; then
   /usr/bin/codesign --force --timestamp --identifier com.kidsquota.diskimage --sign "$SIGN_IDENTITY" "$OUTPUT"
-  /usr/bin/codesign --verify --strict --test-requirement "anchor apple generic and certificate leaf[subject.OU] = \"$TEAM_ID\" and certificate leaf[field.1.2.840.113635.100.6.1.13] exists" "$OUTPUT"
+  /usr/bin/codesign --verify --strict --test-requirement "=anchor apple generic and certificate leaf[subject.OU] = \"$TEAM_ID\" and certificate leaf[field.1.2.840.113635.100.6.1.13] exists" "$OUTPUT"
   if [[ "$NOTARIZE" == 1 ]]; then
     /usr/bin/xcrun notarytool submit "$OUTPUT" --keychain-profile "$NOTARY_PROFILE" --wait
     /usr/bin/xcrun stapler staple "$OUTPUT"
     /usr/bin/xcrun stapler validate "$OUTPUT"
     echo "Signed and notarized disk image: $OUTPUT"
   else echo "Signed disk image (not yet notarized): $OUTPUT"; fi
+elif [[ "$MODE" == local ]]; then echo "Local disk image with runnable installer: $OUTPUT"
 else echo "Instructions-only preview, with no runnable installer: $OUTPUT"; fi

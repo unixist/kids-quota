@@ -1,46 +1,77 @@
 #!/bin/bash
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ARTIFACTS="$(cd "$SCRIPT_DIR/.." && pwd)/dist/signed"
+ARTIFACTS=''
 CHECK_ONLY=0
+MODE=signed
 TEAM_ID=''
 CHROME_ID=''
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --check) CHECK_ONLY=1; shift ;;
+    --local) MODE=local; shift ;;
     --artifacts) ARTIFACTS="${2:?Missing artifacts directory}"; shift 2 ;;
     --team-id) TEAM_ID="${2:?Missing team ID}"; shift 2 ;;
     --chrome-extension-id) CHROME_ID="${2:?Missing Chrome extension ID}"; shift 2 ;;
-    *) echo 'Usage: install.sh [--check] --artifacts DIR --team-id TEAM [--chrome-extension-id ID]' >&2; exit 2 ;;
+    *) echo 'Usage: install.sh [--check] [--local] --artifacts DIR [--team-id TEAM] [--chrome-extension-id ID]' >&2; exit 2 ;;
   esac
 done
-[[ "$TEAM_ID" =~ ^[A-Z0-9]{10}$ ]] || { echo 'Provide the actual 10-character Apple team ID.' >&2; exit 2; }
+ARTIFACTS="${ARTIFACTS:-$(cd "$SCRIPT_DIR/.." && pwd)/dist/$MODE}"
+if [[ "$MODE" == signed ]]; then
+  [[ "$TEAM_ID" =~ ^[A-Z0-9]{10}$ ]] || { echo 'Provide the actual 10-character Apple team ID.' >&2; exit 2; }
+else
+  RELEASE="$ARTIFACTS/local-release.json"
+  [[ -f "$RELEASE" && ! -L "$RELEASE" ]] || { echo 'Missing local release metadata.' >&2; exit 1; }
+  [[ "$(/usr/bin/plutil -extract schemaVersion raw -o - "$RELEASE")" == 1 && "$(/usr/bin/plutil -extract networkFilterEnabled raw -o - "$RELEASE")" == false ]] || { echo 'Local release must have app network filtering disabled.' >&2; exit 1; }
+  LOCAL_CHROME_ID="$(/usr/bin/plutil -extract chromeExtensionId raw -o - "$RELEASE")"
+  [[ -z "$CHROME_ID" || "$CHROME_ID" == "$LOCAL_CHROME_ID" ]] || { echo 'Chrome ID differs from the bundled local release.' >&2; exit 1; }
+  CHROME_ID="$LOCAL_CHROME_ID"
+  [[ -f "$ARTIFACTS/browser/chrome/manifest.json" && -x "$SCRIPT_DIR/create-local-trust.sh" ]] || { echo 'Missing bundled browser extension or local trust helper.' >&2; exit 1; }
+  # Chromium derives the extension ID from this public key, independently of
+  # the unpacked folder's path. Reject mismatched native-host registration.
+  DERIVED_CHROME_ID="$(/usr/bin/plutil -extract key raw -o - "$ARTIFACTS/browser/chrome/manifest.json" | /usr/bin/base64 -D | /usr/bin/openssl dgst -sha256 | /usr/bin/awk '{print $NF}' | /usr/bin/cut -c1-32 | /usr/bin/tr '0123456789abcdef' 'abcdefghijklmnop')"
+  [[ "$CHROME_ID" == "$DERIVED_CHROME_ID" ]] || { echo 'The bundled Chrome key does not match the local release extension ID.' >&2; exit 1; }
+fi
 [[ -z "$CHROME_ID" || "$CHROME_ID" =~ ^[a-p]{32}$ ]] || { echo 'Chrome IDs must contain 32 letters a-p.' >&2; exit 2; }
 verify_code() {
-  local path="$1" identifier="$2" requirement
-  requirement="anchor apple generic and identifier \"$identifier\" and certificate leaf[subject.OU] = \"$TEAM_ID\" and certificate leaf[field.1.2.840.113635.100.6.1.13] exists"
-  /usr/bin/codesign --verify --strict --verbose=2 --test-requirement "$requirement" "$path"
-  /usr/bin/codesign --display --verbose=4 "$path" 2>&1 | /usr/bin/grep -q 'flags=.*runtime' || { echo "Missing hardened runtime: $path" >&2; exit 1; }
+  local path="$1" identifier="$2" requirement details
+  # Drain codesign's output before matching. With pipefail, an early grep -q
+  # exit can otherwise turn a valid signature into a false SIGPIPE failure.
+  details="$(/usr/bin/codesign --display --verbose=4 "$path" 2>&1)" || return 1
+  if [[ "$MODE" == local ]]; then
+    requirement="identifier \"$identifier\""
+    /usr/bin/grep -q '^Signature=adhoc$' <<< "$details" || { echo "Expected an ad-hoc signed local component: $path" >&2; return 1; }
+  else
+    requirement="anchor apple generic and identifier \"$identifier\" and certificate leaf[subject.OU] = \"$TEAM_ID\" and certificate leaf[field.1.2.840.113635.100.6.1.13] exists"
+  fi
+  /usr/bin/codesign --verify --strict --all-architectures --verbose=2 --test-requirement "=$requirement" "$path"
+  /usr/bin/grep -q 'flags=.*runtime' <<< "$details" || { echo "Missing hardened runtime: $path" >&2; return 1; }
 }
 for component in service agent bridge; do verify_code "$ARTIFACTS/bin/kids-quota-$component" "com.kidsquota.$component"; done
 APP="$ARTIFACTS/Kids Quota.app"
 verify_code "$APP" com.kidsquota.app
-verify_code "$APP/Contents/Library/SystemExtensions/com.kidsquota.app.networkfilter.systemextension" com.kidsquota.app.networkfilter
+if [[ "$MODE" == signed ]]; then
+  verify_code "$APP/Contents/Library/SystemExtensions/com.kidsquota.app.networkfilter.systemextension" com.kidsquota.app.networkfilter
+else
+  [[ ! -e "$APP/Contents/Library/SystemExtensions" ]] || { echo 'The local app must not embed an activatable system extension.' >&2; exit 1; }
+  verify_code "$APP/Contents/Resources/DisabledExtensions/com.kidsquota.app.networkfilter.systemextension" com.kidsquota.app.networkfilter
+fi
 verify_code "$APP/Contents/PlugIns/KidsQuotaSafari.appex" com.kidsquota.app.safari
 [[ -f "$ARTIFACTS/bin/kids-quota_KidsQuotaCore.bundle/Contents/Resources/public_suffix_list.dat" || -f "$ARTIFACTS/bin/kids-quota_KidsQuotaCore.bundle/public_suffix_list.dat" ]] || { echo 'Missing bundled Public Suffix List.' >&2; exit 1; }
-if [[ "$CHECK_ONLY" == 1 ]]; then echo 'Artifact identities, Developer ID signatures, hardened runtime, and resource presence verified.'; exit 0; fi
+if [[ "$CHECK_ONLY" == 1 ]]; then echo "Artifact identities, $MODE signatures, hardened runtime, and resource presence verified."; exit 0; fi
 [[ $(/usr/bin/id -u) == 0 ]] || { echo 'Installation requires an administrator: run with sudo.' >&2; exit 1; }
 DATA='/Library/Application Support/KidsQuota'
 DEST_APP='/Applications/Kids Quota.app'
 DAEMON='/Library/LaunchDaemons/com.kidsquota.service.plist'
 AGENT='/Library/LaunchAgents/com.kidsquota.agent.plist'
-for path in "$DATA" "$DATA/bin" "$DEST_APP" "$DAEMON" "$AGENT" "$DATA/admin.token" "$DATA/clients.json" "$DATA/quota.sqlite"; do
+for path in "$DATA" "$DATA/bin" "$DATA/local-trust.json" "$DATA/BrowserExtensions" "$DATA/BrowserExtensions/Chrome" "$DEST_APP" "$DAEMON" "$AGENT" "$DATA/admin.token" "$DATA/clients.json" "$DATA/quota.sqlite"; do
   [[ ! -L "$path" ]] || { echo "Refusing symbolic link at installation destination: $path" >&2; exit 1; }
 done
 umask 077
 # Others can traverse this directory to execute the protected agent, but cannot
 # list it. Tokens and database files have separate private permissions.
 /usr/bin/install -d -o root -g admin -m 0751 "$DATA"
+/bin/chmod -N "$DATA"
 STAGING_DIRS=(); DESTINATIONS=(); REPLACEMENTS=(); BACKUPS=(); CHANGED=()
 COMMITTED=0; HAD_SERVICE=0; SERVICE_STOPPED=0; NEW_STARTED=0
 finish_install() {
@@ -118,12 +149,28 @@ for component in service agent bridge; do /usr/bin/install -o root -g wheel -m 0
 stage_destination "$DEST_APP" .app; APP_STAGE="$STAGED_PATH"
 /usr/bin/ditto "$APP" "$APP_STAGE"
 /usr/sbin/chown -R root:wheel "$BIN_STAGE" "$APP_STAGE"
+/bin/chmod -RN "$BIN_STAGE" "$APP_STAGE"
 /bin/chmod -R go-w "$BIN_STAGE" "$APP_STAGE"
 /bin/chmod -R a+rX "$BIN_STAGE" "$APP_STAGE"
 restrict_parent_executable "$APP_STAGE"
 for component in service agent bridge; do verify_code "$BIN_STAGE/kids-quota-$component" "com.kidsquota.$component"; done
 verify_code "$APP_STAGE" com.kidsquota.app
 /usr/bin/codesign --verify --deep --strict "$APP_STAGE"
+if [[ "$MODE" == local ]]; then
+  /usr/bin/install -d -o root -g wheel -m 0755 "$DATA/BrowserExtensions"
+  /bin/chmod -N "$DATA/BrowserExtensions"
+  stage_destination "$DATA/BrowserExtensions/Chrome"; CHROME_STAGE="$STAGED_PATH"
+  /usr/bin/ditto "$ARTIFACTS/browser/chrome" "$CHROME_STAGE"
+  /usr/sbin/chown -R root:wheel "$CHROME_STAGE"
+  /bin/chmod -RN "$CHROME_STAGE"
+  /bin/chmod -R go-w "$CHROME_STAGE"
+  /bin/chmod -R a+rX "$CHROME_STAGE"
+  stage_destination "$DATA/local-trust.json"; TRUST_STAGE="$STAGED_PATH"
+  "$SCRIPT_DIR/create-local-trust.sh" "$BIN_STAGE" "$APP_STAGE" > "$TRUST_STAGE"
+  /usr/sbin/chown root:wheel "$TRUST_STAGE"
+  /bin/chmod -N "$TRUST_STAGE"
+  /bin/chmod 0600 "$TRUST_STAGE"
+fi
 stage_destination "$DAEMON"; DAEMON_STAGE="$STAGED_PATH"
 cat > "$DAEMON_STAGE" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -137,6 +184,9 @@ cat > "$DAEMON_STAGE" <<'PLIST'
 <key>ProcessType</key><string>Background</string>
 </dict></plist>
 PLIST
+if [[ "$MODE" == local ]]; then
+  /usr/libexec/PlistBuddy -c 'Add :ProgramArguments:1 string --local-install' "$DAEMON_STAGE"
+fi
 stage_destination "$AGENT"; AGENT_STAGE="$STAGED_PATH"
 cat > "$AGENT_STAGE" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -177,7 +227,8 @@ for ((index=0; index<${#DESTINATIONS[@]}; index++)); do
   /bin/mv "${REPLACEMENTS[$index]}" "${DESTINATIONS[$index]}"
 done
 /usr/bin/codesign --verify --deep --strict "$DEST_APP"
-"$DATA/bin/kids-quota-service" --init
+if [[ "$MODE" == local ]]; then "$DATA/bin/kids-quota-service" --local-install --init
+else "$DATA/bin/kids-quota-service" --init; fi
 if [[ -f "$DATA/admin.token" ]]; then /usr/sbin/chown root:admin "$DATA/admin.token"; /bin/chmod 0640 "$DATA/admin.token"; fi
 for private in "$DATA/clients.json" "$DATA/quota.sqlite" "$DATA/quota.sqlite-wal" "$DATA/quota.sqlite-shm"; do
   if [[ -f "$private" ]]; then /usr/sbin/chown root:wheel "$private"; /bin/chmod 0600 "$private"; fi
@@ -189,9 +240,12 @@ NEW_STARTED=1
 # the old installation is still available for rollback.
 for attempt in 1 2 3; do
   /bin/sleep 1
-  /bin/launchctl print system/com.kidsquota.service | /usr/bin/grep -q 'state = running' || { echo 'The installed service did not remain running.' >&2; exit 1; }
+  JOB_STATUS="$(/bin/launchctl print system/com.kidsquota.service)" || { echo 'The installed service registration is unavailable.' >&2; exit 1; }
+  /usr/bin/grep -q 'state = running' <<< "$JOB_STATUS" || { echo 'The installed service did not remain running.' >&2; exit 1; }
 done
 COMMITTED=1
 activate_existing_agents
 echo 'Installed. Open Kids Quota from Applications in an administrator account to finish setup.'
-echo 'Browser extension enablement and app network-filter approval remain explicit setup steps.'
+if [[ "$MODE" == local ]]; then
+  echo 'App network blocking is disabled in this local build. Load the bundled Chrome extension and enable Safari development extensions in each child account; see Start here.txt.'
+else echo 'Browser extension enablement and app network-filter approval remain explicit setup steps.'; fi

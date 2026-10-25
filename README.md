@@ -3,11 +3,13 @@
 Weekly website and Mac app allowances shared across Chrome, Safari, and selected
 apps, with independent balances for children using separate macOS login accounts.
 
-**Status: implemented development release.** The Swift service, SQLite ledger,
-parent app, browser adapters, native messaging hosts, and Network Extension build
-locally. Unit tests and an isolated live service test cover accounting and policy
-behavior. Signed installation and real browser/network-filter enforcement need
-on-device acceptance checks before this is relied on as parental control.
+**Status: local development release with a real installer.**
+`dist/KidsQuota-0.1.0-Local.dmg` packages the app, root service, login agent,
+browser adapters, and an **inactive** Network Extension for Apple Silicon and
+Intel Macs running macOS 14 or later. It needs no Apple developer membership.
+Website blocking requires manual browser setup; standalone-app network blocking
+is disabled. Safari's unsigned-extension permission resets whenever Safari quits.
+See [local installation](docs/local-install.md) for the exact steps and limits.
 
 ## How the pieces fit together
 
@@ -15,6 +17,8 @@ The **root quota service owns time and balances**. Chrome/Safari extensions and
 a per-login Mac agent report what the child is using. The service combines those
 observations, charges one foreground activity, and saves usage in SQLite. Browser
 extensions block domains; the macOS network filter blocks selected apps' traffic.
+The diagram includes the optional network filter; the local release keeps that
+component inactive and labels native apps as tracking-only.
 
 ![Kids Quota architecture: child collectors, protected quota service, parent controls, read clients, and app network enforcement](docs/architecture.svg)
 
@@ -64,8 +68,9 @@ than generated browser files or only the generated Xcode project.
 - Counts the foreground website or app while the child's session is awake and
   unlocked, including passive viewing. Background use does not consume time.
 - Blocks website navigation and replaces open matching tabs at exhaustion.
-  The Network Extension denies selected apps' network traffic for that child.
-  Apps can still launch and use cached/offline features.
+  The optional signed profile's Network Extension denies selected apps' network
+  traffic for that child. The local release tracks app usage without blocking it.
+  Neither profile prevents app launch or cached/offline use.
 - Resets Monday at 00:00 by default in the saved timezone. Weekday/time/timezone
   are editable; schedule changes take effect after the current period. Handles
   DST, sleep, restarts, and clock rollback.
@@ -85,17 +90,30 @@ included websites and apps → Choose app** to include the installed app.
 
 ## Install and set up
 
-The signed release is distributed as `KidsQuota-<version>.dmg`:
+For this membership-free build, copy **KidsQuota-0.1.0-Local.dmg** to the new Mac.
+It is the only file needed; the destination does not need Xcode, Node, Python,
+the source repository, or a developer account.
 
 1. Mount the DMG and open **Install Kids Quota.pkg**. The macOS Installer requests
-   administrator permission and installs the app and background components.
+   administrator permission and installs the app and background components. If
+   macOS blocks this unnotarized installer, use **System Settings → Privacy &
+   Security → Open Anyway** for that installer, then reopen it.
 2. Open **Kids Quota** from Applications in your parent/administrator account.
    Choose **Unlock parent settings** to authorize configuration with macOS administrator credentials.
 3. Select the child's existing standard Mac login account and choose
    **Set up account**. Chess.com and ChatGPT are created automatically,
    each with six hours per week and a Monday reset. No token entry or terminal is needed.
-4. Complete the browser-extension and app-filter approval prompts shown in the app.
-   macOS/browser permission prompts cannot be silently accepted by an ordinary installer.
+4. In each child's Chrome account, open `chrome://extensions`, enable Developer
+   mode, choose **Load unpacked**, and select
+   `/Library/Application Support/KidsQuota/BrowserExtensions/Chrome`.
+5. Safari is included for testing: enable **Allow unsigned extensions**, then
+   enable Kids Quota and its website permissions. Safari clears the unsigned
+   extension permission every time it quits. Native-app network filtering stays
+   disabled; there is no filter approval step in this build.
+
+The DMG includes **Start here.txt**, and the app's Protection settings show the
+browser setup steps. Read [local installation](docs/local-install.md) before
+relying on coverage. Unpacked/unsigned browser extensions can be disabled by a child.
 
 The installed parent executable is `root:admin` with mode `0750`; a standard child
 cannot read or execute it. Its embedded browser/filter extensions remain accessible
@@ -108,9 +126,11 @@ The REST listener is **read-only**, even with an administrator bearer token.
 Configuration and resets require the authenticated parent IPC connection. A copied
 app or HTTP request from the child cannot change thresholds.
 
-This checkout includes the release packaging tools. Producing a real installable
-DMG still requires Developer ID Application and Installer signing certificates;
-the instructions-only preview image is not an installer. See [deployment](docs/deployment.md).
+This local installer uses ad-hoc code signatures and pins the installed builds
+in a root-protected trust manifest. This preserves process authentication without
+an Apple-issued team identity. It does not enable Apple's restricted Network
+Extension capabilities. The optional Developer ID release path remains available
+for future signing and app network enforcement. See [deployment](docs/deployment.md).
 
 ## Build and test
 
@@ -137,6 +157,17 @@ stops it. It never installs a launch service or activates filtering.
 See [macOS build details](docs/macos-build.md) and [signed deployment](docs/deployment.md).
 Generated adapters are `extensions/build/chrome` and `extensions/build/safari`.
 
+To rebuild the actual local DMG on the development Mac:
+
+```sh
+scripts/build-macos.sh --local
+scripts/package.sh --local
+```
+
+The local build includes both `arm64` and `x86_64`, uses ad-hoc signatures, and
+does not contact Apple's signing or notarization services. The installer runs
+the root daemon with `--local-install`; this is distinct from `--development`.
+
 To run a development daemon without installing anything:
 
 ```sh
@@ -148,7 +179,8 @@ mkdir -p work/dev-data
 ```
 
 Development mode weakens native-peer verification and is for testing only.
-Production installation rejects unsigned binaries and runs as root with protected data.
+Installed modes run as root with protected data. Local installation pins exact
+ad-hoc-signed code; the Developer ID path validates the shared Apple team identity.
 
 ## Admin installation and removal resistance
 
@@ -186,9 +218,10 @@ must use standard accounts.
 - Automated suites cover calendar boundaries/DST, shared usage, persistence,
   child isolation, revocation, revisions, request parsing, domain matching, stale
   adapters, app-rule isolation, and native presentation. See [validation](docs/validation.md).
-- A Developer ID certificate, matching provisioning/entitlements, and macOS
-  approval are required for the Network Extension. This repository has not
-  installed or activated protection on your Mac.
+- The local DMG includes the Network Extension outside the activation directory
+  and disables its UI control. Enabling it later requires the separately signed
+  release and matching provisioning/entitlements. No services or protection have
+  been installed on the development Mac as part of building the DMG.
 - Run signed acceptance checks on each target macOS/browser version, including
   Safari's native socket sandbox exception, existing TCP/UDP flows, screen lock,
   wake, account switching, and the actual selected apps/helpers.
@@ -205,6 +238,7 @@ must use standard accounts.
 ## Reference
 
 - [API behavior](docs/api.md) and [OpenAPI 3.1](api/openapi.yaml)
+- [Install the local DMG](docs/local-install.md)
 - [Code walkthrough and change guide](docs/code-guide.md)
 - [Architecture diagram](docs/architecture.svg) and [editable Mermaid version](docs/architecture.mmd)
 - [Architecture and acceptance criteria](docs/architecture.md)

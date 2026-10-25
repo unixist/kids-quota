@@ -179,10 +179,13 @@ struct WebsiteFields: View {
 struct AppChoice: View {
     @Binding var url: URL?
     var body: some View {
-        HStack {
-            Button(url == nil ? "Choose a Mac app…" : "Change app…") { let panel = NSOpenPanel(); panel.allowedContentTypes = [.applicationBundle]; panel.allowsMultipleSelection = false; panel.directoryURL = URL(fileURLWithPath: "/Applications"); if panel.runModal() == .OK { url = panel.url } }
-            if let url { Text(url.deletingPathExtension().lastPathComponent); Button { self.url = nil } label: { Image(systemName: "xmark.circle.fill") }.buttonStyle(.plain) }
-            else { Text("Optional").foregroundStyle(.secondary) }
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Button(url == nil ? "Choose a Mac app…" : "Change app…") { let panel = NSOpenPanel(); panel.allowedContentTypes = [.applicationBundle]; panel.allowsMultipleSelection = false; panel.directoryURL = URL(fileURLWithPath: "/Applications"); if panel.runModal() == .OK { url = panel.url } }
+                if let url { Text(url.deletingPathExtension().lastPathComponent); Button { self.url = nil } label: { Image(systemName: "xmark.circle.fill") }.buttonStyle(.plain) }
+                else { Text("Optional").foregroundStyle(.secondary) }
+            }
+            if BuildFeatures.current.isLocalInstall { Text("Selecting an app tracks its foreground usage. This build cannot block its internet access.").font(.caption).foregroundStyle(.orange) }
         }
     }
 }

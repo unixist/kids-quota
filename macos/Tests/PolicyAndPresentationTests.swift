@@ -1,6 +1,20 @@
 import XCTest
 
 final class PolicyAndPresentationTests: XCTestCase {
+    func testLocalBuildCannotActivateNetworkFiltering() {
+        let local = BuildFeatures(info: ["KidsQuotaLocalInstall": true])
+        XCTAssertTrue(local.isLocalInstall)
+        XCTAssertFalse(local.canActivateNetworkFilter)
+        XCTAssertTrue(local.networkFilterNotice.contains("apps keep their internet access"))
+        XCTAssertTrue(BuildFeatures(info: [:]).canActivateNetworkFilter)
+        XCTAssertTrue(BuildFeatures(info: ["KidsQuotaLocalInstall": false]).canActivateNetworkFilter)
+    }
+    @MainActor func testLocalFilterActivationReturnsWithoutStartingAnOSRequest() {
+        let filter = FilterActivation(features: BuildFeatures(info: ["KidsQuotaLocalInstall": true]))
+        filter.enable()
+        XCTAssertFalse(filter.working)
+        XCTAssertEqual(filter.status, filter.features.networkFilterNotice)
+    }
     func testAuditTokenUsesEffectiveUIDAndRejectsTruncation() {
         let words: [UInt32] = [501, 502, 20, 503, 20, 9999, 7, 1]
         let token = words.withUnsafeBytes { Data($0) }

@@ -8,12 +8,12 @@ or activated on the development Mac; no real child accounts were linked.
 | Suite | Result | Coverage |
 | --- | --- | --- |
 | Swift quota core | 60 passing tests | Domain boundaries/IDNA/public suffixes, policy validation, per-child shared usage, calendar/DST resets, clock changes, stale reports, persistence, reset audits and transaction rollback |
-| Swift service | 36 passing tests | Authorization, child scopes, revocation, revisions, verified setup, native roles, administrator proof, read-only HTTP, scoped reset, profile switching, account GUID reuse, filter isolation, unhealthy collectors, bootstrap recovery, framing |
-| Browser JavaScript | 20 passing tests | Chrome/Safari packaging, focus reports, DNR matching, open-tab replacement, native disconnects/timeouts, persisted fail-closed rules, event ordering, same-week parent resets and permission failures |
-| Native Mac models and parent session | 13 passing tests | Filter UID isolation, stale rules, audit-token UID layout, malformed policy, presentation, generated entitlements, locked startup, authorization proof, relock and async races |
-| Packaging | 11 passing tests | Parent-only executable access, accessible child extensions, verified GUI-session activation, upgrade rollback, DMG layout, signing-team validation and explicit notarization |
+| Swift service | 43 passing tests | Authorization, child scopes, revisions, native roles, administrator proof, read-only HTTP, scoped reset, account isolation, framing, local trust manifests, protected paths, and real ad-hoc process signature pins |
+| Browser JavaScript | 21 passing tests | Chrome/Safari packaging, stable unpacked extension ID, focus reports, DNR matching, open-tab replacement, native disconnects/timeouts, persisted fail-closed rules, event ordering, same-week resets and permission failures |
+| Native Mac models and parent session | 15 passing tests | Filter UID isolation, stale rules, malformed policy, presentation, locked startup, authorization proof, relock/races, and local-mode refusal to activate the filter |
+| Packaging | 20 passing tests | Parent-only executable access, child extension access, GUI-session activation, upgrade/trust rollback, local artifact metadata, DMG layout, signing-team validation, explicit notarization and codesign pipe handling |
 
-**140 automated tests pass.** The OS authorization test creates an empty reference
+**159 automated tests pass.** The OS authorization test creates an empty reference
 and confirms it cannot grant access, without displaying a credential prompt. It can
 skip when Authorization Services is unavailable in a sandbox/headless environment;
 it passed in the local unsandboxed run. The filter model and browser tests use deterministic
@@ -33,6 +33,13 @@ account-only setup and administrator lock flow compile and pass model/session
 tests; interactive authorization still needs the signed acceptance run below.
 No real accounts, browser permissions, or network-filter settings were changed.
 
+`scripts/build-macos.sh --local` builds both `arm64` and `x86_64`, ad-hoc signs the
+components with hardened runtime, removes restricted entitlements from the parent,
+and moves the dormant filter outside its activation directory. The local trust
+tests validate an actual running ad-hoc-signed fixture against accepted/rejected
+code hashes. The login agent's bounded Safari discovery helper compiles but was
+not executed here; installed child-session discovery still needs device validation.
+
 Installer scripts passed shell syntax and plist checks. Generated MDM examples
 passed plist/JSON validation. Unprivileged packaging fixtures checked clean upgrade
 replacement and rollback, preserving usage files, `root:admin 0750` policy for the
@@ -40,6 +47,31 @@ parent executable while retaining child extension access, and signed-DMG layout.
 A real instructions-only preview DMG was created, checksum-verified and mounted
 read-only to confirm it contains no runnable installer. Actual signed
 installation, notarization, and MDM deployment have not been performed.
+
+The actual **KidsQuota-0.1.0-Local.dmg** was created, checksum-verified, mounted
+read-only, and unmounted after inspection. Its real PKG was expanded into scratch
+files without installing it. The extracted installer's read-only checks verified
+all components' ad-hoc signatures, identifiers, hardened runtime, resource presence,
+and Chrome key/ID. All six native binaries contain both `arm64` and `x86_64`.
+The parent has `KidsQuotaLocalInstall=true` and no restricted entitlements; the
+filter is outside its activation directory. The extracted trust helper produced
+the expected five roles with both architecture hashes. The final local daemon
+also passed the isolated live HTTP/crash-recovery smoke test above.
+
+## Local runtime acceptance still required
+
+The package has not been installed on a fresh second Mac in this task. On that Mac:
+
+1. Approve the local package, install as administrator, unlock the parent app,
+   and link a standard account. Verify root ownership and parent-only controls.
+2. Load the Chrome package in each child profile and verify new and already-open
+   limited pages block. Test login, sleep, wake, and browser restart.
+3. Check Safari discovery, website permissions, and native messaging with
+   **Allow unsigned extensions** enabled. Confirm Safari loses that permission on
+   quit; this limitation is expected and displayed in setup instructions.
+4. Verify selected app time shares its quota but the app stays online at
+   exhaustion, matching the deliberately disabled native filter. Confirm resets
+   and independent read clients operate and do not affect sibling balances.
 
 ## Signed runtime acceptance still required
 

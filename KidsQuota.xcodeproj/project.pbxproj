@@ -20,6 +20,7 @@
 		45B23497BF48E822C9900AFD /* FilterActivation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0E74CDD4AB71C40305D044A /* FilterActivation.swift */; };
 		5198C3A39370C0DF81D65A0F /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFC75DCACB973DD8A68844FA /* main.swift */; };
 		5297C1AC147D1EC5C06208CA /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4D4758042C5FB07BD053919A /* Security.framework */; };
+		5E18FD9F702D079E5F89C05C /* SafariServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 41D4AE38DCF528CF5E39F05B /* SafariServices.framework */; };
 		74661C558690D4B08B57D159 /* AccountDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = E91A0E3F4E3798DB46C7CB48 /* AccountDiscovery.swift */; };
 		749C9926E996DEB38EF44182 /* popup.js in Resources */ = {isa = PBXBuildFile; fileRef = 868443CEC3154221C14E2B8B /* popup.js */; };
 		74CE77A300153B870CA284AC /* ParentSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCC04888CF38282387641C81 /* ParentSessionTests.swift */; };
@@ -27,6 +28,7 @@
 		8BD0A8AFC80E4E14B42705F5 /* content.js in Resources */ = {isa = PBXBuildFile; fileRef = A8C27909B3EDFAA62A945FE2 /* content.js */; };
 		9243702DF859087639A91F28 /* blocked.html in Resources */ = {isa = PBXBuildFile; fileRef = 6DC96A4666268F04B0584523 /* blocked.html */; };
 		96F7EBED28522711E2CF6348 /* DaemonSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FA76F5B23B64EEA26CF951F /* DaemonSocket.swift */; };
+		992F4A6889F4D64E448E3FAF /* FilterActivation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0E74CDD4AB71C40305D044A /* FilterActivation.swift */; };
 		9F933F5BC5B8845D8A13C90D /* DaemonSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FA76F5B23B64EEA26CF951F /* DaemonSocket.swift */; };
 		A4A92E8059389173B8651E3A /* OpenDirectory.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 78CFD972A8045BD26EB40966 /* OpenDirectory.framework */; };
 		A7B2620DBF0C8E039A0A1ED7 /* KidsQuotaSafari.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F974028416E127238ABCA644 /* KidsQuotaSafari.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -151,6 +153,7 @@
 				FACC878181EB5B9D521B6C16 /* NetworkExtension.framework in Frameworks */,
 				FA002F32ECA12D0E6AA8C876 /* SystemExtensions.framework in Frameworks */,
 				A4A92E8059389173B8651E3A /* OpenDirectory.framework in Frameworks */,
+				5E18FD9F702D079E5F89C05C /* SafariServices.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -456,6 +459,7 @@
 			files = (
 				74661C558690D4B08B57D159 /* AccountDiscovery.swift in Sources */,
 				E10360FB0463921A54A28827 /* DaemonSocket.swift in Sources */,
+				992F4A6889F4D64E448E3FAF /* FilterActivation.swift in Sources */,
 				13C9689127140E0F76B308BA /* FilterPolicy.swift in Sources */,
 				19A75D99C86731A3F674B26E /* Models.swift in Sources */,
 				BDE0415A0183BC3C021BEA51 /* ParentAuthorization.swift in Sources */,
