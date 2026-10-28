@@ -62,8 +62,8 @@ private enum SafariDiscovery {
               protectedPath(extensionPath + "/Contents/MacOS/KidsQuotaSafari", below: appPath),
               Bundle(path: appPath)?.bundleIdentifier == "com.kidsquota.app",
               Bundle(path: extensionPath)?.bundleIdentifier == "com.kidsquota.app.safari" else { return 1 }
-        // Validate the readable embedded extension; the parent main executable is
-        // deliberately unreadable to standard accounts and is not launched here.
+        // Validate the embedded extension directly. The parent UI is not launched
+        // during background Safari registration.
         var code: SecStaticCode?, requirement: SecRequirement?
         guard SecStaticCodeCreateWithPath(URL(fileURLWithPath: extensionPath) as CFURL, [], &code) == errSecSuccess,
               let code,

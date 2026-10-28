@@ -52,7 +52,7 @@ wrap the release for installation. Build commands do not install protection.
 
 | Type | Meaning |
 | --- | --- |
-| `Child` | Stable application ID and display name, bound to a standard macOS account's directory GUID and current numeric UID. |
+| `Child` | Stable application ID and display name, bound to a local standard or administrator macOS account's directory GUID and current numeric UID. |
 | `ServiceDefinition` | A named group of domains and optional application-binding IDs, such as Chess.com. Shared across the household. |
 | `ApplicationBinding` | A selected app's verified signing identity and designated code requirement. A filename alone is insufficient. |
 | `Quota` | One child's weekly allowance for one service. Its stable ID identifies ledger rows. |
@@ -152,9 +152,10 @@ implementation, and no native-app domain guessing or TLS decryption.
    [ParentAccessGate](../macos/ParentApp/ParentAccessView.swift).
    [ParentAuthorization.swift](../macos/ParentApp/ParentAuthorization.swift)
    requests the `com.kidsquota.manage` macOS administrator authorization grant.
-   The GUI may run in a standard child's login; the parent authenticates in the
-   system prompt. `ParentStore` contacts the daemon only after unlock and never
-   reads a persistent parent bearer or Keychain credential.
+   The GUI may run in any child's login; an administrator authenticates in the
+   system prompt. The right accepts any administrator, including a child with
+   an administrator account and accepted password or Touch ID. `ParentStore`
+   contacts the daemon only after unlock and never reads a persistent parent bearer or Keychain credential.
 2. [Editors.swift](../macos/ParentApp/Editors.swift) handles account setup, hours,
    and included websites/apps. [HouseholdView.swift](../macos/ParentApp/HouseholdView.swift)
    shows balances, polls while open, and captures the selected child and policy

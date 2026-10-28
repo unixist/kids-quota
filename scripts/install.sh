@@ -229,10 +229,15 @@ done
 /usr/bin/codesign --verify --deep --strict "$DEST_APP"
 if [[ "$MODE" == local ]]; then "$DATA/bin/kids-quota-service" --local-install --init
 else "$DATA/bin/kids-quota-service" --init; fi
-if [[ -f "$DATA/admin.token" ]]; then /usr/sbin/chown root:admin "$DATA/admin.token"; /bin/chmod 0640 "$DATA/admin.token"; fi
-for private in "$DATA/clients.json" "$DATA/quota.sqlite" "$DATA/quota.sqlite-wal" "$DATA/quota.sqlite-shm"; do
-  if [[ -f "$private" ]]; then /usr/sbin/chown root:wheel "$private"; /bin/chmod 0600 "$private"; fi
-done
+protect_private_data() {
+  local data="$1" private
+  # Administrators may be quota subjects, so their group must not grant access
+  # to the bootstrap token or other children's private usage data.
+  for private in "$data/admin.token" "$data/clients.json" "$data/quota.sqlite" "$data/quota.sqlite-wal" "$data/quota.sqlite-shm"; do
+    if [[ -f "$private" ]]; then /usr/sbin/chown root:wheel "$private"; /bin/chmod 0600 "$private"; fi
+  done
+}
+protect_private_data "$DATA"
 NEW_STARTED=1
 /bin/launchctl bootstrap system "$DAEMON"
 /bin/launchctl kickstart system/com.kidsquota.service

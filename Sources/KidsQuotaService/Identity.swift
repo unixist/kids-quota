@@ -32,13 +32,22 @@ public enum NativeIdentity {
     public static func account(generatedUid: String) throws -> MacOSAccountBinding {
         let node = try ODNode(session: ODSession.default(), type: UInt32(kODNodeTypeLocalNodes))
         let query = try ODQuery(node: node, forRecordTypes: kODRecordTypeUsers, attribute: kODAttributeTypeGUID, matchType: UInt32(kODMatchEqualTo), queryValues: generatedUid, returnAttributes: [kODAttributeTypeGUID, kODAttributeTypeUniqueID], maximumResults: 2)
-        guard let records = try query.resultsAllowingPartial(false) as? [ODRecord], records.count == 1,
-              let id = try records[0].values(forAttribute: kODAttributeTypeUniqueID).first as? String,
-              let uid = UInt32(id), uid >= 500,
-              let stable = try records[0].values(forAttribute: kODAttributeTypeGUID).first as? String else {
+        let records = try query.resultsAllowingPartial(false) as? [ODRecord] ?? []
+        let entries = try records.map { record in
+            (uid: try record.values(forAttribute: kODAttributeTypeUniqueID).first as? String,
+             guid: try record.values(forAttribute: kODAttributeTypeGUID).first as? String)
+        }
+        return try verifiedLocalAccount(generatedUid: generatedUid, entries: entries)
+    }
+    /// The query is restricted to the local directory node; a normal local login
+    /// is eligible regardless of administrator membership. Keep GUID and UID bound
+    /// together so an account replaced with a reused UID cannot inherit a quota.
+    static func verifiedLocalAccount(generatedUid: String, entries: [(uid: String?, guid: String?)]) throws -> MacOSAccountBinding {
+        guard !generatedUid.isEmpty, entries.count == 1, let id = entries[0].uid,
+              let uid = UInt32(id), uid >= 500, let stable = entries[0].guid,
+              !stable.isEmpty, stable.caseInsensitiveCompare(generatedUid) == .orderedSame else {
             throw APIError(422,"invalid_policy","Choose an existing local user account.")
         }
-        guard administratorMembership(uid: uid) == false else {throw APIError(422,"invalid_policy","Choose a verified standard macOS account for a child.")}
         return .init(status: "ready", generatedUid: stable, uid: uid)
     }
     public static func application(path: String) throws -> ApplicationBinding {

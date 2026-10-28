@@ -56,7 +56,7 @@ The release packaging and Apple provisioning credentials are not supplied here.
 
 Install the signed containing app in `/Applications`, and install the daemon and
 login agent using the repository's administrator installation steps. Installation
-and parent setup can both start in a child's standard login: provide the parent's
+and parent setup can both start in a child's login: provide the parent's
 administrator username and password in the macOS prompts. The root account need
 not be enabled. Open Kids Quota from any login; the app starts locked without
 loading household configuration. **Unlock parent settings** requests
@@ -81,9 +81,10 @@ native messaging host using the browser setup instructions.
 
 ## Parent workflow
 
-1. Unlock parent settings, then choose one standard macOS username on the first-run
-   screen. Its account display name is used automatically. The picker excludes
-   administrator accounts and stores the verified account's GeneratedUID.
+1. Unlock parent settings, then choose one local macOS username on the first-run
+   screen, whether standard or administrator. Its display name is used
+   automatically. The verified account's GeneratedUID and UID are stored; the
+   account's macOS role is not changed.
 2. Chess.com and ChatGPT are added with six hours per week each. The main screen
    shows this child's allowances directly. **Add service** adds custom websites;
    Settings → **Add another child** adds another login later. A child selector appears
@@ -114,9 +115,11 @@ clients remain independent from this parent authorization session.
 
 macOS controls the authentication method, including Touch ID when offered by its
 authorization prompt. Do not substitute a generic `LAContext` biometric success
-for the administrator right: authenticating the current child's fingerprint would
-not establish parent authority. Apple does not guarantee parent Touch ID from a
-different child's login, so retain the administrator username/password route.
+for the administrator right. The rule grants the right to any administrator; it
+does not distinguish a parent from a child's administrator account. If macOS
+accepts that child's password or enrolled Touch ID for this right, the child can
+unlock settings. Apple does not guarantee parent Touch ID from a different child's
+login, so retain the administrator username/password route.
 See [Authorization Services](https://developer.apple.com/documentation/security/authorization-services)
 and [Touch ID on Mac](https://support.apple.com/guide/mac-help/use-touch-id-mchl16fbf90a/mac).
 

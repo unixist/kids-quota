@@ -23,7 +23,7 @@ struct SettingsView: View {
                 }
                 Section("Parent access") {
                     Text(store.connected ? "Connected to this Mac's Kids Quota service." : "Service not connected.").foregroundStyle(store.connected ? .green : .orange)
-                    Text("macOS verifies the parent's administrator credentials for each session. Settings lock when you switch apps, close the window, or after five minutes.").font(.caption).foregroundStyle(.secondary)
+                    Text("macOS verifies administrator credentials for each session. Any administrator can unlock, including a tracked account if macOS accepts its password or Touch ID. Settings lock when you switch apps, close the window, or after five minutes.").font(.caption).foregroundStyle(.secondary)
                     Button("Lock parent settings") { store.lock() }
                 }
                 if let message { Text(message).foregroundStyle(.secondary) }

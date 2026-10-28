@@ -11,7 +11,7 @@ struct ParentAccessGate<Content: View>: View {
                 VStack(spacing: 18) {
                     Image(systemName: "lock.shield").font(.system(size: 50)).foregroundStyle(.tint)
                     Text("Parent settings are locked").font(.title.bold())
-                    Text("Use a parent administrator account. macOS may offer Touch ID when available; otherwise enter the administrator’s username and password. You can stay signed in to this account.")
+                    Text("Use an administrator account. macOS may offer Touch ID or request an administrator’s username and password. Any administrator can unlock settings, including a child whose administrator account can authenticate.")
                         .foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 380)
                     Button { Task { await store.unlock() } } label: {
                         HStack { if store.busy { ProgressView().controlSize(.small) }; Text(store.busy ? "Authorizing…" : "Unlock parent settings") }

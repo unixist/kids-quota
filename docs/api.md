@@ -15,7 +15,9 @@ shared request schema used by the native parent connection; sending them over HT
 returns `403 administrator_required`, even with the bootstrap administrator token.
 Each native parent request must come from the verified installed parent app and
 carry an Authorization Services external form granting `com.kidsquota.manage`.
-The app can run in any login; macOS verifies the parent's administrator credentials.
+The app can run in any login; macOS verifies an administrator's credentials.
+The rule accepts any administrator, including a child's administrator account if
+macOS accepts its password or enrolled Touch ID; it is not a parent allowlist.
 The daemon validates the existing grant on every request without prompting or
 extending rights, then supplies an internal administrator principal to the shared
 handlers. The parent GUI neither sends nor stores a persistent bearer token.

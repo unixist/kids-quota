@@ -17,12 +17,12 @@ struct AddChildView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             Text(isFirstRun ? "Choose the Mac account to limit" : "Add another child").font(.title2.bold())
-            Text("Choose one standard macOS login. Kids Quota will use that account's name.").foregroundStyle(.secondary)
+            Text("Choose the Mac login to limit. Standard and administrator accounts are supported.").foregroundStyle(.secondary)
             Picker("Username", selection: $accountID) {
                 Text("Choose account").tag("")
-                ForEach(accounts) { account in Text("\(account.name) — \(account.displayName)").tag(account.id) }
+                ForEach(accounts) { account in Text("\(account.name) — \(account.displayName) (\(account.accountType))").tag(account.id) }
             }
-            if accounts.isEmpty { Text("No standard accounts found. Add one in System Settings → Users & Groups.").font(.callout) }
+            if accounts.isEmpty { Text("No local login accounts found. Add one in System Settings → Users & Groups.").font(.callout) }
             VStack(alignment: .leading, spacing: 10) {
                 Text("Ready to start").font(.headline)
                 Label("Chess.com · 6 hours per week", systemImage: "checkmark.circle")

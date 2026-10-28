@@ -33,7 +33,8 @@ public enum ParentAuthorization {
         }
         let definition: [String: Any] = [
             "class": "user", "group": "admin", "authenticate-user": true,
-            // The child's session password must not satisfy this rule.
+            // A standard session's credentials cannot satisfy this rule. Any
+            // administrator account, including a tracked login, can authorize.
             "session-owner": false, "shared": false, "timeout": 300,
             "allow-root": true,
             "comment": "Authorize a parent to configure Kids Quota and reset allowances."

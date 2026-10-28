@@ -4,7 +4,7 @@ Weekly website and Mac app allowances shared across Chrome, Safari, and selected
 apps, with independent balances for children using separate macOS login accounts.
 
 **Status: local development release with a real installer.**
-`dist/KidsQuota-0.1.2-Local.dmg` packages the app, root service, login agent,
+`dist/KidsQuota-0.1.3-Local.dmg` packages the app, root service, login agent,
 browser adapters, and an **inactive** Network Extension for Apple Silicon and
 Intel Macs running macOS 14 or later. It needs no Apple developer membership.
 Website blocking requires manual browser setup; standalone-app network blocking
@@ -95,19 +95,19 @@ included websites and apps → Choose app** to include the installed app.
 
 ## Install and set up
 
-For this membership-free build, copy **KidsQuota-0.1.2-Local.dmg** to the new Mac.
+For this membership-free build, copy **KidsQuota-0.1.3-Local.dmg** to the new Mac.
 It is the only file needed; the destination does not need Xcode, Node, Python,
 the source repository, or a developer account.
 
-1. While signed into the child's standard Mac account, mount the DMG and open
+1. While signed into the child's Mac account, mount the DMG and open
    **Install Kids Quota.pkg**. Enter the parent's administrator username and
    password when macOS Installer asks. It installs the app and background components. If
    macOS blocks this unnotarized installer, use **System Settings → Privacy &
    Security → Open Anyway** for that installer, then reopen it.
 2. Open **Kids Quota** from Applications in the same login. Choose **Unlock parent
    settings** and enter the parent's administrator credentials in the macOS prompt.
-3. Select the child's existing standard Mac login account and choose
-   **Set up account**. Chess.com and ChatGPT are created automatically,
+3. Select the child's existing local Mac login account (standard or administrator)
+   and choose **Set up account**. Chess.com and ChatGPT are created automatically,
    each with six hours per week and a Monday reset. No token entry or terminal is needed.
 4. In each child's Chrome account, open `chrome://extensions`, enable Developer
    mode, choose **Load unpacked**, and select
@@ -125,7 +125,9 @@ enable the root account or switch away from the child's login.
 Use Touch ID if macOS offers it in the authorization prompt; otherwise enter the
 parent's administrator username and password. Touch ID availability depends on
 macOS, the hardware, and the account; authorization from a different child's
-login may still require the parent's password. See [Apple's Authorization Services](https://developer.apple.com/documentation/security/authorization-services).
+login may still require the parent's password. The current rule accepts any
+administrator, including a child's administrator account if macOS accepts its
+password or enrolled Touch ID. See [Apple's Authorization Services](https://developer.apple.com/documentation/security/authorization-services).
 
 ## How children check their time
 
@@ -144,7 +146,7 @@ still require the parent app and administrator authorization.
 
 The installed parent executable is root-owned with mode `0755`, so any login can
 open its locked screen but standard accounts cannot modify it. macOS Authorization
-Services verifies the parent's administrator credentials. The root daemon checks
+Services verifies an administrator's credentials. The root daemon checks
 the parent app's identity and its temporary `com.kidsquota.manage` grant on every
 native parent request. The GUI runs as the current login and never reads or stores
 a persistent parent bearer token. Settings lock when you switch apps, close the
@@ -152,7 +154,9 @@ window, switch login sessions, choose Lock, or reach five minutes after unlockin
 
 The REST listener is **read-only**, even with an administrator bearer token.
 Configuration and resets require the authenticated parent IPC connection. A copied
-app or HTTP request from the child cannot change thresholds.
+app or HTTP request alone cannot change thresholds. The bootstrap `admin.token` is
+root-only in new and upgraded installations; already-copied tokens are not revoked
+by changing the file permissions.
 
 This local installer uses ad-hoc code signatures and pins the installed builds
 in a root-protected trust manifest. This preserves process authentication without
@@ -220,8 +224,12 @@ freshness lease expires rather than continuing with unlimited time.
 Unpacked Chrome or manually enabled Safari extensions remain removable/disableable.
 Managed Chrome forced-install policy and Safari extension management can enforce
 enablement; templates and requirements are in [deployment](docs/deployment.md).
-This is a deployment choice, not a change to the quota architecture. Children
-must use standard accounts.
+This is a deployment choice, not a change to the quota architecture. A selected
+login may be standard or administrator. Standard accounts provide a stronger
+protection boundary: an administrator login can potentially move or remove the
+app from the admin-writable /Applications directory without a password, and any
+administrator who authenticates can unlock settings. No account type is changed
+by Kids Quota.
 
 ## Key implementation choices
 

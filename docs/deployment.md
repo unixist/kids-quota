@@ -16,7 +16,7 @@ scripts/package.sh --local
 ```
 
 This builds universal Apple Silicon/Intel artifacts and creates the real
-`dist/KidsQuota-0.1.2-Local.pkg` and `dist/KidsQuota-0.1.2-Local.dmg`. Only the DMG
+`dist/KidsQuota-0.1.3-Local.pkg` and `dist/KidsQuota-0.1.3-Local.dmg`. Only the DMG
 needs to be copied to the new Mac. It contains **Install Kids Quota.pkg** and
 **Start here.txt**. The package needs no development tools on the destination.
 See [local installation](local-install.md) for Gatekeeper approval, child browser
@@ -39,15 +39,15 @@ are used by the local packaging path.
 ## Install from the disk image
 
 For either installation profile, open `KidsQuota-<version>.dmg` in the child's
-standard login or the parent's login, then double-click
+local login or the parent's login, then double-click
 **Install Kids Quota.pkg**. macOS Installer requests an administrator name and
 password. No Terminal commands are needed. The image also contains a one-page
 **Start here.txt** with the remaining setup steps.
 
 Open **Kids Quota** from Applications in the same login, choose **Unlock parent
 settings**, and enter the parent's administrator credentials in the macOS prompt.
-No account switch or enabled root account is required. Then confirm the child's standard Mac account.
-Each child starts with separate six-hour
+No account switch or enabled root account is required. Then confirm the child's
+local Mac account, either standard or administrator. Each child starts with separate six-hour
 weekly allowances for Chess.com and ChatGPT, resetting Monday. Select any companion
 applications and finish the browser/filter approvals. The installer does not guess
 application signers or publish/install a Chrome extension without a real release ID.
@@ -126,10 +126,17 @@ installed binary. The containing bundle, embedded Safari/filter extensions, and
 their resources remain accessible to the child and OS extension host. The service
 and native helpers remain `root:wheel`, mode `0755`. The installer verifies signatures
 after setting these permissions; it does not weaken native/API authorization.
+An administrator can potentially move or remove the root-owned app through the
+admin-writable `/Applications` parent directory without a password. Code pins
+prevent replacement executables from acquiring a trusted local role, but do not
+prevent this denial of service. Standard child accounts provide a stronger boundary.
 
 The data directory grants others traversal only so child accounts can run
 the agent and native host. Its database and credential registry are root-only;
-the bootstrap `admin.token` remains protected and is never read by the parent GUI.
+the bootstrap `admin.token` is `root:wheel`, mode `0600`, and is never read by
+the parent GUI.
+The installer applies this on upgrade as well as new installations. Restricting
+the file does not revoke a token that was copied before the upgrade.
 Do not distribute it to children, widgets, websites, or extensions. The app holds
 only a temporary Authorization Services grant, with no persistent parent token or
 Keychain entry. The daemon verifies that grant and the native parent role before
@@ -137,8 +144,11 @@ using an internal administrator principal for the shared handlers. Issue scoped
 read-only clients from Settings for integrations.
 
 The installed service registers `com.kidsquota.manage` before serving requests.
-It requires authentication as an administrator, permits authorization from another
-login, disables shared credentials, and expires credentials after 300 seconds.
+It requires authentication as **any** administrator, permits authorization from
+another login, disables shared credentials, and expires credentials after 300
+seconds. It does not distinguish parents from child administrators: if macOS
+accepts the child's administrator password or enrolled Touch ID, the child can
+unlock settings. Verify actual Touch ID behavior on the target Mac.
 Each native parent request revalidates the existing grant without prompting or
 extending it. The app locks on app switch, close, login-session switch, manual
 Lock, or five minutes after unlock. Reset audit UIDs identify the requesting
@@ -149,7 +159,7 @@ sessions that launchd confirms exist, including existing child sessions. It neve
 opens the parent app or runs a GUI collector as root. Accounts without a current GUI
 session load it at next login. If a session cannot load the agent, sign out and back
 in or restart the Mac. Open Kids Quota, authorize with the parent's administrator credentials,
-bind the children's standard accounts, set service allowances,
+bind the children's local accounts, set service allowances,
 and select any companion apps. Use Settings → Protection to request app-filter
 activation and approve the system prompts. Enable Safari's extension and its
 website permissions in each child's account, and install the Chrome extension.
@@ -168,7 +178,7 @@ export TEAM_ID SIGN_IDENTITY INSTALLER_IDENTITY CHROME_EXTENSION_ID
 scripts/package.sh
 ```
 
-This creates `dist/KidsQuota-0.1.2.pkg` and a signed `dist/KidsQuota-0.1.2.dmg`.
+This creates `dist/KidsQuota-0.1.3.pkg` and a signed `dist/KidsQuota-0.1.3.dmg`.
 The DMG contains the package named **Install Kids Quota.pkg** and **Start here.txt**.
 Set `CHROME_INSTALL_URL` to your actual HTTPS extension installation link to add it
 to the instructions. Set `VERSION=major.minor.patch` for another release.
@@ -202,7 +212,7 @@ release; signing alone is not approval or proof of enforcement. See Apple's
 [notarization guidance](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution).
 
 Without signing credentials, `scripts/create-dmg.sh --preview` makes
-`dist/KidsQuota-0.1.2-PREVIEW.dmg` containing instructions only. It cannot install
+`dist/KidsQuota-0.1.3-PREVIEW.dmg` containing instructions only. It cannot install
 or enable protection. Packaging unit tests use temporary fixtures and mock signing,
 launchd, and disk-image utilities:
 
@@ -255,8 +265,8 @@ the indicated payloads; review existing policy before merging them.
   [Apple's System Extensions schema](https://raw.githubusercontent.com/apple/device-management/release/mdm/profiles/com.apple.system-extension-policy.yaml).
 
 These templates strengthen deployment without changing quota accounting. They do
-not make this release child-proof. A standard account can still disrupt its own
-unmanaged login agent or browser, use an unsupported browser or remote service,
+not make this release child-proof. A standard or administrator account can still
+disrupt its own unmanaged login agent or browser, use an unsupported browser or remote service,
 and use cached offline app features. Missing collectors or extension connectivity
 must be treated as incomplete protection in the dashboard. Managed login items,
 app allowlisting, removal-resistant enrollment, and live tamper testing are separate

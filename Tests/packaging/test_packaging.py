@@ -71,6 +71,26 @@ class PackagingTests(unittest.TestCase):
         self.assertEqual(log.read_text().strip(), "root:wheel " + str(main))
         self.assertLess(self.installer.index('secure_parent_executable "$APP_STAGE"'), self.installer.index('verify_code "$APP_STAGE"'))
 
+    def test_existing_bootstrap_token_and_database_become_root_only_on_upgrade(self):
+        data = self.work / "data"
+        data.mkdir()
+        token = data / "admin.token"
+        token.write_text("keep existing token")
+        token.chmod(0o640)
+        database = data / "quota.sqlite"
+        database.write_text("keep existing usage")
+        database.chmod(0o640)
+        log = self.work / "ownership.log"
+        chown = executable(self.work / "chown", '#!/bin/bash\nprintf "%s\\n" "$*" >> "$OWNERSHIP_LOG"\n')
+        code = function(self.installer, "protect_private_data").replace("/usr/sbin/chown", shlex.quote(str(chown)))
+        result = self.shell(code + "\nprotect_private_data " + shlex.quote(str(data)), OWNERSHIP_LOG=str(log))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for path in [token, database]:
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+            self.assertIn("root:wheel " + str(path), log.read_text())
+        self.assertEqual(token.read_text(), "keep existing token")
+        self.assertEqual(database.read_text(), "keep existing usage")
+
     def test_parent_permission_function_rejects_executable_symlink(self):
         app = self.work / "App.app"
         (app / "Contents/MacOS").mkdir(parents=True)
@@ -153,8 +173,8 @@ esac
         repo = self.work / "repo"
         (repo / "scripts").mkdir(parents=True)
         (repo / "dist").mkdir()
-        (repo / "dist/KidsQuota-0.1.2.pkg").write_text("non-runnable package fixture")
-        (repo / "dist/KidsQuota-0.1.2-Local.pkg").write_text("non-runnable local package fixture")
+        (repo / "dist/KidsQuota-0.1.3.pkg").write_text("non-runnable package fixture")
+        (repo / "dist/KidsQuota-0.1.3-Local.pkg").write_text("non-runnable local package fixture")
         capture = self.work / "image-contents"
         log = self.work / "release.log"
         pkgutil = executable(self.work / "pkgutil", '#!/bin/bash\nprintf "Developer ID Installer: Fixture (%s)\\n" "$PACKAGE_TEAM"\n')
@@ -250,7 +270,7 @@ printf fixture > "$output"
         self.assertIn("--local", (self.work / "check.log").read_text())
         self.assertNotIn("--sign", (self.work / "package.log").read_text())
         self.assertIn("--auth root", (self.work / "package.log").read_text())
-        self.assertTrue((repo / "dist/KidsQuota-0.1.2-Local.pkg").exists())
+        self.assertTrue((repo / "dist/KidsQuota-0.1.3-Local.pkg").exists())
         self.assertTrue((captured / "create-local-trust.sh").exists())
         postinstall = (captured / "postinstall").read_text()
         self.assertIn("--local", postinstall)

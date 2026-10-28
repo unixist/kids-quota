@@ -4,7 +4,15 @@ import Darwin
 
 struct LocalAccount: Identifiable {
     let name: String; let displayName: String; let uid: UInt32; let generatedUID: String
+    let isAdministrator: Bool?
     var id: String { generatedUID }
+    var accountType: String {
+        switch isAdministrator {
+        case .some(true): return "Administrator"
+        case .some(false): return "Standard"
+        case .none: return "Account type unavailable"
+        }
+    }
 }
 enum AccountDiscovery {
     static func isCurrentUserAdministrator() -> Bool { administratorMembership(uid: getuid()) == true }
@@ -23,6 +31,14 @@ enum AccountDiscovery {
         guard count >= 0, count <= groups.count else { return nil }
         return groups.prefix(Int(count)).contains(administratorGroup)
     }
+    // Keep selection consistent with the service's local-account UID boundary.
+    // Membership is descriptive only: both account types can receive a quota.
+    static func selectableAccount(name: String, displayName: String?, uid: UInt32,
+                                  generatedUID: String, isAdministrator: Bool?) -> LocalAccount? {
+        guard uid >= 500, !name.isEmpty, !name.hasPrefix("_"), !generatedUID.isEmpty else { return nil }
+        return LocalAccount(name: name, displayName: displayName ?? name, uid: uid,
+                            generatedUID: generatedUID, isAdministrator: isAdministrator)
+    }
     static func children() throws -> [LocalAccount] {
         let node = try ODNode(session: ODSession.default(), type: UInt32(kODNodeTypeLocalNodes))
         let query = try ODQuery(node: node, forRecordTypes: kODRecordTypeUsers, attribute: kODAttributeTypeRecordName,
@@ -30,11 +46,10 @@ enum AccountDiscovery {
                                 returnAttributes: [kODAttributeTypeRecordName, kODAttributeTypeFullName, kODAttributeTypeUniqueID, kODAttributeTypeGUID], maximumResults: 0)
         return try (query.resultsAllowingPartial(false) as? [ODRecord] ?? []).compactMap { record in
             func first(_ key: String) -> String? { (try? record.values(forAttribute: key))?.first as? String }
-            guard let uidText = first(kODAttributeTypeUniqueID), let uid = UInt32(uidText), uid >= 501,
-                  let guid = first(kODAttributeTypeGUID), let name = first(kODAttributeTypeRecordName),
-                  !name.hasPrefix("_") else { return nil }
-            guard administratorMembership(uid: uid) == false else { return nil }
-            return LocalAccount(name: name, displayName: first(kODAttributeTypeFullName) ?? name, uid: uid, generatedUID: guid)
+            guard let uidText = first(kODAttributeTypeUniqueID), let uid = UInt32(uidText),
+                  let guid = first(kODAttributeTypeGUID), let name = first(kODAttributeTypeRecordName) else { return nil }
+            return selectableAccount(name: name, displayName: first(kODAttributeTypeFullName), uid: uid,
+                                     generatedUID: guid, isAdministrator: administratorMembership(uid: uid))
         }.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
     }
 }

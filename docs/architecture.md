@@ -147,8 +147,10 @@ The parent UI uses root-authenticated UNIX IPC so a process occupying the HTTP
 port cannot impersonate the daemon and harvest its temporary authorization proof.
 Its executable is root-owned with mode `0755`, so any login can open the locked UI.
 Each native parent request requires the verified parent app and a current
-`com.kidsquota.manage` Authorization Services grant. macOS authenticates the parent
-as an administrator even when the requesting login is a standard child account.
+`com.kidsquota.manage` Authorization Services grant. macOS authenticates an
+administrator even when the requesting login belongs to a child. The rule accepts
+any administrator, not only a designated parent; a child administrator may unlock
+settings using their password or Touch ID if macOS accepts it.
 The daemon checks the existing grant without prompting or extending it and supplies
 an internal administrator principal to the shared handlers. This principal is
 never sent to the GUI or accepted from HTTP. The GUI stays unprivileged and uses
@@ -418,9 +420,13 @@ Sources: [DNS proxy](https://developer.apple.com/documentation/networkextension/
 Reliable deployment requires enabled extensions, website permissions, coverage of
 all allowed browser profiles, and an explicit private-browsing policy. Switching
 to an unsupported browser or disabling an extension can bypass a basic prototype.
-A standard child account is useful but does not by itself prevent extension removal.
-Evaluate browser management/MDM and application restrictions separately for Chrome
-and Safari. A child with administrator control can defeat ordinary local controls.
+The service binds standard and administrator login accounts by verified directory
+GUID and UID; separate child logins preserve separate balances. A standard account
+provides a stronger protection boundary but does not itself prevent extension
+removal. An administrator may also be able to move or remove the installed app
+through the admin-writable `/Applications` directory without a password. Evaluate
+browser management/MDM and application restrictions separately for Chrome and
+Safari. A child with administrator control can defeat ordinary local controls.
 
 Native Screen Time APIs should not be assumed to provide a cross-browser macOS
 quota engine. Apple's native ScreenTime framework concerns an app's own web usage;

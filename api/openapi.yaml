@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: kids-quota HTTP API
-  version: 0.1.2
+  version: 0.1.3
   description: |
     Implemented loopback API. HTTP requests require an opaque bearer token;
     scopes and child grants are enforced by the service. The HTTP listener is
@@ -13,7 +13,9 @@ info:
     installed parent app and an Authorization Services external form for
     com.kidsquota.manage on every native parentHTTP request. The app can run in
     any login while a parent supplies administrator credentials in the macOS
-    prompt. The daemon validates the grant and uses a private internal parent
+    prompt. The rule accepts any administrator, including a child's administrator
+    account if macOS accepts its password or enrolled Touch ID; there is no parent
+    allowlist. The daemon validates the grant and uses a private internal parent
     principal; the GUI never sends or stores a persistent parent bearer token.
     Read grants cannot confer write authority. Clients cannot submit usage or
     supply verified app identities.

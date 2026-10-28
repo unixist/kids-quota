@@ -1,17 +1,18 @@
 # Install the local release
 
-Copy **KidsQuota-0.1.2-Local.dmg** to the destination Mac. This is a real installer,
+Copy **KidsQuota-0.1.3-Local.dmg** to the destination Mac. This is a real installer,
 not the earlier instructions-only `PREVIEW.dmg`. The package contains everything
 needed to install Kids Quota; the new Mac does not need the repository, Xcode,
 Node.js, Python, or an Apple developer membership.
 
 Requires macOS 14 or later on Apple Silicon or Intel, an administrator account
-for the parent, and a separate **standard** local account for each child. Chrome
-and Safari themselves are not installed by this package.
+for configuration. Each child can have a separate local Mac login, either
+**standard or administrator**; separate logins keep usage balances distinct.
+Chrome and Safari themselves are not installed by this package.
 
 ## Parent setup
 
-1. From the child's standard Mac login, open the DMG and double-click
+1. From the child's Mac login, open the DMG and double-click
    **Install Kids Quota.pkg**.
 2. If macOS blocks the installer because its developer cannot be verified, open
    **System Settings → Privacy & Security**, find the blocked installer, and
@@ -22,7 +23,7 @@ and Safari themselves are not installed by this package.
    If macOS separately blocks this app, use the same **Open Anyway** flow for
    Kids Quota. Choose **Unlock parent settings** and enter the parent's
    administrator credentials in the macOS prompt.
-5. Choose the child's standard local account and click **Set up account**.
+5. Choose the child's local account (standard or administrator) and click **Set up account**.
    Chess.com and ChatGPT each start at **six hours per week**, resetting Monday
    at midnight in the saved timezone. Add additional children later if needed.
 
@@ -33,7 +34,10 @@ after unlocking. The parent password is entered only in macOS's authorization UI
 Use Touch ID if that prompt offers it. Otherwise enter the parent's administrator
 username and password. Cross-account Touch ID is not guaranteed: Apple associates
 fingerprints with individual accounts and controls which authentication methods
-are available. See [Authorization Services](https://developer.apple.com/documentation/security/authorization-services)
+are available. The current administrator authorization rule accepts **any**
+administrator, including a child's administrator login if macOS accepts its
+password or enrolled Touch ID. It does not identify a specific parent. See
+[Authorization Services](https://developer.apple.com/documentation/security/authorization-services)
 and [Touch ID on Mac](https://support.apple.com/guide/mac-help/use-touch-id-mchl16fbf90a/mac).
 
 The root service starts automatically. The installer also starts activity agents
@@ -55,8 +59,8 @@ is needed. If the hourglass is missing after installation, sign out and back in.
 
 The **Kids Quota browser toolbar button** in Chrome or Safari also shows the
 remaining balances and next reset. Multiple domains in one service share one
-balance. These screens are read-only; children cannot change limits, reset usage,
-or switch to a sibling's balances. An unlinked login shows that parent setup is
+balance. These screens are read-only; they do not provide controls to change
+limits, reset usage, or switch to a sibling's balances. An unlinked login shows that parent setup is
 needed. If the service cannot be reached, balances are hidden until it reconnects.
 
 ## Chrome setup in each child's account
@@ -118,11 +122,16 @@ not accept a filter peer. A later signed build can restore this optional feature
 The installer requires administrator authorization. It installs root-owned app
 and service files, gives the parent executable mode `0755`, and stores the protected
 ledger and credentials under `/Library/Application Support/KidsQuota`. A standard
-account can launch the locked app but cannot change its installed files.
-The daemon validates the parent app and its temporary `com.kidsquota.manage` grant
+account can launch the locked app but cannot change its installed files. An
+administrator account can potentially move or remove the app through an
+admin-writable `/Applications` directory without entering a password, even though
+the app's files are root-owned. Standard accounts offer a stronger protection
+boundary. The daemon validates the parent app and its temporary `com.kidsquota.manage` grant
 for every native parent request. The GUI never reads or saves a persistent parent
 bearer token; configuration and resets require macOS administrator authorization.
-HTTP remains read-only and uses separate scoped tokens for integrations.
+The bootstrap `admin.token` is `root:wheel`, mode `0600`, including after upgrade;
+changing file permissions does not revoke copies made earlier. HTTP remains
+read-only and uses separate scoped tokens for integrations.
 
 The local build uses **ad-hoc signatures**, which verify code integrity but do not
 identify an Apple-approved publisher. During installation, the installer records

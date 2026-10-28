@@ -2,7 +2,7 @@
 set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
-VERSION="${VERSION:-0.1.2}"
+VERSION="${VERSION:-0.1.3}"
 MODE=signed; NOTARIZE=0
 PACKAGE=''
 while [[ $# -gt 0 ]]; do
@@ -53,7 +53,7 @@ A signed release will contain:
 The release workflow is to open the installer, approve the normal macOS
 administrator prompt, then open Kids Quota from Applications in any Mac login.
 Unlock with a parent's administrator username and password. Select the child's
-standard Mac account. Chess.com and
+local Mac account, which may be standard or administrator. Chess.com and
 ChatGPT each start with six hours per week, resetting Monday.
 
 macOS requires separate approval for the app network filter and Safari extension.
@@ -80,7 +80,7 @@ It is not Apple-notarized. App network blocking is intentionally disabled.
 
 2. Stay in the child's login and open Kids Quota from Applications. Choose
    “Unlock parent settings” and enter the parent's administrator username and
-   password in the macOS prompt. Select the child's standard Mac login. Chess.com
+   password in the macOS prompt. Select the child's Mac login (standard or administrator). Chess.com
    and ChatGPT each start with six hours per week, resetting Monday. Repeat
    “Add another child” for other accounts. The background service stays running
    when the parent window is closed. Settings and resets require parent unlock.
@@ -120,9 +120,11 @@ disabled extensions are not protected. Browser permissions are per login account
 weekly limits and the scheduled reset. Scoped read-only HTTP clients remain usable.
 
 All application components are locally ad-hoc signed. The administrator installer
-pins their exact code identities in protected storage; ordinary child accounts
-cannot edit the service, identity pins, policy, or balances. Never give a child
-administrator privileges. This local build is not a managed deployment.
+pins their exact code identities in protected storage. Any administrator,
+including a child, may unlock parent settings using their own credentials or
+Touch ID if macOS offers it. Administrator accounts may also move apps without a
+password. Standard accounts provide stronger protection. This is not a managed
+deployment.
 LOCAL
   OUTPUT="$REPO_ROOT/dist/KidsQuota-$VERSION-Local.dmg"
   VOLUME='Kids Quota Local'
@@ -137,7 +139,7 @@ KIDS QUOTA
 
 2. Open “Kids Quota” in Applications while staying in the child's login.
    Unlock with the parent's administrator username and password, then choose
-   the child's standard Mac account. Chess.com and ChatGPT each start
+   the child's local Mac account, which may be standard or administrator. Chess.com and ChatGPT each start
    with six hours per week, resetting Monday. You can change hours and reset
    settings in the app, add other websites, and select companion applications.
    Use Touch ID if macOS offers it; otherwise use the administrator password.
