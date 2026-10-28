@@ -8,12 +8,12 @@ or activated on the development Mac; no real child accounts were linked.
 | Suite | Result | Coverage |
 | --- | --- | --- |
 | Swift quota core | 60 passing tests | Domain boundaries/IDNA/public suffixes, policy validation, per-child shared usage, calendar/DST resets, clock changes, stale reports, persistence, reset audits and transaction rollback |
-| Swift service | 43 passing tests | Authorization, child scopes, revisions, native roles, administrator proof, read-only HTTP, scoped reset, account isolation, framing, local trust manifests, protected paths, and real ad-hoc process signature pins |
-| Browser JavaScript | 21 passing tests | Chrome/Safari packaging, stable unpacked extension ID, focus reports, DNR matching, open-tab replacement, native disconnects/timeouts, persisted fail-closed rules, event ordering, same-week resets and permission failures |
+| Swift service and child view models | 58 passing tests | Authorization, child scopes, revisions, native roles, administrator proof, read-only HTTP, scoped reset, account isolation, framing, local trust manifests, protected paths, real ad-hoc process signature pins, child-status privacy, observational reads, balance formatting and stale-view clearing |
+| Browser JavaScript | 30 passing tests | Chrome/Safari packaging, stable unpacked extension ID, focus reports, DNR matching, open-tab replacement, native disconnects/timeouts, persisted fail-closed rules, event ordering, same-week resets, permission failures, read-only popup refresh, domains/reset presentation and late-reply handling |
 | Native Mac models and parent session | 15 passing tests | Filter UID isolation, stale rules, malformed policy, presentation, locked startup, authorization proof, relock/races, and local-mode refusal to activate the filter |
 | Packaging | 20 passing tests | Parent-only executable access, child extension access, GUI-session activation, upgrade/trust rollback, local artifact metadata, DMG layout, signing-team validation, explicit notarization and codesign pipe handling |
 
-**159 automated tests pass.** The OS authorization test creates an empty reference
+**183 automated tests pass.** The OS authorization test creates an empty reference
 and confirms it cannot grant access, without displaying a credential prompt. It can
 skip when Authorization Services is unavailable in a sandbox/headless environment;
 it passed in the local unsandboxed run. The filter model and browser tests use deterministic
@@ -48,7 +48,7 @@ A real instructions-only preview DMG was created, checksum-verified and mounted
 read-only to confirm it contains no runnable installer. Actual signed
 installation, notarization, and MDM deployment have not been performed.
 
-The actual **KidsQuota-0.1.0-Local.dmg** was created, checksum-verified, mounted
+The actual **KidsQuota-0.1.1-Local.dmg** was created, checksum-verified, mounted
 read-only, and unmounted after inspection. Its real PKG was expanded into scratch
 files without installing it. The extracted installer's read-only checks verified
 all components' ad-hoc signatures, identifiers, hardened runtime, resource presence,
@@ -57,6 +57,14 @@ The parent has `KidsQuotaLocalInstall=true` and no restricted entitlements; the
 filter is outside its activation directory. The extracted trust helper produced
 the expected five roles with both architecture hashes. The final local daemon
 also passed the isolated live HTTP/crash-recovery smoke test above.
+
+The child menu bar screen was opened with DEBUG-only fixture data and inspected
+through its accessibility tree and rendered window. The browser popup was rendered
+with an isolated mock status response, including multiple domains and reset time.
+No real user balances, browser configuration, or installed services were touched.
+The child-status tests decode real controller replies through the UI model and
+verify that polling balances does not renew an activity heartbeat. Interactive
+checking in an installed child's account remains part of acceptance below.
 
 ## Local runtime acceptance still required
 
@@ -72,6 +80,11 @@ The package has not been installed on a fresh second Mac in this task. On that M
 4. Verify selected app time shares its quota but the app stays online at
    exhaustion, matching the deliberately disabled native filter. Confirm resets
    and independent read clients operate and do not affect sibling balances.
+5. In each child's login, click the menu bar hourglass and browser toolbar popup.
+   Verify that only that child's assigned services appear and their remaining
+   time agrees with the parent dashboard. Test a parent reset, weekly reset,
+   service interruption/recovery, and an unlinked account. The menu bar must
+   appear again after login without requiring parent authorization.
 
 ## Signed runtime acceptance still required
 

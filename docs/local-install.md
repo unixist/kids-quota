@@ -1,6 +1,6 @@
 # Install the local release
 
-Copy **KidsQuota-0.1.0-Local.dmg** to the destination Mac. This is a real installer,
+Copy **KidsQuota-0.1.1-Local.dmg** to the destination Mac. This is a real installer,
 not the earlier instructions-only `PREVIEW.dmg`. The package contains everything
 needed to install Kids Quota; the new Mac does not need the repository, Xcode,
 Node.js, Python, or an Apple developer membership.
@@ -32,6 +32,20 @@ without opening the administrator-only parent app or enabling the extension.
 
 Apple documents the per-app approval flow in
 [Safely open apps on your Mac](https://support.apple.com/102445).
+
+## How children see their remaining time
+
+Click the **Kids Quota hourglass in the Mac menu bar** while signed into the
+child's account. It appears automatically with the login agent. It shows the
+current child's remaining time, weekly allowances, included domains, and next
+reset, and refreshes every five seconds while open. No parent password or browser
+is needed. If the hourglass is missing after installation, sign out and back in.
+
+The **Kids Quota browser toolbar button** in Chrome or Safari also shows the
+remaining balances and next reset. Multiple domains in one service share one
+balance. These screens are read-only; children cannot change limits, reset usage,
+or switch to a sibling's balances. An unlinked login shows that parent setup is
+needed. If the service cannot be reached, balances are hidden until it reconnects.
 
 ## Chrome setup in each child's account
 
@@ -74,6 +88,7 @@ behavior in [Running your Safari web extension](https://developer.apple.com/docu
 | --- | --- |
 | Quota service and SQLite ledger | Tracks weekly time, stores independent child balances, and resets on schedule. |
 | Parent app | Administrator unlock, account setup, hours, custom domains/apps, manual reset, and read-client tokens. |
+| Child menu bar view | Current login's remaining time, weekly allowances, covered domains, and next reset; read-only and automatically started. |
 | Chrome extension | Website measurement and blocking after manual installation and website permission. |
 | Safari extension | Website measurement and blocking while enabled; unsigned permission resets on quit. |
 | Selected native apps | Foreground usage can share the website's allowance, but the native app is **not blocked** at exhaustion. |

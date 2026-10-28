@@ -72,6 +72,13 @@ policy. Valid explicit policy changes can clear old rules.
 
 ## Behavior and limits
 
+Children can click the Kids Quota toolbar button to see the remaining balance
+for each assigned service, its included domains, and the next reset. The popup
+refreshes every five seconds while open and offers a manual refresh. Only the
+current Mac account's services appear; there are no settings or reset controls.
+If protection is paused or the service is unavailable, the popup distinguishes
+that from an exhausted allowance and does not show a stale balance as current.
+
 - Tab, URL, window focus, page lifecycle, native replies, and recovery alarms all
   trigger reconciliation. Five-second heartbeats improve freshness but are not the
   authoritative clock. The native service must stop accepting stale activity.

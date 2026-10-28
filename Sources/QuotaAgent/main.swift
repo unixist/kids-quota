@@ -127,4 +127,26 @@ final class Collector {
 if CommandLine.arguments == [CommandLine.arguments[0], SafariDiscovery.helperArgument] {
     exit(SafariDiscovery.register())
 }
-let collector=Collector();collector.start();RunLoop.main.run()
+// A launchd Aqua agent starts on the process main thread; all AppKit/SwiftUI
+// lifecycle work remains there while collection and socket reads run separately.
+MainActor.assumeIsolated {
+    let application = NSApplication.shared
+    application.setActivationPolicy(.accessory)
+    let collector = Collector()
+    let childStatusMenu = ChildStatusMenu(socket: collector.socket, development: collector.development)
+    let previewWindow: NSWindow?
+    #if DEBUG
+    if CommandLine.arguments.contains("--preview-child-status") {
+        // Visual QA only: no Safari registration, foreground collection or service
+        // connection is started in this explicit debug-only mode.
+        previewWindow = childStatusMenu.previewWindow()
+    } else {
+        previewWindow = nil
+        collector.start()
+    }
+    #else
+    previewWindow = nil
+    collector.start()
+    #endif
+    withExtendedLifetime((collector, childStatusMenu, previewWindow)) { application.run() }
+}

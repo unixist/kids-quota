@@ -16,6 +16,7 @@ components. For a source-by-source tour, read the [code walkthrough](code-guide.
 | --- | --- |
 | Extension → native browser bridge → daemon | Active hostname, focus, session ID, and sequence number; the reply carries domain rules and remaining time. Browser refreshes are event-driven plus a roughly five-second timer while running. |
 | Per-login agent → daemon | Frontmost PID and awake/unlocked/active-session observations, every second and on relevant events. The daemon verifies identity and resolves the child. |
+| Child menu bar view ↔ daemon | The same agent sends read-only `childStatus` requests on opening and about every five seconds while open. The kernel peer UID selects the child; the request cannot supply a child ID. The reply contains only that child's balances and assigned service domains. |
 | Parent app ↔ daemon | `parentHTTP` envelopes over authenticated UNIX IPC, with OS administrator authorization and a bearer token. Configuration does not use the public HTTP listener. |
 | Read client ↔ HTTP listener | Scoped bearer-authenticated reads at `127.0.0.1:48123/v1`, restricted to explicitly granted children. |
 | App filter ↔ daemon | A `filterRules` poll every second, returning blocked states associated with child UIDs and verified app requirements. The filter enforces those decisions on socket flows. |
@@ -94,6 +95,11 @@ Sources: [Chrome permissions](https://developer.chrome.com/docs/extensions/devel
 - **Native app monitor:** observes the frontmost application and resolves its
   verified identity to an explicit application binding. Reports activity to the
   same quota service; a running background process does not imply use.
+- **Child menu bar view:** runs inside the login agent and shows remaining time,
+  weekly allowances, included domains, and the next reset. It has no parent token,
+  account selector, reset, or configuration action. A separate request queue keeps
+  UI refreshes from delaying activity collection. Browser toolbar popups offer
+  another read-only view of their current account's service balances.
 - **Application network filter:** a Network Extension content filter applies an
   exhausted group's policy to traffic from its selected apps and explicitly bound
   helper processes, scoped to the originating child/account. It handles new flows

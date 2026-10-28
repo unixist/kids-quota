@@ -18,6 +18,13 @@ parent request must also carry an Authorization Services external form granting
 There is no HTTP endpoint for submitting usage, setting balances, or claiming a
 child's OS identity.
 
+The built-in child menu bar view needs no HTTP token. It runs in the verified
+login agent and sends `{"op":"childStatus"}` over the native socket. The service
+uses the kernel peer UID to return only that child's assigned service balances;
+extra fields, including a requested child ID, are rejected. This is a read-only
+operation and gives no access to parent configuration. External clients still
+use the scoped bearer-authenticated HTTP API documented below.
+
 ## Resources
 
 - **Service:** a named group of domains and verified Mac applications. Membership

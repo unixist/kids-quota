@@ -22,7 +22,7 @@ else
 fi
 CHROME_EXTENSION_ID="${CHROME_EXTENSION_ID:-}"
 [[ -z "$CHROME_EXTENSION_ID" || "$CHROME_EXTENSION_ID" =~ ^[a-p]{32}$ ]] || { echo 'Invalid Chrome extension ID.' >&2; exit 2; }
-VERSION="${VERSION:-0.1.0}"
+VERSION="${VERSION:-0.1.1}"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Version must be major.minor.patch.' >&2; exit 2; }
 INSTALL_ARGS=(--artifacts "$REPO_ROOT/dist/$MODE")
 SUFFIX=''

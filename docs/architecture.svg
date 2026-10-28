@@ -41,8 +41,8 @@
 <rect x="65" y="620" width="340" height="140" rx="12" fill="#ffffff" stroke="#b9cee7"/>
 <text x="85" y="653" class="label">Per-login activity agent</text>
 <text x="85" y="684" class="body">Foreground app PID + session state</text>
-<text x="85" y="708" class="body">Awake, unlocked, active login</text>
-<text x="85" y="732" class="body">Every 1 s and on session/app events</text>
+<text x="85" y="708" class="body">Reports every 1 s + session events</text>
+<text x="85" y="732" class="body">Read-only child menu bar balances</text>
 <text x="65" y="803" class="small">The collectors report observations.</text>
 <text x="65" y="827" class="small">They do not set balances or elapsed time.</text>
 <rect x="535" y="210" width="340" height="175" rx="12" fill="#ffffff" stroke="#accfc2"/>
@@ -69,7 +69,7 @@
 <text x="721" y="720" class="small">durable state</text>
 <text x="535" y="884" class="small">WeeklyCalendar + DomainMatcher support the engine.</text>
 <path d="M 405 437 H 461 V 245 H 535" class="edge both"/>
-<path d="M 405 690 H 490 V 280 H 535" class="edge"/>
+<path d="M 405 690 H 490 V 280 H 535" class="edge both"/>
 <rect x="1005" y="210" width="350" height="118" rx="12" fill="#ffffff" stroke="#cdc1e8"/>
 <text x="1025" y="243" class="label">Parent app · administrator</text>
 <text x="1025" y="274" class="body">OS authorization + parent bearer</text>

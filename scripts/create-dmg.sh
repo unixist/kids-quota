@@ -2,7 +2,7 @@
 set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
-VERSION="${VERSION:-0.1.0}"
+VERSION="${VERSION:-0.1.1}"
 MODE=signed; NOTARIZE=0
 PACKAGE=''
 while [[ $# -gt 0 ]]; do
@@ -96,7 +96,12 @@ It is not Apple-notarized. App network blocking is intentionally disabled.
    it quits: re-enable it after every Safari restart. This is temporary developer
    installation, not dependable removal-resistant Safari protection.
 
-5. Check coverage in Kids Quota. Sign out and back in, or restart, if an account
+5. Children can click the Kids Quota hourglass in the Mac menu bar to see their
+   remaining time, weekly allowances, included websites, and next reset. It
+   starts automatically and needs no parent password. The browser toolbar popup
+   also shows remaining time. These views cannot change limits or reset usage.
+
+6. Check coverage in Kids Quota. Sign out and back in, or restart, if an account
    helper is unavailable. Test a short website allowance in each browser.
    After an upgrade, quit and reopen Kids Quota, Chrome, and Safari to use the
    updated components. Re-enable Safari's unsigned-extension permission.
@@ -142,6 +147,9 @@ not change the weekly limits or next reset day, and requires unlocked parent acc
 
 The parent app is available only to administrators. The protected background
 service and browser helpers work in the children's standard accounts.
+Children can click the Kids Quota hourglass in the Mac menu bar, or the browser
+toolbar button, to see their own remaining time and next reset without a password.
+These views are read-only; settings and resets remain restricted to the parent.
 
 The installer starts helpers in existing login sessions where possible. If the
 app reports an unavailable account helper, sign out and back in or restart the Mac.

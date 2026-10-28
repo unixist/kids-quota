@@ -4,7 +4,7 @@ Weekly website and Mac app allowances shared across Chrome, Safari, and selected
 apps, with independent balances for children using separate macOS login accounts.
 
 **Status: local development release with a real installer.**
-`dist/KidsQuota-0.1.0-Local.dmg` packages the app, root service, login agent,
+`dist/KidsQuota-0.1.1-Local.dmg` packages the app, root service, login agent,
 browser adapters, and an **inactive** Network Extension for Apple Silicon and
 Intel Macs running macOS 14 or later. It needs no Apple developer membership.
 Website blocking requires manual browser setup; standalone-app network blocking
@@ -46,6 +46,7 @@ app, parent-edit, and reset flows. These are the main entry points:
 | [ServiceController](Sources/KidsQuotaService/Controller.swift) | Connects reports to the engine; routes requests and authorizes changes. |
 | [Transport](Sources/KidsQuotaService/Transport.swift), [Identity](Sources/KidsQuotaService/Identity.swift), and [Credentials](Sources/KidsQuotaService/Credentials.swift) | UNIX sockets/HTTP, authenticated process and account identities, and scoped read tokens. |
 | [QuotaDaemon](Sources/QuotaDaemon/main.swift), [QuotaAgent](Sources/QuotaAgent/main.swift), and [QuotaBridge](Sources/QuotaBridge/main.swift) | Executable entry points for the root service, per-login collector, and Chrome native host. |
+| [Child menu bar view](Sources/QuotaAgent/ChildStatusMenu.swift) and [child status models](Sources/KidsQuotaService/ChildStatus.swift) | Read-only remaining time for the current login; no parent credentials or child selector. |
 | [Shared browser controller](extensions/shared/controller.js) and [browser core](extensions/shared/core.js) | Tab/focus reports, policy replies, stale-state recovery, and website blocking. |
 | [ParentApp](macos/ParentApp/) | SwiftUI account setup, allowance cards, editors, administrator unlock, and reset controls. |
 | [Safari handler](macos/SafariExtension/SafariWebExtensionHandler.swift) | Safari's native messaging connection to the daemon. |
@@ -77,6 +78,10 @@ than generated browser files or only the generated Xcode project.
 - Provides a parent-only **Reset this week** button. It restores the selected
   child's current-week balances, preserves their limits and next reset date, and
   records an audit event. Other children and earlier weeks are untouched.
+- Gives each child a **Kids Quota hourglass in the Mac menu bar** showing their
+  remaining time, weekly allowance, included domains, and next reset. The Chrome
+  and Safari toolbar popups also show remaining time and domains. These views
+  refresh while open and never expose settings, resets, or sibling balances.
 - Exposes authenticated `http://127.0.0.1:48123/v1` JSON endpoints for widgets or
   local publishers. Revocable read tokens have explicit child grants. No client
   endpoint can post usage or set remaining balances.
@@ -90,7 +95,7 @@ included websites and apps → Choose app** to include the installed app.
 
 ## Install and set up
 
-For this membership-free build, copy **KidsQuota-0.1.0-Local.dmg** to the new Mac.
+For this membership-free build, copy **KidsQuota-0.1.1-Local.dmg** to the new Mac.
 It is the only file needed; the destination does not need Xcode, Node, Python,
 the source repository, or a developer account.
 
@@ -114,6 +119,21 @@ the source repository, or a developer account.
 The DMG includes **Start here.txt**, and the app's Protection settings show the
 browser setup steps. Read [local installation](docs/local-install.md) before
 relying on coverage. Unpacked/unsigned browser extensions can be disabled by a child.
+
+## How children check their time
+
+In the child's Mac login, click the **hourglass in the menu bar** to open Kids
+Quota. It starts automatically with the login agent and works without opening
+the administrator-only parent app or a browser. Each service shows its remaining
+time and weekly allowance, its covered domains, and when the allowance resets.
+Multiple domains grouped into one service share the displayed balance.
+
+Children can also click **Kids Quota in Chrome or Safari's toolbar**. Both views
+refresh about every five seconds while open. If the service is unavailable, the
+view shows that status instead of presenting an old balance as current. No
+password or read-client token is needed; the service identifies the current Mac
+login and returns only that child's assigned services. Changes and manual resets
+still require the parent app and administrator authorization.
 
 The installed parent executable is `root:admin` with mode `0750`; a standard child
 cannot read or execute it. Its embedded browser/filter extensions remain accessible

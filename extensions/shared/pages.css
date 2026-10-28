@@ -7,11 +7,21 @@ p {margin:12px 0;}
 .secondary {color:light-dark(#62626c,#b3b3be);font-size:13px;}
 .eyebrow {font-size:13px;color:light-dark(#62626c,#b3b3be);}
 .blocked main {max-width:580px;margin:12vh auto 0;}
-.popup {width:340px;}
-.popup h1 {font-size:19px;}
 button {font:inherit;padding:9px 14px;border-radius:8px;border:1px solid transparent;background:light-dark(#0766d0,#368af4);color:white;cursor:pointer;}
 button:disabled {opacity:.45;cursor:default;}
 .secondary-button {color:inherit;background:light-dark(#fff,#343439);border-color:light-dark(#d8d8e0,#4a4a53);}
 .actions {display:flex;gap:10px;flex-wrap:wrap;margin:22px 0;}
 .service-row {display:flex;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid light-dark(#dddde4,#424248);}
 .service-row span:last-child {font-variant-numeric:tabular-nums;text-align:right;}
+.popup {width:380px;max-height:580px;overflow-y:auto;}
+.popup main {padding:20px;}
+.popup .eyebrow {margin:0 0 2px;}
+.popup h1 {font-size:25px;margin:0 0 8px;}
+.popup #status {margin:8px 0 18px;}
+.balance-card {padding:16px;margin:12px 0;border:1px solid light-dark(#dddde4,#424248);border-radius:12px;background:light-dark(#fff,#2c2c30);}
+.service-name {font-size:16px;font-weight:600;margin:0;overflow-wrap:anywhere;}
+.service-domains {margin:3px 0 10px;overflow-wrap:anywhere;}
+.balance-value {font-size:24px;font-weight:650;font-variant-numeric:tabular-nums;line-height:1.25;margin:10px 0;color:light-dark(#096139,#68d5a2);}
+.balance-value.exhausted {color:light-dark(#934008,#ffb683);}
+.balance-note,.reset-time {margin:6px 0 0;}
+.popup-footer {margin:18px 0 12px;}

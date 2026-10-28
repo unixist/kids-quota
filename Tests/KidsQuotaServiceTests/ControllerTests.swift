@@ -75,6 +75,146 @@ final class ControllerTests: XCTestCase {
     private func object(_ response: HTTPResponse) throws -> [String:Any] { try XCTUnwrap(JSONSerialization.jsonObject(with: response.body) as? [String:Any]) }
     private func items(_ response: HTTPResponse) throws -> [[String:Any]] { try XCTUnwrap(object(response)["items"] as? [[String:Any]]) }
 
+    func testChildStatusReturnsOnlyTheVerifiedLoginAccountsAllowances() throws {
+        let f = try Fixture()
+        let alice = f.controller.native(["op":"childStatus"],uid:501,role:"agent")
+        XCTAssertEqual(Set(alice.keys),["type","configured","childName","resetTimeZone","items"])
+        XCTAssertEqual(alice["type"] as? String,"childStatus")
+        XCTAssertEqual(alice["configured"] as? Bool,true)
+        XCTAssertEqual(alice["childName"] as? String,"Alice")
+        XCTAssertEqual(alice["resetTimeZone"] as? String,f.controller.engine.policy.reset.timeZone)
+        let aliceItems = try XCTUnwrap(alice["items"] as? [[String:Any]])
+        XCTAssertEqual(aliceItems.compactMap {$0["serviceId"] as? String},["chesscom"])
+        XCTAssertEqual(aliceItems.first?["weeklyLimitSeconds"] as? Int,100)
+        XCTAssertEqual(aliceItems.first?["remainingSeconds"] as? Int,100)
+        XCTAssertEqual(Set(try XCTUnwrap(aliceItems.first).keys),["serviceId","name","domains","weeklyLimitSeconds","usedSeconds","remainingSeconds","resetAt","coverage"])
+        let decoded = try ChildStatusSnapshot.decode(alice)
+        XCTAssertTrue(decoded.configured);XCTAssertEqual(decoded.childName,"Alice")
+        XCTAssertEqual(decoded.items.map(\.serviceId),["chesscom"])
+        XCTAssertEqual(decoded.items.first?.remainingSeconds,100)
+        XCTAssertEqual(decoded.items.first?.domains.first?.hostname,"chess.com")
+        XCTAssertGreaterThan(try XCTUnwrap(decoded.items.first?.resetAt),f.context.now)
+
+        let bob = f.controller.native(["op":"childStatus"],uid:502,role:"agent")
+        XCTAssertEqual(bob["childName"] as? String,"Bob")
+        let bobItems = try XCTUnwrap(bob["items"] as? [[String:Any]])
+        XCTAssertEqual(bobItems.compactMap {$0["serviceId"] as? String},["chesscom","chatgpt"])
+        XCTAssertEqual(bobItems.compactMap {$0["weeklyLimitSeconds"] as? Int},[200,300])
+        XCTAssertEqual(bobItems.compactMap {$0["usedSeconds"] as? Int},[0,0])
+        let encoded = String(decoding:try JSONSerialization.data(withJSONObject:alice),as:UTF8.self)
+        XCTAssertFalse(encoded.contains("alice-guid"));XCTAssertFalse(encoded.contains("CHESSTEAM"))
+        XCTAssertFalse(encoded.contains(f.administrator))
+    }
+
+    func testChildStatusRejectsEveryAccountSelectorAndOtherUnexpectedField() throws {
+        let f = try Fixture();let revision = f.revision
+        for uid: UInt32 in [501,599] {
+            for (key,value) in ["childId":"bob","uid":502,"role":"parent","reset":true,"authorization":f.administrator] as [String:Any] {
+                let response = f.controller.native(["op":"childStatus",key:value],uid:uid,role:"agent")
+                XCTAssertNotNil(response["error"],"Accepted an unexpected \(key) field for UID \(uid)")
+                XCTAssertNil(response["items"]);XCTAssertNil(response["childName"])
+            }
+        }
+        XCTAssertEqual(f.revision,revision);XCTAssertEqual(try f.used(),0)
+    }
+
+    func testChildStatusRejectsOtherNativeRolesBeforeAccountLookup() throws {
+        let f = try Fixture()
+        for uid: UInt32 in [501,599] {
+            for role in ["parent","bridge","safari","filter","unknown"] {
+                let response = f.controller.native(["op":"childStatus"],uid:uid,role:role)
+                XCTAssertNotNil(response["error"],"Accepted role \(role) for UID \(uid)")
+                XCTAssertNil(response["items"]);XCTAssertNil(response["childName"])
+            }
+        }
+    }
+
+    func testChildStatusDoesNotDiscloseBalancesForUnlinkedOrReusedAccounts() throws {
+        let f = try Fixture()
+        func assertUnconfigured(_ uid: UInt32, file: StaticString = #filePath, line: UInt = #line) {
+            let response = f.controller.native(["op":"childStatus"],uid:uid,role:"agent")
+            XCTAssertEqual(Set(response.keys),["type","configured"],file:file,line:line)
+            XCTAssertEqual(response["type"] as? String,"childStatus",file:file,line:line)
+            XCTAssertEqual(response["configured"] as? Bool,false,file:file,line:line)
+            XCTAssertFalse(try ChildStatusSnapshot.decode(response).configured,file:file,line:line)
+            XCTAssertEqual(try ChildStatusSnapshot.decode(response).items,[],file:file,line:line)
+            XCTAssertNil(try ChildStatusSnapshot.decode(response).childName,file:file,line:line)
+        }
+        assertUnconfigured(599)
+        XCTAssertEqual(f.controller.native(["op":"childStatus"],uid:501,role:"agent")["configured"] as? Bool,true)
+        f.context.accounts["alice-guid"] = .init(status:"ready",generatedUid:"replacement-guid",uid:501)
+        f.context.advance(5) // Expire the existing account-verification cache.
+        assertUnconfigured(501)
+        f.context.accounts.removeValue(forKey:"bob-guid")
+        assertUnconfigured(502)
+    }
+
+    func testChildStatusRefreshSettlesSharedWebsiteAndAppUsageWithoutChangingPolicy() throws {
+        let f = try Fixture();let revision = f.revision
+        f.foreground();f.browser()
+        f.context.advance(6)
+        var response = f.controller.native(["op":"childStatus"],uid:501,role:"agent")
+        XCTAssertEqual((response["items"] as? [[String:Any]])?.first?["usedSeconds"] as? Int,6)
+        XCTAssertEqual((response["items"] as? [[String:Any]])?.first?["remainingSeconds"] as? Int,94)
+        f.foreground(bundle:"chess.application",pid:80)
+        f.context.advance(4)
+        response = f.controller.native(["op":"childStatus"],uid:501,role:"agent")
+        XCTAssertEqual((response["items"] as? [[String:Any]])?.first?["usedSeconds"] as? Int,10)
+        XCTAssertEqual((response["items"] as? [[String:Any]])?.first?["remainingSeconds"] as? Int,90)
+        XCTAssertEqual(f.revision,revision);XCTAssertEqual(try f.used("bob"),0)
+        XCTAssertEqual(try f.request("GET","/v1/admin/state",authorizedParent:false).status,403)
+    }
+
+    func testChildStatusPollingDoesNotRenewAnExpiredCollectorHeartbeat() throws {
+        let f = try Fixture();f.foreground();f.browser()
+        for (elapsed,used) in [(10.0,10),(10.0,15),(30.0,15)] {
+            f.context.advance(elapsed)
+            let response = f.controller.native(["op":"childStatus"],uid:501,role:"agent")
+            XCTAssertEqual((response["items"] as? [[String:Any]])?.first?["usedSeconds"] as? Int,used)
+        }
+    }
+
+    func testChildStatusReflectsParentResetAndNextWeeklyPeriod() throws {
+        let f = try Fixture();f.foreground();f.browser();f.context.advance(7)
+        let initial = f.controller.native(["op":"childStatus"],uid:501,role:"agent")
+        let initialItem = try XCTUnwrap((initial["items"] as? [[String:Any]])?.first)
+        XCTAssertEqual(initialItem["usedSeconds"] as? Int,7)
+        let reset = try XCTUnwrap((initialItem["resetAt"] as? String).flatMap {ISO8601DateFormatter().date(from:$0)})
+        XCTAssertEqual(try f.request("POST","/v1/admin/children/alice/reset",body:["expectedPolicyRevision":f.revision]).status,200)
+        let afterParentReset = f.controller.native(["op":"childStatus"],uid:501,role:"agent")
+        XCTAssertEqual((afterParentReset["items"] as? [[String:Any]])?.first?["remainingSeconds"] as? Int,100)
+        f.context.advance(3)
+        XCTAssertEqual((f.controller.native(["op":"childStatus"],uid:501,role:"agent")["items"] as? [[String:Any]])?.first?["remainingSeconds"] as? Int,97)
+        f.foreground(active:false)
+        f.context.advance(reset.timeIntervalSince(f.context.now) + 1)
+        let newWeek = f.controller.native(["op":"childStatus"],uid:501,role:"agent")
+        let newItem = try XCTUnwrap((newWeek["items"] as? [[String:Any]])?.first)
+        XCTAssertEqual(newItem["remainingSeconds"] as? Int,100)
+        XCTAssertEqual(newItem["usedSeconds"] as? Int,0)
+        XCTAssertNotEqual(newItem["resetAt"] as? String,initialItem["resetAt"] as? String)
+    }
+
+    func testChildStatusIncludesCustomDomainGroupsAndAppOnlyServices() throws {
+        let f = try Fixture();var policy = f.controller.engine.policy
+        policy.services.append(.init(id:"learning",name:"Learning",domains:[.init(hostname:"learn.example.org",includeSubdomains:false),.init(hostname:"lessons.example.org",includeSubdomains:true)]))
+        policy.services.append(.init(id:"app-only",name:"App practice",domains:[],applicationIds:["chess-app"]))
+        policy.services[0].applicationIds = []
+        policy.quotas.append(.init(id:"alice-learning",childId:"alice",serviceId:"learning",weeklyLimitSeconds:3600))
+        policy.quotas.append(.init(id:"alice-app",childId:"alice",serviceId:"app-only",weeklyLimitSeconds:0))
+        try f.controller.engine.replacePolicy(policy,expectedRevision:f.revision,now:f.context.now,monotonic:f.context.monotonic)
+        let response = f.controller.native(["op":"childStatus"],uid:501,role:"agent")
+        let items = try XCTUnwrap(response["items"] as? [[String:Any]])
+        let learning = try XCTUnwrap(items.first {$0["serviceId"] as? String == "learning"})
+        XCTAssertEqual(learning["name"] as? String,"Learning")
+        XCTAssertEqual(learning["weeklyLimitSeconds"] as? Int,3600)
+        XCTAssertEqual((learning["domains"] as? [[String:Any]])?.compactMap {$0["hostname"] as? String},["learn.example.org","lessons.example.org"])
+        XCTAssertEqual((learning["domains"] as? [[String:Any]])?.compactMap {$0["includeSubdomains"] as? Bool},[false,true])
+        let appOnly = try XCTUnwrap(items.first {$0["serviceId"] as? String == "app-only"})
+        XCTAssertEqual((appOnly["domains"] as? [[String:Any]])?.count,0)
+        XCTAssertEqual(appOnly["remainingSeconds"] as? Int,0)
+        XCTAssertEqual(appOnly["coverage"] as? String,"incomplete")
+    }
+
     func testUnhealthyCollectorBlocksKnownServiceAndStopsMetering() throws {
         let f = try Fixture()
         f.foreground();f.browser()

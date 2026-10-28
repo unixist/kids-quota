@@ -2,7 +2,7 @@ flowchart LR
     subgraph child["Child's macOS login session"]
         browser["Chrome / Safari extensions<br/>Observe foreground hostname<br/>Enforce domain blocks"]
         bridges["Native browser bridges<br/>QuotaBridge / Safari handler"]
-        agent["Per-login activity agent<br/>Foreground app + session state"]
+        agent["Per-login activity agent<br/>Foreground app + session state<br/>Child's read-only menu bar balances"]
         browser <-->|"state / policy reply"| bridges
     end
 
@@ -32,6 +32,7 @@ flowchart LR
 
     bridges <-->|"native request / policy reply"| ipc
     agent -->|"native observation · 1 s + events"| ipc
+    agent <-->|"childStatus / own balances · 5 s while open"| ipc
     gui <-->|"native IPC + admin grant + bearer"| ipc
     readers <-->|"GET + scoped bearer / JSON"| http
     filter <-->|"native rule poll / reply · 1 s"| ipc

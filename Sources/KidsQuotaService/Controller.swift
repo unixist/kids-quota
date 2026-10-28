@@ -310,6 +310,28 @@ public final class ServiceController {
                 let response = handle(.init(method:method,path:path,headers:["host":"127.0.0.1:\(port)","authorization":authorization,"content-type":"application/json"],body:body),administratorUID:uid)
                 return ["status":response.status,"body":try JSONSerialization.jsonObject(with:response.body)]
             }
+            if op == "childStatus" {
+                guard role == "agent" else { throw APIError(403,"forbidden","Collector identity required.") }
+                // This operation deliberately accepts no account selector or credential.
+                // Its only authority is the verified login agent's kernel peer UID.
+                guard Set(object.keys) == ["op"] else { throw APIError(400,"bad_request","Unexpected child status fields.") }
+                guard let child = engine.policy.children.first(where: {$0.macOSAccount.uid == uid && accountIsCurrent($0)}) else {
+                    return ["type":"childStatus","configured":false]
+                }
+                // Settle elapsed usage without treating a read as a new activity
+                // report. The collector and service timer own reconciliation.
+                try engine.tick(now:date(),monotonic:monotonic())
+                let balance = try snapshot(childId:child.id)
+                let items: [[String:Any]] = try balance.items.compactMap { item in
+                    guard let service = engine.policy.services.first(where: {$0.id == item.serviceId}) else { return nil }
+                    return ["serviceId":service.id,"name":service.name,"domains":try JSONCodec.object(service.domains),
+                            "weeklyLimitSeconds":item.limitSeconds,"usedSeconds":item.usedSeconds,
+                            "remainingSeconds":item.remainingSeconds,"resetAt":ISO8601DateFormatter().string(from:item.periodEnd),
+                            "coverage":item.coverage]
+                }
+                return ["type":"childStatus","configured":true,"childName":child.displayName,
+                        "resetTimeZone":engine.policy.reset.timeZone,"items":items]
+            }
             if op == "filterRules" {
                 guard role == "filter" else {throw APIError(403,"forbidden","Filter identity required.")}
                 filterLastSeen = monotonic(); filterGaps = max(0,object["unattributedFlows"] as? Int ?? 0)

@@ -14,7 +14,7 @@ const chromeID=[...createHash('sha256').update(keyBytes).digest('hex').slice(0,3
 for (const platform of ['chrome','safari']) {
   const out=path.join(root,'extensions/build',platform);
   await mkdir(out,{recursive:true});
-  const manifest={manifest_version:3,name:'Kids Quota',version:'0.1.0',description:'Shared weekly website and Mac app allowances.',
+  const manifest={manifest_version:3,name:'Kids Quota',version:'0.1.1',description:'Shared weekly website and Mac app allowances.',
     permissions:['tabs','storage','nativeMessaging','alarms','declarativeNetRequestWithHostAccess'],
     host_permissions:['http://*/*','https://*/*'],
     background:platform==='chrome'?{service_worker:'background.js'}:{scripts:['background.js'],persistent:false},

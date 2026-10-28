@@ -153,8 +153,8 @@ esac
         repo = self.work / "repo"
         (repo / "scripts").mkdir(parents=True)
         (repo / "dist").mkdir()
-        (repo / "dist/KidsQuota-0.1.0.pkg").write_text("non-runnable package fixture")
-        (repo / "dist/KidsQuota-0.1.0-Local.pkg").write_text("non-runnable local package fixture")
+        (repo / "dist/KidsQuota-0.1.1.pkg").write_text("non-runnable package fixture")
+        (repo / "dist/KidsQuota-0.1.1-Local.pkg").write_text("non-runnable local package fixture")
         capture = self.work / "image-contents"
         log = self.work / "release.log"
         pkgutil = executable(self.work / "pkgutil", '#!/bin/bash\nprintf "Developer ID Installer: Fixture (%s)\\n" "$PACKAGE_TEAM"\n')
@@ -246,7 +246,7 @@ printf fixture > "$output"
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("--local", (self.work / "check.log").read_text())
         self.assertNotIn("--sign", (self.work / "package.log").read_text())
-        self.assertTrue((repo / "dist/KidsQuota-0.1.0-Local.pkg").exists())
+        self.assertTrue((repo / "dist/KidsQuota-0.1.1-Local.pkg").exists())
         self.assertTrue((captured / "create-local-trust.sh").exists())
         postinstall = (captured / "postinstall").read_text()
         self.assertIn("--local", postinstall)

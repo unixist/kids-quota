@@ -16,7 +16,7 @@ scripts/package.sh --local
 ```
 
 This builds universal Apple Silicon/Intel artifacts and creates the real
-`dist/KidsQuota-0.1.0-Local.pkg` and `dist/KidsQuota-0.1.0-Local.dmg`. Only the DMG
+`dist/KidsQuota-0.1.1-Local.pkg` and `dist/KidsQuota-0.1.1-Local.dmg`. Only the DMG
 needs to be copied to the new Mac. It contains **Install Kids Quota.pkg** and
 **Start here.txt**. The package needs no development tools on the destination.
 See [local installation](local-install.md) for Gatekeeper approval, child browser
@@ -154,7 +154,7 @@ export TEAM_ID SIGN_IDENTITY INSTALLER_IDENTITY CHROME_EXTENSION_ID
 scripts/package.sh
 ```
 
-This creates `dist/KidsQuota-0.1.0.pkg` and a signed `dist/KidsQuota-0.1.0.dmg`.
+This creates `dist/KidsQuota-0.1.1.pkg` and a signed `dist/KidsQuota-0.1.1.dmg`.
 The DMG contains the package named **Install Kids Quota.pkg** and **Start here.txt**.
 Set `CHROME_INSTALL_URL` to your actual HTTPS extension installation link to add it
 to the instructions. Set `VERSION=major.minor.patch` for another release.
@@ -186,7 +186,7 @@ release; signing alone is not approval or proof of enforcement. See Apple's
 [notarization guidance](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution).
 
 Without signing credentials, `scripts/create-dmg.sh --preview` makes
-`dist/KidsQuota-0.1.0-PREVIEW.dmg` containing instructions only. It cannot install
+`dist/KidsQuota-0.1.1-PREVIEW.dmg` containing instructions only. It cannot install
 or enable protection. Packaging unit tests use temporary fixtures and mock signing,
 launchd, and disk-image utilities:
 

@@ -103,6 +103,27 @@ separately; the starter policy does not contain guessed app signatures.
    not wait for another DNS lookup. Changes reach the browser through these
    exchanges; the daemon does not broadcast unsolicited browser updates.
 
+## Follow a child's balance check
+
+The installed login agent also owns the read-only menu bar interface in
+[ChildStatusMenu.swift](../Sources/QuotaAgent/ChildStatusMenu.swift). Clicking its
+hourglass opens the current child's weekly balances, domains, and reset date.
+The view requests `{"op":"childStatus"}` over the authenticated UNIX socket on
+opening and about every five seconds while open, using a separate queue from
+foreground reports. [ChildStatus.swift](../Sources/KidsQuotaService/ChildStatus.swift)
+decodes and presents those replies; failed refreshes remove the displayed balances.
+
+`ServiceController.native` accepts this operation only from the verified `agent`
+role, rejects extra request fields, and selects the child from the peer's kernel
+UID plus its revalidated account binding. The client cannot choose a child ID.
+The service settles observed usage before returning the same ledger balances used
+by enforcement, joined to the child's assigned service names and domains. It does
+not grant the view a parent token or configuration permissions.
+
+The browser toolbar popup displays balances already received in its own account's
+policy replies. Neither interface invents a second usage clock or modifies limits.
+Multiple domains assigned to one service appear under that service's shared balance.
+
 ## Follow a standalone app session
 
 The login agent reports the frontmost PID. When that process is not a recognized
