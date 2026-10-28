@@ -1,7 +1,7 @@
 import XCTest
 import Foundation
 import Security
-import KidsQuotaCore
+@testable import KidsQuotaCore
 @testable import KidsQuotaService
 
 final class ControllerTests: XCTestCase {
@@ -17,6 +17,7 @@ final class ControllerTests: XCTestCase {
         var matchingPIDs: Set<Int32> = [80]
         var inspectedPaths: [String] = []
         var parentAuthorized = true
+        var parentAuthorizationUIDs: [UInt32] = []
         func advance(_ seconds: Double) { now.addTimeInterval(seconds); monotonic += seconds }
     }
 
@@ -35,7 +36,10 @@ final class ControllerTests: XCTestCase {
                 context.inspectedPaths.append(path)
                 return .init(id: "verified-app", displayName: "Verified app", status: "ready", identity: .init(signingIdentifier: "verified.application", teamIdentifier: "VERIFIEDTEAM", designatedRequirement: "identifier verified.application"))
             }, processMatches: { pid, requirement in context.matchingPIDs.contains(pid) && requirement == "identifier chess.application" },
-               authorizeParent: {uid,proof in context.parentAuthorized && uid == 900 && proof == "test-administrator-grant"})
+               authorizeParent: {uid,proof in
+                   context.parentAuthorizationUIDs.append(uid)
+                   return context.parentAuthorized && proof == "test-administrator-grant"
+               })
             administrator = try String(contentsOf: directory.appendingPathComponent("admin.token"), encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
             var policy = controller.engine.policy
             policy.children = [
@@ -52,9 +56,17 @@ final class ControllerTests: XCTestCase {
         deinit { try? FileManager.default.removeItem(at: directory) }
         var revision: Int { controller.engine.policy.revision }
         func request(_ method: String = "GET", _ path: String = "/v1/children", token: String? = nil, body: [String:Any]? = nil, headers: [String:String] = [:], authorizedParent: Bool = true) throws -> HTTPResponse {
+            // Parent operations exercise the real native proof boundary. Explicit
+            // tokens or headers exercise public HTTP, which can never mutate.
+            if authorizedParent && token == nil && headers.isEmpty {
+                var envelope: [String:Any] = ["op":"parentHTTP","method":method,"path":path,"authorizationExternalForm":"test-administrator-grant"]
+                envelope["body"] = body
+                let response = controller.native(envelope,uid:900,role:"parent")
+                return HTTPResponse(status:try XCTUnwrap(response["status"] as? Int),json:try XCTUnwrap(response["body"]))
+            }
             var fields = ["Host":"127.0.0.1:48123", "Authorization":"Bearer " + (token ?? administrator), "Content-Type":"application/json"]
             fields.merge(headers, uniquingKeysWith: { _, new in new })
-            return controller.handle(.init(method: method, path: path, headers: fields, body: try body.map { try JSONSerialization.data(withJSONObject: $0) } ?? Data()),administratorUID:authorizedParent ? 900 : nil)
+            return controller.handle(.init(method: method, path: path, headers: fields, body: try body.map { try JSONSerialization.data(withJSONObject: $0) } ?? Data()))
         }
         func grant(children: [String] = ["alice"], scopes: [String] = CredentialStore.readScopes) throws -> (String,String) {
             let response = try request("POST", "/v1/admin/clients", body: ["name":"Widget", "childIds":children, "scopes":scopes])
@@ -355,21 +367,49 @@ final class ControllerTests: XCTestCase {
         f.context.advance(10);try f.controller.tick();XCTAssertEqual(try f.used(),0)
     }
 
-    func testParentNativeTunnelRequiresSignedRoleAndStillChecksBearerScopes() throws {
-        let f = try Fixture();let (readToken,_) = try f.grant()
-        let request: [String:Any] = ["op":"parentHTTP","method":"GET","path":"/v1/admin/state","authorization":"Bearer " + f.administrator,"authorizationExternalForm":"test-administrator-grant"]
-        XCTAssertEqual(f.controller.native(request,uid:900,role:"bridge")["status"] as? Int,403)
-        XCTAssertEqual(f.controller.native(request,uid:501,role:"parent")["status"] as? Int,403)
-        XCTAssertEqual(f.controller.native(["op":"parentHTTP","method":"GET","path":"/v1/admin/state"],uid:900,role:"parent")["status"] as? Int,403)
-        var invalid = request;invalid["authorization"] = "Bearer invalid"
-        XCTAssertEqual(f.controller.native(invalid,uid:900,role:"parent")["status"] as? Int,401)
-        invalid["authorization"] = "Bearer " + readToken
-        XCTAssertEqual(f.controller.native(invalid,uid:900,role:"parent")["status"] as? Int,403)
-        let response = f.controller.native(request,uid:900,role:"parent")
+    func testParentNativeTunnelRequiresVerifiedRoleAndLiveGrantRegardlessOfLoginUID() throws {
+        let f = try Fixture()
+        let request: [String:Any] = ["op":"parentHTTP","method":"GET","path":"/v1/admin/state","authorizationExternalForm":"test-administrator-grant"]
+        for role in ["bridge","agent","safari","filter",""] {
+            XCTAssertEqual(f.controller.native(request,uid:501,role:role)["status"] as? Int,403)
+        }
+        for uid in [UInt32(501),900] {
+            var invalid = request;invalid.removeValue(forKey:"authorizationExternalForm")
+            invalid["authorization"] = "Bearer " + f.administrator
+            XCTAssertEqual(f.controller.native(invalid,uid:uid,role:"parent")["status"] as? Int,403)
+            invalid["authorizationExternalForm"] = "forged-administrator-grant"
+            XCTAssertEqual(f.controller.native(invalid,uid:uid,role:"parent")["status"] as? Int,403)
+        }
+        let response = f.controller.native(request,uid:501,role:"parent")
         XCTAssertEqual(response["status"] as? Int,200)
         XCTAssertNotNil((response["body"] as? [String:Any])?["policy"])
+        XCTAssertEqual(f.context.parentAuthorizationUIDs.last,501)
         f.context.parentAuthorized = false
-        XCTAssertEqual(f.controller.native(request,uid:900,role:"parent")["status"] as? Int,403)
+        XCTAssertEqual(f.controller.native(request,uid:501,role:"parent")["status"] as? Int,403)
+    }
+
+    func testStandardLoginCanConfigureAndResetWithParentGrantWithoutBearer() throws {
+        let f = try Fixture();f.foreground();f.browser()
+        f.context.advance(5);try f.controller.tick()
+        let credentialsBefore = try Data(contentsOf:f.directory.appendingPathComponent("clients.json"))
+        // Simulate the standard account having no readable bootstrap token.
+        try FileManager.default.removeItem(at:f.directory.appendingPathComponent("admin.token"))
+        let update: [String:Any] = ["op":"parentHTTP","method":"PATCH","path":"/v1/children/alice/quotas/alice-chess",
+                                   "authorizationExternalForm":"test-administrator-grant",
+                                   "body":["expectedPolicyRevision":f.revision,"weeklyLimitSeconds":600]]
+        XCTAssertEqual(f.controller.native(update,uid:501,role:"parent")["status"] as? Int,200)
+        XCTAssertEqual(f.controller.engine.policy.quotas.first?.weeklyLimitSeconds,600)
+        var reset: [String:Any] = ["op":"parentHTTP","method":"POST","path":"/v1/admin/children/alice/reset",
+                                  "authorizationExternalForm":"test-administrator-grant",
+                                  "body":["expectedPolicyRevision":f.revision]]
+        // Payload identity cannot replace the kernel peer login in the audit.
+        reset["uid"] = 900;reset["administratorUID"] = 900
+        XCTAssertEqual(f.controller.native(reset,uid:501,role:"parent")["status"] as? Int,200)
+        XCTAssertEqual(try f.used(),0)
+        let store = try QuotaStore(path:f.directory.appendingPathComponent("quota.sqlite").path)
+        XCTAssertEqual(try store.resetAuditEvents().last?.actorUID,501)
+        XCTAssertEqual(try Data(contentsOf:f.directory.appendingPathComponent("clients.json")),credentialsBefore)
+        XCTAssertFalse(f.controller.credentials.publicClients.contains {($0["id"] as? String)?.hasPrefix("native-parent-") == true})
     }
 
     func testPublicHTTPIsReadOnlyEvenWithAdministratorBearerAndForgedHeaders() throws {
@@ -380,6 +420,9 @@ final class ControllerTests: XCTestCase {
         let body:[String:Any]=["expectedPolicyRevision":revision,"weeklyLimitSeconds":999]
         XCTAssertEqual(try f.request("PATCH","/v1/children/alice/quotas/alice-chess",body:body,headers:["X-Administrator-UID":"900","AuthorizationExternalForm":"test-administrator-grant"],authorizedParent:false).status,403)
         XCTAssertEqual(try f.request("POST","/v1/admin/children/alice/reset",body:["expectedPolicyRevision":revision],authorizedParent:false).status,403)
+        let spoof: [String:Any] = ["op":"parentHTTP","role":"parent","uid":900,"authorizationExternalForm":"test-administrator-grant","expectedPolicyRevision":revision]
+        XCTAssertEqual(try f.request("POST","/v1/admin/children/alice/reset",body:spoof,authorizedParent:false).status,403)
+        XCTAssertEqual(try f.request("POST","/v1/admin/children/alice/reset",body:spoof,headers:["Authorization":""],authorizedParent:false).status,401)
         XCTAssertEqual(f.revision,revision)
     }
 

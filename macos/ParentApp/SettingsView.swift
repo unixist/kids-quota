@@ -7,7 +7,7 @@ struct SettingsView: View {
     @StateObject private var filter = FilterActivation()
     @State private var weekday = "monday"; @State private var localTime = "00:00"; @State private var timeZone = TimeZone.current.identifier
     @State private var openedRevision: Int?
-    @State private var token = ""; @State private var clientName = ""; @State private var childIDs: Set<String> = []
+    @State private var clientName = ""; @State private var childIDs: Set<String> = []
     @State private var issuedToken: String?; @State private var message: String?; @State private var busy = false
     private let features = BuildFeatures.current
     private let weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
@@ -21,11 +21,10 @@ struct SettingsView: View {
                     Text("Reset changes take effect after the current week. Existing usage is preserved.").font(.caption).foregroundStyle(.secondary)
                     Button("Save reset schedule") { run { _ = try await store.mutate("PUT", "/admin/settings", ["reset": ["weekday": weekday, "localTime": localTime, "timeZone": timeZone]], expectedRevision: openedRevision); openedRevision = store.state?.policyRevision; message = "Reset schedule saved." } }.disabled(busy)
                 }
-                Section("Parent connection") {
+                Section("Parent access") {
                     Text(store.connected ? "Connected to this Mac's Kids Quota service." : "Service not connected.").foregroundStyle(store.connected ? .green : .orange)
-                    SecureField("Parent access token", text: $token)
-                    Button("Connect and save in Keychain") { run { try await store.connect(token); token = ""; message = "Connected. The token is saved in your Keychain." } }.disabled(token.isEmpty || busy)
-                    Text("An administrator can use the token created by the installer. The parent token is sent only over a verified connection to the system service.").font(.caption).foregroundStyle(.secondary)
+                    Text("macOS verifies the parent's administrator credentials for each session. Settings lock when you switch apps, close the window, or after five minutes.").font(.caption).foregroundStyle(.secondary)
+                    Button("Lock parent settings") { store.lock() }
                 }
                 if let message { Text(message).foregroundStyle(.secondary) }
             }.formStyle(.grouped).tabItem { Label("General", systemImage: "gearshape") }

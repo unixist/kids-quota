@@ -1,30 +1,34 @@
 import XCTest
 
 @MainActor final class ParentSessionTests: XCTestCase {
-    func testLockedAppDoesNotReadCredentialsOrContactService() async throws {
-        let store = ParentStore(isAdministrator: true, credentialReader: { XCTFail("Credentials read while locked"); return "" }, authorizationFactory: { XCTFail("Authorization must be explicit"); return TestGrant() }, transport: { _ in XCTFail("Network request while locked"); return Data() })
+    func testLockedAppDoesNotRequestAuthorizationOrContactService() async throws {
+        let store = ParentStore(authorizationFactory: { XCTFail("Authorization must be explicit"); return TestGrant() }, transport: { _ in XCTFail("Network request while locked"); return Data() })
         XCTAssertFalse(store.isUnlocked); XCTAssertNil(store.state)
         await store.refresh()
         do { _ = try await store.raw("GET", "/admin/state"); XCTFail("Locked request accepted") } catch {}
-        do { try await store.connect("ignored"); XCTFail("Locked credential change accepted") } catch {}
         XCTAssertNil(store.state); XCTAssertFalse(store.connected)
     }
-    func testStandardLoginCannotInvokeAdministratorUnlock() async {
-        let store = ParentStore(isAdministrator: false, credentialReader: { XCTFail("Standard login read credential"); return "" }, authorizationFactory: { XCTFail("Standard login invoked authorization"); return TestGrant() }, transport: { _ in XCTFail("Standard login contacted service"); return Data() })
-        await store.unlock()
-        XCTAssertFalse(store.isUnlocked); XCTAssertNil(store.state)
+    func testCanceledOrDeniedParentAuthorizationLeavesAnyLoginLocked() async {
+        for failure in ["Unlock canceled.", "Administrator credentials were denied."] {
+            let store = ParentStore(authorizationFactory: { throw ParentError.message(failure) }, transport: { _ in XCTFail("Denied authorization contacted service"); return Data() })
+            await store.unlock()
+            XCTAssertFalse(store.isUnlocked); XCTAssertNil(store.state); XCTAssertFalse(store.busy)
+            XCTAssertEqual(store.error, failure)
+        }
     }
-    func testUnlockAttachesAuthorizationAndLockInvalidatesSession() async throws {
+    func testAnyLoginCanUnlockWithParentGrantAndSendsNoBearer() async throws {
         let grant = TestGrant(), requests = RequestRecorder()
-        var credentialReads = 0
-        let store = ParentStore(isAdministrator: true, credentialReader: { credentialReads += 1; return "test-bearer" }, authorizationFactory: { grant }, transport: { data in requests.append(data); return Self.emptyState })
-        XCTAssertEqual(credentialReads, 0)
+        // There is intentionally no current-login administrator gate or saved token.
+        let store = ParentStore(authorizationFactory: { grant }, transport: { data in requests.append(data); return Self.emptyState })
         await store.unlock()
         XCTAssertTrue(store.isUnlocked); XCTAssertTrue(store.connected); XCTAssertNotNil(store.state)
-        XCTAssertEqual(credentialReads, 1)
         let request = try XCTUnwrap(try JSONSerialization.jsonObject(with: XCTUnwrap(requests.values.first)) as? [String: Any])
         XCTAssertEqual(request["authorizationExternalForm"] as? String, grant.externalForm)
-        XCTAssertEqual(request["authorization"] as? String, "Bearer test-bearer")
+        XCTAssertEqual(Set(request.keys), Set(["op", "method", "path", "authorizationExternalForm"]))
+        XCTAssertEqual(request["op"] as? String, "parentHTTP")
+        XCTAssertEqual(request["method"] as? String, "GET")
+        XCTAssertEqual(request["path"] as? String, "/v1/admin/state")
+        XCTAssertNil(request["authorization"])
         store.lock()
         XCTAssertTrue(grant.invalidated); XCTAssertFalse(store.isUnlocked)
         XCTAssertNil(store.state); XCTAssertTrue(store.balances.isEmpty); XCTAssertEqual(store.selectedChild, "")
@@ -34,14 +38,14 @@ import XCTest
     func testDaemonAuthorizationExpiryRelocksAndClearsConfiguration() async {
         let grant = TestGrant()
         let denied = Data(#"{"status":403,"body":{"error":{"code":"administrator_required","message":"Unlock required"}}}"#.utf8)
-        let store = ParentStore(isAdministrator: true, credentialReader: { "test" }, authorizationFactory: { grant }, transport: { _ in denied })
+        let store = ParentStore(authorizationFactory: { grant }, transport: { _ in denied })
         await store.unlock()
         XCTAssertFalse(store.isUnlocked); XCTAssertNil(store.state); XCTAssertTrue(grant.invalidated)
         XCTAssertNotNil(store.error)
     }
     func testInFlightReplyCannotRestoreConfigurationAfterLock() async {
         let grant = TestGrant(), reply = DelayedReply()
-        let store = ParentStore(isAdministrator: true, credentialReader: { "test" }, authorizationFactory: { grant }, transport: { _ in await reply.response() })
+        let store = ParentStore(authorizationFactory: { grant }, transport: { _ in await reply.response() })
         let unlock = Task { await store.unlock() }
         await reply.waitForRequest()
         store.lock()
@@ -52,12 +56,33 @@ import XCTest
     }
     func testClosingDuringAuthorizationDiscardsLateGrant() async {
         let started = expectation(description: "Authorization began"), proceed = DispatchSemaphore(value: 0), grant = TestGrant()
-        let store = ParentStore(isAdministrator: true, credentialReader: { XCTFail("Late authorization read credentials"); return "" }, authorizationFactory: { started.fulfill(); proceed.wait(); return grant }, transport: { _ in XCTFail("Late authorization contacted service"); return Data() })
+        let store = ParentStore(authorizationFactory: { started.fulfill(); proceed.wait(); return grant }, transport: { _ in XCTFail("Late authorization contacted service"); return Data() })
         let unlock = Task { await store.unlock() }
         await fulfillment(of: [started], timeout: 2)
         store.lock(); proceed.signal()
         await unlock.value
         XCTAssertFalse(store.isUnlocked); XCTAssertNil(store.state); XCTAssertTrue(grant.invalidated)
+    }
+    func testSystemAuthorizationTakingFocusDoesNotCancelUnlock() async {
+        let started = expectation(description: "Authorization began"), proceed = DispatchSemaphore(value: 0), grant = TestGrant()
+        let store = ParentStore(authorizationFactory: { started.fulfill(); proceed.wait(); return grant }, transport: { _ in Self.emptyState })
+        let unlock = Task { await store.unlock() }
+        await fulfillment(of: [started], timeout: 2)
+        store.applicationDidResignActive()
+        XCTAssertTrue(store.busy)
+        proceed.signal()
+        await unlock.value
+        XCTAssertTrue(store.isUnlocked); XCTAssertTrue(store.connected); XCTAssertFalse(grant.invalidated)
+        store.lock()
+    }
+    func testSwitchingAppsAfterUnlockClearsConfigurationAndInvalidatesGrant() async {
+        let grant = TestGrant()
+        let store = ParentStore(authorizationFactory: { grant }, transport: { _ in Self.emptyState })
+        await store.unlock()
+        XCTAssertTrue(store.isUnlocked)
+        store.applicationDidResignActive()
+        XCTAssertFalse(store.isUnlocked); XCTAssertNil(store.state); XCTAssertFalse(store.connected)
+        XCTAssertTrue(grant.invalidated)
     }
     nonisolated private static let emptyState = Data(#"{"status":200,"body":{"policyRevision":1,"policy":{"children":[],"services":[],"applicationBindings":[],"quotas":[],"reset":{"weekday":"monday","localTime":"00:00","timeZone":"America/Chicago"}},"clients":[]}}"#.utf8)
 }

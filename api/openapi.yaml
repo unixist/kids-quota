@@ -1,20 +1,26 @@
 openapi: 3.1.0
 info:
   title: kids-quota HTTP API
-  version: 0.1.0
+  version: 0.1.2
   description: |
-    Implemented loopback API. Every request requires an opaque bearer token;
-    scopes and child grants are enforced by the service. policy:write additionally
-    requires the protected administrator credential AND the OS-authorized native
-    parent connection. The HTTP listener is read-only, including for administrator
-    bearers. Operations marked x-required-transport: authenticated-native-ipc
-    document the shared parent request schema; HTTP attempts return 403. The daemon
-    verifies the parent peer UID and Authorization Services external form for
-    system.privilege.admin on every such request. Read grants cannot confer write
-    authority. Clients cannot submit usage or supply verified app identities.
+    Implemented loopback API. HTTP requests require an opaque bearer token;
+    scopes and child grants are enforced by the service. The HTTP listener is
+    read-only, including for the protected bootstrap administrator bearer.
+    Operations marked x-required-transport: authenticated-native-ipc document
+    the shared parent request schema; authenticated HTTP attempts return 403.
+    HTTP bearer security below describes the loopback listener, including its
+    rejected parent requests. The native transport instead requires the verified
+    installed parent app and an Authorization Services external form for
+    com.kidsquota.manage on every native parentHTTP request. The app can run in
+    any login while a parent supplies administrator credentials in the macOS
+    prompt. The daemon validates the grant and uses a private internal parent
+    principal; the GUI never sends or stores a persistent parent bearer token.
+    Read grants cannot confer write authority. Clients cannot submit usage or
+    supply verified app identities.
     All responses use Cache-Control: no-store. Origin headers are rejected.
     JSON bodies are limited to 65536 bytes, with 60 requests per second per token.
-    x-required-scopes documents scopes for the HTTP bearer scheme.
+    x-required-scopes documents read-token scopes and the native parent's internal
+    policy:write authority. x-required-authorization names the native OS right.
 servers:
   - url: http://127.0.0.1:48123
     description: Loopback listener after the service is installed and started
@@ -65,6 +71,7 @@ paths:
       summary: Create a custom domain and app group
       x-required-scopes: ["policy:write"]
       x-required-transport: authenticated-native-ipc
+      x-required-authorization: com.kidsquota.manage
       requestBody:
         required: true
         content:
@@ -85,6 +92,7 @@ paths:
         change field is required alongside expectedPolicyRevision.
       x-required-scopes: ["policy:write"]
       x-required-transport: authenticated-native-ipc
+      x-required-authorization: com.kidsquota.manage
       requestBody:
         required: true
         content:
@@ -120,6 +128,7 @@ paths:
       description: A duplicate child/service assignment returns 409.
       x-required-scopes: ["policy:write"]
       x-required-transport: authenticated-native-ipc
+      x-required-authorization: com.kidsquota.manage
       requestBody:
         required: true
         content:
@@ -147,6 +156,7 @@ paths:
         restore access. The stable quota ID and service assignment do not change.
       x-required-scopes: ["policy:write"]
       x-required-transport: authenticated-native-ipc
+      x-required-authorization: com.kidsquota.manage
       requestBody:
         required: true
         content:
@@ -200,6 +210,7 @@ paths:
       summary: Read full policy, public client grants, and filter status
       x-required-scopes: ["policy:write"]
       x-required-transport: authenticated-native-ipc
+      x-required-authorization: com.kidsquota.manage
       responses:
         '200':
           description: Administrator-only state; tokens and credential digests are omitted
@@ -222,6 +233,7 @@ paths:
       description: Assigns default six-hour Chess.com and ChatGPT quotas when those presets exist.
       x-required-scopes: ["policy:write"]
       x-required-transport: authenticated-native-ipc
+      x-required-authorization: com.kidsquota.manage
       requestBody:
         required: true
         content:
@@ -257,6 +269,7 @@ paths:
         An existing signing identity is returned without a policy mutation.
       x-required-scopes: ["policy:write"]
       x-required-transport: authenticated-native-ipc
+      x-required-authorization: com.kidsquota.manage
       requestBody:
         required: true
         content:
@@ -279,6 +292,7 @@ paths:
       description: Takes effect at the existing period end; does not refill current balances.
       x-required-scopes: ["policy:write"]
       x-required-transport: authenticated-native-ipc
+      x-required-authorization: com.kidsquota.manage
       requestBody:
         required: true
         content:
@@ -309,6 +323,7 @@ paths:
       description: Does not require or change policyRevision. The plaintext token is returned once.
       x-required-scopes: ["policy:write"]
       x-required-transport: authenticated-native-ipc
+      x-required-authorization: com.kidsquota.manage
       requestBody:
         required: true
         content:
@@ -352,6 +367,7 @@ paths:
       description: Does not require or change policyRevision. The administrator credential is protected.
       x-required-scopes: ["policy:write"]
       x-required-transport: authenticated-native-ipc
+      x-required-authorization: com.kidsquota.manage
       responses:
         '200':
           description: Revocation persisted and effective immediately
@@ -371,12 +387,15 @@ paths:
       summary: Restore one child's current-week allowances after parent authorization
       x-required-scopes: ["policy:write"]
       x-required-transport: authenticated-native-ipc
+      x-required-authorization: com.kidsquota.manage
       description: |
         Parent native IPC only. Settles live usage, resets this child's current
         period counters, records a private audit event, and increments revision
         atomically. Other children, prior periods, limits, and reset schedule remain.
-        The native peer must be the signed parent app running as an administrator
-        and supply a valid system.privilege.admin AuthorizationExternalForm.
+        The native peer must be the verified installed parent app and supply a
+        valid com.kidsquota.manage AuthorizationExternalForm. Its login UID need
+        not be an administrator. The audit UID records that requesting login,
+        not the administrator who authenticated in the macOS prompt.
       requestBody:
         required: true
         content:

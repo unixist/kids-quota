@@ -18,8 +18,8 @@ flowchart LR
         engine <--> db
     end
 
-    subgraph parent["Parent account"]
-        gui["Parent app<br/>Administrator unlock<br/>Setup, settings, reset"]
+    subgraph parent["Any macOS login"]
+        gui["Locked parent app<br/>Parent administrator authorization<br/>Setup, settings, reset"]
     end
 
     subgraph integrations["Independent local clients"]
@@ -33,7 +33,7 @@ flowchart LR
     bridges <-->|"native request / policy reply"| ipc
     agent -->|"native observation · 1 s + events"| ipc
     agent <-->|"childStatus / own balances · 5 s while open"| ipc
-    gui <-->|"native IPC + admin grant + bearer"| ipc
+    gui <-->|"native IPC + temporary com.kidsquota.manage grant"| ipc
     readers <-->|"GET + scoped bearer / JSON"| http
     filter <-->|"native rule poll / reply · 1 s"| ipc
 

@@ -151,21 +151,26 @@ implementation, and no native-app domain guessing or TLS decryption.
 1. [KidsQuotaApp.swift](../macos/ParentApp/KidsQuotaApp.swift) opens a locked
    [ParentAccessGate](../macos/ParentApp/ParentAccessView.swift).
    [ParentAuthorization.swift](../macos/ParentApp/ParentAuthorization.swift)
-   obtains a macOS administrator authorization grant. `ParentStore` reads its
-   credential and contacts the daemon only after unlock.
+   requests the `com.kidsquota.manage` macOS administrator authorization grant.
+   The GUI may run in a standard child's login; the parent authenticates in the
+   system prompt. `ParentStore` contacts the daemon only after unlock and never
+   reads a persistent parent bearer or Keychain credential.
 2. [Editors.swift](../macos/ParentApp/Editors.swift) handles account setup, hours,
    and included websites/apps. [HouseholdView.swift](../macos/ParentApp/HouseholdView.swift)
    shows balances, polls while open, and captures the selected child and policy
    revision before showing the reset confirmation.
 3. `ParentStore` sends an HTTP-shaped `parentHTTP` JSON envelope through
-   [DaemonSocket.swift](../macos/Shared/DaemonSocket.swift), including a bearer
-   token and the authorization external form. This uses authenticated UNIX IPC,
+   [DaemonSocket.swift](../macos/Shared/DaemonSocket.swift), including the
+   authorization external form. This uses authenticated UNIX IPC,
    not the public HTTP listener. The client checks that the server belongs to root.
 4. [PeerVerifier](../Sources/KidsQuotaService/Transport.swift) verifies the native
    process's UID and signed role. The service's separate
    [ParentAuthorization validator](../Sources/KidsQuotaService/ParentAuthorization.swift)
-   checks administrator membership and the granted right. The controller also
-   checks token scope and the expected policy revision.
+   checks the granted right without prompting or extending it. The requesting
+   UID need not belong to the administrator group. Only after both checks pass
+   does the controller supply an internal administrator principal to the shared
+   handlers, which also validate the expected policy revision. Public HTTP
+   callers cannot create or obtain this principal.
 5. Ordinary edits call `QuotaEngine.replacePolicy`, preserving stable usage IDs.
    **Reset this week** calls `resetUsage`: settle observed usage, zero only the
    selected child's current-period counters, append a private audit record, and
@@ -173,10 +178,13 @@ implementation, and no native-app domain guessing or TLS decryption.
    and siblings remain unchanged. Adapters obtain the new state on subsequent
    exchanges.
 
-The GUI stays an ordinary user process. The installed main executable is
-restricted to administrators; the daemon independently enforces authorization.
-Locking, closing, or changing the active login session clears the UI's grant and
-credential state. A late asynchronous reply cannot restore an old unlocked session.
+The GUI stays an ordinary process owned by the current login. Its installed main
+executable is root-owned, mode `0755`; any login can launch the locked UI, while
+the daemon independently enforces authorization. Manual lock, switching apps,
+closing, changing the active login session, or reaching five minutes after unlock
+destroys the grant and clears configuration. The service registers a non-shared,
+300-second administrator-authentication rule before accepting parent requests.
+A late asynchronous reply cannot restore an old unlocked session.
 
 ## Persistence and time boundaries
 
@@ -188,9 +196,9 @@ The production database is `quota.sqlite` in
 | --- | --- |
 | SQLite `metadata` | Encoded policy and the furthest accepted calendar-period start (`periodFloor`). |
 | SQLite `usage` | Fractional seconds keyed by `(child_id, quota_id, period_start)`. |
-| SQLite `reset_events` | Manual reset time, trusted administrator UID, child, period, prior total usage, and revision. |
+| SQLite `reset_events` | Manual reset time, kernel-authenticated requesting login UID, child, period, prior total usage, and revision. The UID is not the identity of the administrator who authenticated. |
 | `clients.json` | API token digests, scopes, and explicit child grants, managed by [Credentials.swift](../Sources/KidsQuotaService/Credentials.swift). |
-| `admin.token` | Protected bootstrap credential used by the parent app. It is not a read-client credential. |
+| `admin.token` | Protected bootstrap credential retained by the service. The parent GUI never reads or transmits it; it cannot authorize HTTP configuration changes. |
 
 Browser/foreground observations are transient memory state. The ledger stores
 usage totals rather than visited pages. SQLite uses WAL and full synchronization;
@@ -211,7 +219,7 @@ minimal example; [api.md](api.md) and [openapi.yaml](../api/openapi.yaml) descri
 the contract. Tokens restrict both operations and children. Browser-page origins
 are rejected, so a future publisher should read locally and publish only chosen
 summaries rather than embedding the token in a public page. HTTP cannot modify
-policy or reset usage, even with the parent bearer token.
+policy or reset usage, even with the bootstrap administrator bearer token.
 
 Freshness and quota state are separate. A positive balance does not prove all
 protection is working. Stale or unhealthy login-agent reports stop accounting and

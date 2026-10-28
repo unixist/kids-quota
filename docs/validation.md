@@ -8,12 +8,12 @@ or activated on the development Mac; no real child accounts were linked.
 | Suite | Result | Coverage |
 | --- | --- | --- |
 | Swift quota core | 60 passing tests | Domain boundaries/IDNA/public suffixes, policy validation, per-child shared usage, calendar/DST resets, clock changes, stale reports, persistence, reset audits and transaction rollback |
-| Swift service and child view models | 58 passing tests | Authorization, child scopes, revisions, native roles, administrator proof, read-only HTTP, scoped reset, account isolation, framing, local trust manifests, protected paths, real ad-hoc process signature pins, child-status privacy, observational reads, balance formatting and stale-view clearing |
+| Swift service and child view models | 62 passing tests | Authorization, child scopes, revisions, native roles, administrator proof from standard logins without a bearer, fail-closed authorization-right registration, read-only HTTP, scoped reset, account isolation, framing, local trust manifests, protected paths, real ad-hoc process signature pins, child-status privacy, observational reads, balance formatting and stale-view clearing |
 | Browser JavaScript | 30 passing tests | Chrome/Safari packaging, stable unpacked extension ID, focus reports, DNR matching, open-tab replacement, native disconnects/timeouts, persisted fail-closed rules, event ordering, same-week resets, permission failures, read-only popup refresh, domains/reset presentation and late-reply handling |
-| Native Mac models and parent session | 15 passing tests | Filter UID isolation, stale rules, malformed policy, presentation, locked startup, authorization proof, relock/races, and local-mode refusal to activate the filter |
-| Packaging | 20 passing tests | Parent-only executable access, child extension access, GUI-session activation, upgrade/trust rollback, local artifact metadata, DMG layout, signing-team validation, explicit notarization and codesign pipe handling |
+| Native Mac models and parent session | 17 passing tests | Filter UID isolation, stale rules, malformed policy, presentation, locked startup, any-login authorization proof, no saved parent bearer, pending system-prompt focus, app-switch relock/races, and local-mode refusal to activate the filter |
+| Packaging | 20 passing tests | Root-owned app access from standard logins, child extension access, GUI-session activation, upgrade/trust rollback, local artifact metadata, DMG layout, signing-team validation, explicit notarization and codesign pipe handling |
 
-**183 automated tests pass.** The OS authorization test creates an empty reference
+**189 automated tests pass.** The OS authorization test creates an empty reference
 and confirms it cannot grant access, without displaying a credential prompt. It can
 skip when Authorization Services is unavailable in a sandbox/headless environment;
 it passed in the local unsandboxed run. The filter model and browser tests use deterministic
@@ -29,8 +29,9 @@ parent app, Safari extension, and network system extension. Bundle resource chec
 confirm that Safari contains its generated manifest/scripts and the daemon has
 the bundled Public Suffix List. The earlier native layout was launched against
 isolated demo data to inspect preset allowances and coverage labels. The current
-account-only setup and administrator lock flow compile and pass model/session
-tests; interactive authorization still needs the signed acceptance run below.
+account-only setup and cross-account administrator lock flow compile and pass
+model/session tests; interactive authorization and Touch ID still need the local
+acceptance run below.
 No real accounts, browser permissions, or network-filter settings were changed.
 
 `scripts/build-macos.sh --local` builds both `arm64` and `x86_64`, ad-hoc signs the
@@ -42,15 +43,17 @@ not executed here; installed child-session discovery still needs device validati
 
 Installer scripts passed shell syntax and plist checks. Generated MDM examples
 passed plist/JSON validation. Unprivileged packaging fixtures checked clean upgrade
-replacement and rollback, preserving usage files, `root:admin 0750` policy for the
-parent executable while retaining child extension access, and signed-DMG layout.
+replacement and rollback, preserving usage files, `root:wheel 0755` policy for the
+parent executable (openable but not editable by standard users) while retaining child extension access, and signed-DMG layout.
 A real instructions-only preview DMG was created, checksum-verified and mounted
 read-only to confirm it contains no runnable installer. Actual signed
 installation, notarization, and MDM deployment have not been performed.
 
-The actual **KidsQuota-0.1.1-Local.dmg** was created, checksum-verified, mounted
+The actual **KidsQuota-0.1.2-Local.dmg** was created, checksum-verified, mounted
 read-only, and unmounted after inspection. Its real PKG was expanded into scratch
-files without installing it. The extracted installer's read-only checks verified
+files without installing it. PackageInfo declares root authorization, while the
+setup app permits standard logins to open its locked window. The extracted
+installer's read-only checks verified
 all components' ad-hoc signatures, identifiers, hardened runtime, resource presence,
 and Chrome key/ID. All six native binaries contain both `arm64` and `x86_64`.
 The parent has `KidsQuotaLocalInstall=true` and no restricted entitlements; the
@@ -70,8 +73,14 @@ checking in an installed child's account remains part of acceptance below.
 
 The package has not been installed on a fresh second Mac in this task. On that Mac:
 
-1. Approve the local package, install as administrator, unlock the parent app,
-   and link a standard account. Verify root ownership and parent-only controls.
+1. Stay signed in to a **standard child account**. Install the package using a
+   parent administrator username and password in Installer, then open Kids Quota
+   and unlock settings through the macOS authorization prompt. Link the child
+   account and test editing hours and resetting usage. Confirm cancellation stays
+   locked, switching apps or users and closing the window revoke access, and the
+   session expires after five minutes. Verify root ownership and parent-only
+   controls. Test Touch ID if macOS offers it; cross-account Touch ID is not
+   guaranteed, and a child's fingerprint must never grant administrator access.
 2. Load the Chrome package in each child profile and verify new and already-open
    limited pages block. Test login, sleep, wake, and browser restart.
 3. Check Safari discovery, website permissions, and native messaging with
@@ -89,8 +98,9 @@ The package has not been installed on a fresh second Mac in this task. On that M
 ## Signed runtime acceptance still required
 
 1. Sign every component with one Developer ID team, install as administrator,
-   and link two **standard** macOS accounts. Verify the child cannot read
-   or execute the parent main binary, read `admin.token`, change the ledger/binaries,
+   and link two **standard** macOS accounts. Verify the child can open the locked
+   app but cannot change settings without administrator authorization, read
+   `admin.token`, or change the ledger/binaries,
    or load a user-level fake Chrome
    native host when the supplied management policy is applied.
 2. Enable Chrome and Safari adapters, including site permissions. Verify both

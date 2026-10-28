@@ -11,6 +11,19 @@ import SwiftUI
 
 @MainActor final class ParentAppLifecycle: NSObject, NSApplicationDelegate {
     weak var store: ParentStore?
+    private var sessionObserver: NSObjectProtocol?
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Observe independently of either window, including while the system
+        // authorization prompt is open from the Settings scene.
+        sessionObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.sessionDidResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.store?.lock() }
+        }
+    }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
-    func applicationWillTerminate(_ notification: Notification) { store?.lock() }
+    func applicationWillTerminate(_ notification: Notification) {
+        store?.lock()
+        if let sessionObserver { NSWorkspace.shared.notificationCenter.removeObserver(sessionObserver) }
+        sessionObserver = nil
+    }
+    func applicationDidResignActive(_ notification: Notification) { store?.applicationDidResignActive() }
 }

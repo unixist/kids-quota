@@ -49,7 +49,7 @@ class PackagingTests(unittest.TestCase):
             self.assertTrue(parsed["KeepAlive"])
             self.assertTrue(parsed["ProgramArguments"][0].startswith("/Library/Application Support/KidsQuota/bin/"))
 
-    def test_only_parent_main_binary_loses_child_read_and_execute_access(self):
+    def test_parent_app_opens_for_child_login_but_cannot_be_modified(self):
         app = self.work / "Kids Quota.app"
         main = app / "Contents/MacOS/Kids Quota"
         safari = app / "Contents/PlugIns/KidsQuotaSafari.appex/Contents/MacOS/KidsQuotaSafari"
@@ -61,15 +61,15 @@ class PackagingTests(unittest.TestCase):
         (app / "Contents/Info.plist").write_bytes(plistlib.dumps({"CFBundleExecutable": "Kids Quota"}))
         log = self.work / "ownership.log"
         chown = executable(self.work / "chown", '#!/bin/bash\nprintf "%s\\n" "$*" >> "$OWNERSHIP_LOG"\n')
-        code = function(self.installer, "restrict_parent_executable").replace("/usr/sbin/chown", shlex.quote(str(chown)))
-        result = self.shell(code + "\nrestrict_parent_executable " + shlex.quote(str(app)), OWNERSHIP_LOG=str(log))
+        code = function(self.installer, "secure_parent_executable").replace("/usr/sbin/chown", shlex.quote(str(chown)))
+        result = self.shell(code + "\nsecure_parent_executable " + shlex.quote(str(app)), OWNERSHIP_LOG=str(log))
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(stat.S_IMODE(main.stat().st_mode), 0o750)
+        self.assertEqual(stat.S_IMODE(main.stat().st_mode), 0o755)
         self.assertEqual(main.read_text(), "fixture executable; never run\n")
         for path in [safari, filter_binary, helper]:
             self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o755)
-        self.assertEqual(log.read_text().strip(), "root:admin " + str(main))
-        self.assertLess(self.installer.index('restrict_parent_executable "$APP_STAGE"'), self.installer.index('verify_code "$APP_STAGE"'))
+        self.assertEqual(log.read_text().strip(), "root:wheel " + str(main))
+        self.assertLess(self.installer.index('secure_parent_executable "$APP_STAGE"'), self.installer.index('verify_code "$APP_STAGE"'))
 
     def test_parent_permission_function_rejects_executable_symlink(self):
         app = self.work / "App.app"
@@ -77,7 +77,7 @@ class PackagingTests(unittest.TestCase):
         target = executable(self.work / "unrelated", "unchanged")
         (app / "Contents/MacOS/Main").symlink_to(target)
         (app / "Contents/Info.plist").write_bytes(plistlib.dumps({"CFBundleExecutable": "Main"}))
-        result = self.shell(function(self.installer, "restrict_parent_executable") + "\nrestrict_parent_executable " + shlex.quote(str(app)))
+        result = self.shell(function(self.installer, "secure_parent_executable") + "\nsecure_parent_executable " + shlex.quote(str(app)))
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o755)
 
@@ -153,8 +153,8 @@ esac
         repo = self.work / "repo"
         (repo / "scripts").mkdir(parents=True)
         (repo / "dist").mkdir()
-        (repo / "dist/KidsQuota-0.1.1.pkg").write_text("non-runnable package fixture")
-        (repo / "dist/KidsQuota-0.1.1-Local.pkg").write_text("non-runnable local package fixture")
+        (repo / "dist/KidsQuota-0.1.2.pkg").write_text("non-runnable package fixture")
+        (repo / "dist/KidsQuota-0.1.2-Local.pkg").write_text("non-runnable local package fixture")
         capture = self.work / "image-contents"
         log = self.work / "release.log"
         pkgutil = executable(self.work / "pkgutil", '#!/bin/bash\nprintf "Developer ID Installer: Fixture (%s)\\n" "$PACKAGE_TEAM"\n')
@@ -216,6 +216,9 @@ fi
             self.assertIn(required, welcome)
         self.assertFalse(log.exists(), "Local packaging must not sign or submit to Apple")
         self.assertIn("Local.dmg", result.stdout)
+        self.assertIn("Stay in the child's login", welcome)
+        self.assertIn("parent's administrator username", welcome)
+        self.assertNotIn("in the parent's administrator account", welcome)
 
     def test_local_image_rejects_notarization_and_conflicting_modes(self):
         result, contents, _ = self.disk_image(["--local", "--notarize"])
@@ -246,7 +249,8 @@ printf fixture > "$output"
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("--local", (self.work / "check.log").read_text())
         self.assertNotIn("--sign", (self.work / "package.log").read_text())
-        self.assertTrue((repo / "dist/KidsQuota-0.1.1-Local.pkg").exists())
+        self.assertIn("--auth root", (self.work / "package.log").read_text())
+        self.assertTrue((repo / "dist/KidsQuota-0.1.2-Local.pkg").exists())
         self.assertTrue((captured / "create-local-trust.sh").exists())
         postinstall = (captured / "postinstall").read_text()
         self.assertIn("--local", postinstall)

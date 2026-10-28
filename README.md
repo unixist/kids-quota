@@ -4,7 +4,7 @@ Weekly website and Mac app allowances shared across Chrome, Safari, and selected
 apps, with independent balances for children using separate macOS login accounts.
 
 **Status: local development release with a real installer.**
-`dist/KidsQuota-0.1.1-Local.dmg` packages the app, root service, login agent,
+`dist/KidsQuota-0.1.2-Local.dmg` packages the app, root service, login agent,
 browser adapters, and an **inactive** Network Extension for Apple Silicon and
 Intel Macs running macOS 14 or later. It needs no Apple developer membership.
 Website blocking requires manual browser setup; standalone-app network blocking
@@ -86,7 +86,7 @@ than generated browser files or only the generated Xcode project.
   local publishers. Revocable read tokens have explicit child grants. No client
   endpoint can post usage or set remaining balances.
 
-The parent app opens directly to the child's remaining-time cards, with a child
+After administrator unlock, the parent app opens to the child's remaining-time cards, with a child
 picker when multiple accounts are linked, **Edit hours**, **Includes**, custom
 services, and settings for protection, resets, and clients.
 Service membership is shared; hours belong to the selected child. Website-only
@@ -95,16 +95,17 @@ included websites and apps → Choose app** to include the installed app.
 
 ## Install and set up
 
-For this membership-free build, copy **KidsQuota-0.1.1-Local.dmg** to the new Mac.
+For this membership-free build, copy **KidsQuota-0.1.2-Local.dmg** to the new Mac.
 It is the only file needed; the destination does not need Xcode, Node, Python,
 the source repository, or a developer account.
 
-1. Mount the DMG and open **Install Kids Quota.pkg**. The macOS Installer requests
-   administrator permission and installs the app and background components. If
+1. While signed into the child's standard Mac account, mount the DMG and open
+   **Install Kids Quota.pkg**. Enter the parent's administrator username and
+   password when macOS Installer asks. It installs the app and background components. If
    macOS blocks this unnotarized installer, use **System Settings → Privacy &
    Security → Open Anyway** for that installer, then reopen it.
-2. Open **Kids Quota** from Applications in your parent/administrator account.
-   Choose **Unlock parent settings** to authorize configuration with macOS administrator credentials.
+2. Open **Kids Quota** from Applications in the same login. Choose **Unlock parent
+   settings** and enter the parent's administrator credentials in the macOS prompt.
 3. Select the child's existing standard Mac login account and choose
    **Set up account**. Chess.com and ChatGPT are created automatically,
    each with six hours per week and a Monday reset. No token entry or terminal is needed.
@@ -119,12 +120,18 @@ the source repository, or a developer account.
 The DMG includes **Start here.txt**, and the app's Protection settings show the
 browser setup steps. Read [local installation](docs/local-install.md) before
 relying on coverage. Unpacked/unsigned browser extensions can be disabled by a child.
+You can also install and configure from the parent's login. There is no need to
+enable the root account or switch away from the child's login.
+Use Touch ID if macOS offers it in the authorization prompt; otherwise enter the
+parent's administrator username and password. Touch ID availability depends on
+macOS, the hardware, and the account; authorization from a different child's
+login may still require the parent's password. See [Apple's Authorization Services](https://developer.apple.com/documentation/security/authorization-services).
 
 ## How children check their time
 
 In the child's Mac login, click the **hourglass in the menu bar** to open Kids
 Quota. It starts automatically with the login agent and works without opening
-the administrator-only parent app or a browser. Each service shows its remaining
+the parent settings app or a browser. Each service shows its remaining
 time and weekly allowance, its covered domains, and when the allowance resets.
 Multiple domains grouped into one service share the displayed balance.
 
@@ -135,12 +142,13 @@ password or read-client token is needed; the service identifies the current Mac
 login and returns only that child's assigned services. Changes and manual resets
 still require the parent app and administrator authorization.
 
-The installed parent executable is `root:admin` with mode `0750`; a standard child
-cannot read or execute it. Its embedded browser/filter extensions remain accessible
-so enforcement can run in the child's account. The parent UI starts locked, clears
-its credentials on lock/close, and uses Authorization Services; the root daemon
-independently verifies the administrator's OS identity and authorization on every
-configuration request. The GUI itself does not run as root.
+The installed parent executable is root-owned with mode `0755`, so any login can
+open its locked screen but standard accounts cannot modify it. macOS Authorization
+Services verifies the parent's administrator credentials. The root daemon checks
+the parent app's identity and its temporary `com.kidsquota.manage` grant on every
+native parent request. The GUI runs as the current login and never reads or stores
+a persistent parent bearer token. Settings lock when you switch apps, close the
+window, switch login sessions, choose Lock, or reach five minutes after unlocking.
 
 The REST listener is **read-only**, even with an administrator bearer token.
 Configuration and resets require the authenticated parent IPC connection. A copied

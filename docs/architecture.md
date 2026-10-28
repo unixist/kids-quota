@@ -17,7 +17,7 @@ components. For a source-by-source tour, read the [code walkthrough](code-guide.
 | Extension → native browser bridge → daemon | Active hostname, focus, session ID, and sequence number; the reply carries domain rules and remaining time. Browser refreshes are event-driven plus a roughly five-second timer while running. |
 | Per-login agent → daemon | Frontmost PID and awake/unlocked/active-session observations, every second and on relevant events. The daemon verifies identity and resolves the child. |
 | Child menu bar view ↔ daemon | The same agent sends read-only `childStatus` requests on opening and about every five seconds while open. The kernel peer UID selects the child; the request cannot supply a child ID. The reply contains only that child's balances and assigned service domains. |
-| Parent app ↔ daemon | `parentHTTP` envelopes over authenticated UNIX IPC, with OS administrator authorization and a bearer token. Configuration does not use the public HTTP listener. |
+| Parent app ↔ daemon | `parentHTTP` envelopes over authenticated UNIX IPC, with a temporary `com.kidsquota.manage` OS administrator grant. The GUI runs in any login and uses no persistent parent bearer. Configuration does not use the public HTTP listener. |
 | Read client ↔ HTTP listener | Scoped bearer-authenticated reads at `127.0.0.1:48123/v1`, restricted to explicitly granted children. |
 | App filter ↔ daemon | A `filterRules` poll every second, returning blocked states associated with child UIDs and verified app requirements. The filter enforces those decisions on socket flows. |
 | Engine ↔ SQLite | Policy, per-child/per-quota/per-period counters, period floor, and reset audit. API credentials are separate protected files. |
@@ -144,21 +144,32 @@ Use the loopback endpoint `http://127.0.0.1:48123/v1` with JSON resources
 for children, services, per-child quotas, and balances. Parent administrative
 routes also manage verified account/app selection, reset settings, and read tokens.
 The parent UI uses root-authenticated UNIX IPC so a process occupying the HTTP
-port cannot impersonate the daemon and harvest its administrator token. Its executable
-is restricted to root/admin users, and each native parent request requires a
-current `system.privilege.admin` Authorization Services grant and an administrator
-peer UID. The GUI stays unprivileged; the daemon performs privileged changes. See
+port cannot impersonate the daemon and harvest its temporary authorization proof.
+Its executable is root-owned with mode `0755`, so any login can open the locked UI.
+Each native parent request requires the verified parent app and a current
+`com.kidsquota.manage` Authorization Services grant. macOS authenticates the parent
+as an administrator even when the requesting login is a standard child account.
+The daemon checks the existing grant without prompting or extending it and supplies
+an internal administrator principal to the shared handlers. This principal is
+never sent to the GUI or accepted from HTTP. The GUI stays unprivileged and uses
+no persistent parent token or Keychain entry; the daemon performs privileged changes. See
 [API behavior](api.md) and the [OpenAPI contract](../api/openapi.yaml).
 
 Require credentials even on loopback because other local accounts and applications
 can reach it. Parent-paired, revocable clients receive only their necessary scopes
 and an explicit child allowlist. Read scopes such as `balances:read` grant no policy
-editing or usage submission; the parent needs `policy:write` plus OS authorization
-on the authenticated native connection for mutations. HTTP is read-only even when
-presented with a parent token.
+editing or usage submission; native parent requests receive internal `policy:write`
+authority only after OS authorization. HTTP is read-only even when presented with
+the protected bootstrap administrator token.
 Authorize every requested object and filter collections to the allowed children.
 Never return a sibling's record just because its ID is known. Store credentials
 outside public website code and protect them with the client's OS account.
+
+The service registers the parent right with administrator authentication,
+`session-owner: false`, `shared: false`, and a 300-second credential lifetime.
+The app destroys its grant on manual lock, app switch, close, login-session
+switch, or five minutes after unlock. A reset audit's actor UID records the
+requesting login, not the administrator who entered credentials.
 
 Trusted activity collectors continue to use authenticated native IPC. The public
 REST contract has no endpoint that accepts arbitrary elapsed seconds or writes a

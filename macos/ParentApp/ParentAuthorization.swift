@@ -22,7 +22,7 @@ final class ParentAuthorization: ParentAuthorizationSession, @unchecked Sendable
         guard created == errAuthorizationSuccess, let reference else { throw failure(created) }
         var handedOff = false
         defer { if !handedOff { AuthorizationFree(reference, .destroyRights) } }
-        let result = "system.privilege.admin".withCString { rightName in
+        let result = "com.kidsquota.manage".withCString { rightName in
             var item = AuthorizationItem(name: rightName, valueLength: 0, value: nil, flags: 0)
             return withUnsafeMutablePointer(to: &item) { itemPointer in
                 var rights = AuthorizationRights(count: 1, items: itemPointer)

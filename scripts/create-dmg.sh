@@ -2,7 +2,7 @@
 set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
-VERSION="${VERSION:-0.1.1}"
+VERSION="${VERSION:-0.1.2}"
 MODE=signed; NOTARIZE=0
 PACKAGE=''
 while [[ $# -gt 0 ]]; do
@@ -51,8 +51,9 @@ A signed release will contain:
   Start here.txt
 
 The release workflow is to open the installer, approve the normal macOS
-administrator prompt, then open Kids Quota from Applications in the parent's
-administrator account. Select the child's standard Mac account. Chess.com and
+administrator prompt, then open Kids Quota from Applications in any Mac login.
+Unlock with a parent's administrator username and password. Select the child's
+standard Mac account. Chess.com and
 ChatGPT each start with six hours per week, resetting Monday.
 
 macOS requires separate approval for the app network filter and Safari extension.
@@ -71,16 +72,19 @@ This is a real installer for macOS 14 or later, including Apple silicon and Inte
 No Apple developer membership, Xcode, Node.js, or Terminal commands are needed.
 It is not Apple-notarized. App network blocking is intentionally disabled.
 
-1. Open “Install Kids Quota.pkg” and follow Installer's administrator prompt.
+1. From the child's login, open “Install Kids Quota.pkg”. Enter the parent's
+   administrator username and password when Installer asks.
    If macOS blocks it because the developer cannot be verified, try opening it
    once, then use System Settings → Privacy & Security → Open Anyway and confirm
    only this installer. No global Gatekeeper or SIP changes are needed.
 
-2. Open Kids Quota from Applications in the parent's administrator account.
-   Unlock parent settings and select the child's standard Mac login. Chess.com
+2. Stay in the child's login and open Kids Quota from Applications. Choose
+   “Unlock parent settings” and enter the parent's administrator username and
+   password in the macOS prompt. Select the child's standard Mac login. Chess.com
    and ChatGPT each start with six hours per week, resetting Monday. Repeat
    “Add another child” for other accounts. The background service stays running
    when the parent window is closed. Settings and resets require parent unlock.
+   Use Touch ID if macOS offers it; otherwise use the administrator password.
 
 3. In EACH child's Chrome, open chrome://extensions, turn on Developer mode,
    choose “Load unpacked”, press Command-Shift-G in the folder picker, and enter:
@@ -131,11 +135,12 @@ KIDS QUOTA
    Follow Installer and enter an administrator name and password when macOS asks.
    No Terminal commands are needed.
 
-2. Open “Kids Quota” in Applications from the parent's administrator account.
-   Unlock parent settings with macOS administrator authorization, then choose
+2. Open “Kids Quota” in Applications while staying in the child's login.
+   Unlock with the parent's administrator username and password, then choose
    the child's standard Mac account. Chess.com and ChatGPT each start
    with six hours per week, resetting Monday. You can change hours and reset
    settings in the app, add other websites, and select companion applications.
+   Use Touch ID if macOS offers it; otherwise use the administrator password.
 
 3. Finish protection setup in the app.
    Approve the macOS app network filter when prompted. Enable the Safari
@@ -145,8 +150,8 @@ KIDS QUOTA
 “Reset this week” restores only the selected child's current-week time. It does
 not change the weekly limits or next reset day, and requires unlocked parent access.
 
-The parent app is available only to administrators. The protected background
-service and browser helpers work in the children's standard accounts.
+The app opens locked in any login. Only parent administrator authorization unlocks
+settings. The background service and browser helpers run in standard accounts.
 Children can click the Kids Quota hourglass in the Mac menu bar, or the browser
 toolbar button, to see their own remaining time and next reset without a password.
 These views are read-only; settings and resets remain restricted to the parent.

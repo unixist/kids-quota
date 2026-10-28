@@ -22,6 +22,7 @@ do {
         guard development || (getuid()==0 && NativeIdentity.ownTeam() != nil) else {throw TransportError.system("Production service requires an administrator installation. Use --local-install for pinned local builds, or --development with explicit --data-dir / --socket paths for isolated testing.")}
     }
     guard !development || (args.contains("--data-dir") && args.contains("--socket")) else {throw TransportError.system("Development mode requires --data-dir and --socket.")}
+    if !development {try ParentAuthorization.registerAdministratorRight()}
     umask(0o077)
     let controller=try ServiceController(directory:directory,port:port)
     if args.contains("--init") {print("Initialized Kids Quota data directory. The parent token is saved to admin.token.");exit(0)}

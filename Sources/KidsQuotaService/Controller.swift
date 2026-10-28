@@ -127,18 +127,27 @@ public final class ServiceController {
         return try rules.map { .init(hostname: try DomainMatcher.canonicalHostname($0.hostname), includeSubdomains: $0.includeSubdomains) }
     }
     public func handle(_ request: HTTPRequest) -> HTTPResponse {
-        handle(request, administratorUID: nil)
+        handle(request, authorizedNativeParentUID: nil)
     }
-    /// Only native parent IPC can supply this context; no HTTP header sets it.
-    func handle(_ request: HTTPRequest, administratorUID: UInt32?) -> HTTPResponse {
+    /// Only parent IPC with a verified application identity and a live OS grant
+    /// reaches this context. HTTP headers, JSON and bearer tokens cannot set it.
+    private func handle(_ request: HTTPRequest, authorizedNativeParentUID: UInt32?) -> HTTPResponse {
         lock.lock(); defer { lock.unlock() }
         do {
             let host = request.headers["host"] ?? ""
             guard ["127.0.0.1:\(port)","localhost:\(port)"].contains(host), request.headers["origin"] == nil else { throw APIError(403,"forbidden","Unexpected Host or Origin.") }
-            let client = try credentials.authenticate(request.headers["authorization"])
+            let client: ClientCredential
+            if let uid = authorizedNativeParentUID {
+                // This principal never enters the credential store and has no
+                // reusable bearer secret to expose in a child's login session.
+                client = ClientCredential(id: "native-parent-\(uid)", name: "Authorized parent session", digest: "",
+                                          scopes: CredentialStore.readScopes + ["policy:write"], childIds: [], administrator: true)
+            } else {
+                client = try credentials.authenticate(request.headers["authorization"])
+            }
             func requireParent() throws {
                 try requireScope(client, "policy:write")
-                guard administratorUID != nil else {
+                guard authorizedNativeParentUID != nil else {
                     throw APIError(403,"administrator_required","Unlock Kids Quota with administrator credentials to configure it.")
                 }
             }
@@ -231,7 +240,9 @@ public final class ServiceController {
                           CFGetTypeID(revision) != CFBooleanGetTypeID(), revision.doubleValue == Double(engine.policy.revision) else {
                         throw APIError(409,"conflict","Policy changed; refresh before resetting usage.")
                     }
-                    let policy = try engine.resetUsage(childId:c.id,expectedRevision:revision.intValue,actorUID:administratorUID!,now:date(),monotonic:monotonic())
+                    // Audit the requesting login; Authorization Services does not
+                    // expose the identity of the administrator who authenticated.
+                    let policy = try engine.resetUsage(childId:c.id,expectedRevision:revision.intValue,actorUID:authorizedNativeParentUID!,now:date(),monotonic:monotonic())
                     return .init(json:["policyRevision":policy.revision,"balances":try JSONCodec.object(snapshot(childId:c.id))])
                 }
                 if request.method == "POST" && parts == ["v1","admin","applications"] {
@@ -304,10 +315,9 @@ public final class ServiceController {
                 guard role == "parent", let proof = object["authorizationExternalForm"] as? String, authorizeParent(uid,proof) else {
                     return ["status":403,"body":["error":["code":"administrator_required","message":"Unlock Kids Quota with administrator credentials."]]]
                 }
-                guard let method = object["method"] as? String, let path = object["path"] as? String,
-                      let authorization = object["authorization"] as? String else {throw APIError(400,"bad_request","Invalid parent request.")}
+                guard let method = object["method"] as? String, let path = object["path"] as? String else {throw APIError(400,"bad_request","Invalid parent request.")}
                 let body = try object["body"].map {try JSONSerialization.data(withJSONObject:$0)} ?? Data()
-                let response = handle(.init(method:method,path:path,headers:["host":"127.0.0.1:\(port)","authorization":authorization,"content-type":"application/json"],body:body),administratorUID:uid)
+                let response = handle(.init(method:method,path:path,headers:["host":"127.0.0.1:\(port)","content-type":"application/json"],body:body),authorizedNativeParentUID:uid)
                 return ["status":response.status,"body":try JSONSerialization.jsonObject(with:response.body)]
             }
             if op == "childStatus" {

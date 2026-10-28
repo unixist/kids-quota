@@ -3,8 +3,8 @@
 The repository includes a SwiftUI parent app, Safari Web Extension native wrapper,
 and a Network Extension content filter. The app supports macOS 14 or later.
 The UI uses the same REST handlers through a root-authenticated Unix socket.
-Read clients can use `http://127.0.0.1:48123/v1`. The privileged parent bearer is
-never sent to an unverified loopback TCP listener.
+Read clients can use `http://127.0.0.1:48123/v1` with scoped bearer tokens. The
+parent GUI uses a temporary macOS authorization grant and no persistent parent token.
 
 For the current membership-free installer, use `scripts/build-macos.sh --local`
 followed by `scripts/package.sh --local`. This builds universal ad-hoc-signed
@@ -55,18 +55,18 @@ and [export guidance](https://developer.apple.com/forums/tags/systemextensions).
 The release packaging and Apple provisioning credentials are not supplied here.
 
 Install the signed containing app in `/Applications`, and install the daemon and
-login agent using the repository's administrator installation steps. Open Kids
-Quota in an administrator's account. The app starts locked, without reading tokens
-or loading household configuration. **Unlock parent settings** requests
-`system.privilege.admin` using macOS Authorization Services; the app itself stays at
-ordinary user privilege. The daemon verifies both the peer's administrator membership
-and the external authorization form on every parent request. The initial token is
-read only after authorization, from
-`/Library/Application Support/KidsQuota/admin.token`, readable only by root and
-administrators. A manually entered token is validated before saving to the parent's
-Keychain. For local UI smoke tests, a Debug build can use `KIDS_QUOTA_DATA_DIR` for the
-development `admin.token`, plus `KIDS_QUOTA_DEVELOPMENT=1` and `KIDS_QUOTA_SOCKET`
-for the development daemon socket. This explicit Debug-only mode verifies the
+login agent using the repository's administrator installation steps. Installation
+and parent setup can both start in a child's standard login: provide the parent's
+administrator username and password in the macOS prompts. The root account need
+not be enabled. Open Kids Quota from any login; the app starts locked without
+loading household configuration. **Unlock parent settings** requests
+`com.kidsquota.manage` using macOS Authorization Services. The app itself remains
+an ordinary process owned by the current login. The daemon verifies the installed
+parent app's identity and the external authorization form on every parent request;
+the requesting login need not be an administrator. The GUI never reads `admin.token`
+or saves a parent credential in Keychain. For local UI smoke tests, a Debug build
+can use `KIDS_QUOTA_DEVELOPMENT=1` and `KIDS_QUOTA_SOCKET` for the development
+daemon socket. This explicit Debug-only mode verifies the
 server is owned by the current UID instead of root. Release builds ignore these
 socket overrides and require a root peer. Never use production credentials in
 development mode.
@@ -102,13 +102,23 @@ native messaging host using the browser setup instructions.
 5. Settings → API clients creates revocable, read-only tokens restricted to selected
    children. Copy a new token when displayed; it is not retrievable afterward.
 
-**Lock**, closing the main window, quitting, or switching login sessions destroys
-the app's authorization reference and clears the in-memory token and configuration.
-A late service response cannot repopulate the locked screen. Standard logins see
-only a parent-only locked screen and cannot start an unlock. macOS selects the
-available authentication method and may honor its own valid authorization cache;
-the app does not collect a password or launch an elevated GUI. Read-only HTTP
+**Lock**, switching apps, closing the main window, quitting, switching login
+sessions, or reaching five minutes after unlock destroys the app's authorization
+reference and clears configuration. A late service response cannot repopulate the
+locked screen. Every login can start an unlock using a parent's administrator
+credentials. The service registers `com.kidsquota.manage` with administrator
+authentication, a 300-second credential lifetime, and credential sharing disabled.
+The daemon validates the existing grant without prompting or extending rights.
+The app does not collect a password or launch an elevated GUI. Read-only HTTP
 clients remain independent from this parent authorization session.
+
+macOS controls the authentication method, including Touch ID when offered by its
+authorization prompt. Do not substitute a generic `LAContext` biometric success
+for the administrator right: authenticating the current child's fingerprint would
+not establish parent authority. Apple does not guarantee parent Touch ID from a
+different child's login, so retain the administrator username/password route.
+See [Authorization Services](https://developer.apple.com/documentation/security/authorization-services)
+and [Touch ID on Mac](https://support.apple.com/guide/mac-help/use-touch-id-mchl16fbf90a/mac).
 
 A compatible preset signer catalog, automatic app discovery, and automatic adoption
 of future installed apps are not included. A browser/PWA launcher shared with other

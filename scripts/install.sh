@@ -108,18 +108,18 @@ stage_destination() {
   DESTINATIONS+=("$destination"); REPLACEMENTS+=("$stage/new${2:-}"); BACKUPS+=("$stage/previous"); CHANGED+=(0)
   STAGED_PATH="${REPLACEMENTS[$index]}"
 }
-restrict_parent_executable() {
+secure_parent_executable() {
   local app="$1" executable parent_binary
   executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")"
   [[ -n "$executable" && "$executable" != */* && "$executable" != . && "$executable" != .. ]] || { echo 'Invalid parent application executable name.' >&2; return 1; }
   parent_binary="$app/Contents/MacOS/$executable"
   [[ -f "$parent_binary" && ! -L "$parent_binary" ]] || { echo 'Parent executable must be a regular file.' >&2; return 1; }
-  # Do not restrict the containing app: child Safari and the system-extension
-  # loader need its nested extensions and resources. Only the parent UI binary
-  # becomes unreadable and non-executable to standard accounts.
+  # Any login may open the locked UI and authenticate with a parent administrator.
+  # Root ownership prevents replacement; the daemon verifies each OS authorization
+  # grant before allowing configuration. Embedded extensions remain accessible.
   /bin/chmod -N "$parent_binary"
-  /usr/sbin/chown root:admin "$parent_binary"
-  /bin/chmod 0750 "$parent_binary"
+  /usr/sbin/chown root:wheel "$parent_binary"
+  /bin/chmod 0755 "$parent_binary"
 }
 activate_existing_agents() {
   local accounts account uid domain failures=0
@@ -152,7 +152,7 @@ stage_destination "$DEST_APP" .app; APP_STAGE="$STAGED_PATH"
 /bin/chmod -RN "$BIN_STAGE" "$APP_STAGE"
 /bin/chmod -R go-w "$BIN_STAGE" "$APP_STAGE"
 /bin/chmod -R a+rX "$BIN_STAGE" "$APP_STAGE"
-restrict_parent_executable "$APP_STAGE"
+secure_parent_executable "$APP_STAGE"
 for component in service agent bridge; do verify_code "$BIN_STAGE/kids-quota-$component" "com.kidsquota.$component"; done
 verify_code "$APP_STAGE" com.kidsquota.app
 /usr/bin/codesign --verify --deep --strict "$APP_STAGE"
@@ -245,7 +245,7 @@ for attempt in 1 2 3; do
 done
 COMMITTED=1
 activate_existing_agents
-echo 'Installed. Open Kids Quota from Applications in an administrator account to finish setup.'
+echo 'Installed. Open Kids Quota from Applications in any login, then unlock with parent administrator credentials to finish setup.'
 if [[ "$MODE" == local ]]; then
   echo 'App network blocking is disabled in this local build. Load the bundled Chrome extension and enable Safari development extensions in each child account; see Start here.txt.'
 else echo 'Browser extension enablement and app network-filter approval remain explicit setup steps.'; fi

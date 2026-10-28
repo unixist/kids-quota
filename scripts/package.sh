@@ -22,7 +22,7 @@ else
 fi
 CHROME_EXTENSION_ID="${CHROME_EXTENSION_ID:-}"
 [[ -z "$CHROME_EXTENSION_ID" || "$CHROME_EXTENSION_ID" =~ ^[a-p]{32}$ ]] || { echo 'Invalid Chrome extension ID.' >&2; exit 2; }
-VERSION="${VERSION:-0.1.1}"
+VERSION="${VERSION:-0.1.2}"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Version must be major.minor.patch.' >&2; exit 2; }
 INSTALL_ARGS=(--artifacts "$REPO_ROOT/dist/$MODE")
 SUFFIX=''
@@ -49,7 +49,7 @@ POSTINSTALL
 chmod 0755 "$STAGE/scripts/postinstall"
 # The same installer is used for direct and packaged deployment. All artifacts
 # are signed/checked before the root postinstall makes changes.
-PACKAGE_ARGS=(--nopayload --scripts "$STAGE/scripts" --identifier com.kidsquota.installer --version "$VERSION")
+PACKAGE_ARGS=(--nopayload --auth root --scripts "$STAGE/scripts" --identifier com.kidsquota.installer --version "$VERSION")
 if [[ "$MODE" == signed ]]; then PACKAGE_ARGS+=(--sign "$INSTALLER_IDENTITY"); fi
 /usr/bin/pkgbuild "${PACKAGE_ARGS[@]}" "$REPO_ROOT/dist/KidsQuota-$VERSION$SUFFIX.pkg"
 if [[ "$MODE" == signed ]]; then /usr/sbin/pkgutil --check-signature "$REPO_ROOT/dist/KidsQuota-$VERSION.pkg"; fi

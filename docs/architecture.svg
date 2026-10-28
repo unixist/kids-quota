@@ -71,8 +71,8 @@
 <path d="M 405 437 H 461 V 245 H 535" class="edge both"/>
 <path d="M 405 690 H 490 V 280 H 535" class="edge both"/>
 <rect x="1005" y="210" width="350" height="118" rx="12" fill="#ffffff" stroke="#cdc1e8"/>
-<text x="1025" y="243" class="label">Parent app · administrator</text>
-<text x="1025" y="274" class="body">OS authorization + parent bearer</text>
+<text x="1025" y="243" class="label">Parent app · any login</text>
+<text x="1025" y="274" class="body">Temporary OS administrator grant</text>
 <text x="1025" y="298" class="body">Settings, account setup, manual reset</text>
 <path d="M 1005 258 H 875" class="edge both"/>
 <rect x="1005" y="395" width="350" height="115" rx="12" fill="#ffffff" stroke="#cdc1e8"/>
@@ -80,7 +80,7 @@
 <text x="1025" y="459" class="body">Scoped bearer: selected children only</text>
 <text x="1025" y="483" class="body">Example client; future widget / publisher</text>
 <path d="M 1005 449 H 947 V 342 H 875" class="edge both"/>
-<text x="1005" y="544" class="small">The GUI runs as the parent, not as root.</text>
+<text x="1005" y="544" class="small">Locked UI; runs as the current login.</text>
 <rect x="1005" y="680" width="350" height="174" rx="12" fill="#ffffff" stroke="#ddc89e"/>
 <text x="1025" y="713" class="label">Optional app network filter</text>
 <text x="1025" y="744" class="body">Poll rules via native IPC every 1 s</text>

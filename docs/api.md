@@ -12,9 +12,13 @@ publishers use HTTP. The parent app sends these same HTTP-shaped requests throug
 a root-authenticated UNIX socket, avoiding an impostor localhost listener.
 The HTTP listener is read-only. Administrative operations below document the
 shared request schema used by the native parent connection; sending them over HTTP
-returns `403 administrator_required`, even with the administrator token. Each native
-parent request must also carry an Authorization Services external form granting
-`system.privilege.admin`, and the kernel peer UID must be an administrator.
+returns `403 administrator_required`, even with the bootstrap administrator token.
+Each native parent request must come from the verified installed parent app and
+carry an Authorization Services external form granting `com.kidsquota.manage`.
+The app can run in any login; macOS verifies the parent's administrator credentials.
+The daemon validates the existing grant on every request without prompting or
+extending rights, then supplies an internal administrator principal to the shared
+handlers. The parent GUI neither sends nor stores a persistent bearer token.
 There is no HTTP endpoint for submitting usage, setting balances, or claiming a
 child's OS identity.
 
@@ -62,17 +66,19 @@ limit, name, or membership preserves usage.
 | `POST /v1/admin/clients` | Issue a child-scoped read credential | `policy:write` |
 | `DELETE /v1/admin/clients/{clientId}` | Revoke a read credential | `policy:write` |
 
-Every `policy:write` operation requires the administrator credential **and** the
-OS-authorized native parent connection. No HTTP header can supply that trust.
-Administrative routes require both factors, including reading admin state. Read grant creation
+Every `policy:write` operation requires the verified parent process and a current
+OS authorization grant over native IPC. No HTTP header can supply that trust.
+This applies to administrative reads as well as writes. The internal parent
+principal never leaves the service and cannot be requested with a token. Read grant creation
 cannot confer administrative authority. v0.1 exposes no child, service, or quota
 deletion endpoints.
 
 ## Authentication and client grants
 
-Every request requires `Authorization: Bearer <token>`, including local requests.
-Initial setup creates a protected administrator bootstrap credential. The parent
-app uses it to issue read grants for explicitly selected children. Read tokens
+Every HTTP request requires `Authorization: Bearer <token>`, including loopback
+requests. The unlocked parent app uses native authorization to issue read grants
+for explicitly selected children. It does not read the protected bootstrap
+`admin.token` or save a parent credential to Keychain. Read tokens
 support `children:read`, `services:read`, `quotas:read`, and `balances:read`.
 Store tokens in Keychain or another protected store; never put them in a URL,
 public webpage, or log.
@@ -136,13 +142,15 @@ allowance reset caused by changing the reset day.
 
 `POST /v1/admin/children/{childId}/reset` accepts only
 `{"expectedPolicyRevision": <current revision>}`. It requires the same signed
-parent role, administrator UID, OS authorization, and bearer credential as other
+parent role and current `com.kidsquota.manage` OS authorization as other
 configuration changes. Read tokens, browser/native collectors, and all HTTP callers
 cannot invoke it.
 
 The service settles observed elapsed time, atomically resets only that child's
 current-period counters, increments the policy revision, and records the actor UID,
-time, child, period, and previous usage in its private audit table. It preserves
+time, child, period, and previous usage in its private audit table. The actor UID is
+the kernel-authenticated requesting login, which may be the child's login; it does
+not identify the administrator who authenticated in the macOS prompt. It preserves
 weekly limits, the next scheduled reset, other children, and prior periods. Live
 tracking resumes from the reset instant. The response contains `policyRevision`
 and `balances` (a BalanceSnapshot). Stale/repeated revisions return `409`.
