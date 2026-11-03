@@ -24,8 +24,11 @@ setup, and Safari's permission-reset limitation.
 
 v0.1.4 packaging reads the assigned Chrome Web Store ID from
 `extensions/chrome-store.json` and registers it alongside the local extension
-ID. The store item is a draft until Google approves and it is published; the
-companion download is still being prepared. See [Chrome installation status](chrome-install.md)
+ID. The companion is available in the
+[v0.1.4 prerelease](https://github.com/unixist/kids-quota/releases/tag/v0.1.4).
+The store item was submitted November 2, 2026 and is pending review, with
+automatic unlisted publication selected after approval. It is not approved or
+available to install yet. See [Chrome installation status](chrome-install.md)
 before directing supervised profiles to the store link.
 
 Local code uses ad-hoc hardened-runtime signatures and exact build hashes rather

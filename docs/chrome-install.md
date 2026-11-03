@@ -4,15 +4,18 @@ Kids Quota needs two components: the Mac companion installer and the Chrome
 extension. The Mac service owns the allowances; the extension identifies the
 active website and displays the time-limit page.
 
-**Store release status: draft, not approved or published.** Google assigned
-Kids Quota the extension ID `kcdaoppmbobecgoajneamoimiohmkipj`. Its
+**Store release status: submitted November 2, 2026; pending review.** The
+submission is unlisted, with automatic publication selected after approval.
+It is not approved or available to install yet. Google assigned Kids Quota the
+extension ID `kcdaoppmbobecgoajneamoimiohmkipj`. Its
 [store link](https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj)
 will be usable after approval and publication. A link may show unavailable while
-the submission is a draft or under review.
+the submission is under review.
 
-The compatible companion installer is **KidsQuota-0.1.4-Local.dmg**, currently
-being prepared for the [v0.1.4 release](https://github.com/unixist/kids-quota/releases/tag/v0.1.4).
-It is not yet available to download. The v0.1.3 DMG supports the local unpacked
+The compatible companion installer is available as
+[KidsQuota-0.1.4-Local.dmg](https://github.com/unixist/kids-quota/releases/download/v0.1.4/KidsQuota-0.1.4-Local.dmg)
+in the [v0.1.4 prerelease](https://github.com/unixist/kids-quota/releases/tag/v0.1.4).
+The v0.1.3 DMG supports the local unpacked
 extension only; upgrade to v0.1.4 before using the store extension.
 
 ## Supervised Google accounts
@@ -21,7 +24,8 @@ Google blocks **Developer mode** and **Load unpacked** for supervised child
 profiles. An administrator password for the Mac does not enable those Chrome
 features. These profiles need the Chrome Web Store distribution.
 
-When the store release and compatible companion installer are available:
+The companion can be installed now. Complete the browser installation after the
+store release is approved and published:
 
 1. Install **KidsQuota-0.1.4-Local.dmg** on the Mac. Run **Install Kids Quota.pkg**
    and authorize it with the parent's Mac administrator credentials. Upgrading

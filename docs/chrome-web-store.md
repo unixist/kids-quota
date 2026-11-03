@@ -3,11 +3,15 @@
 This file contains release notes for the publisher, ready-to-paste listing text,
 permission explanations, and reviewer instructions.
 
-**Current status: draft created; not approved or published.** Google assigned
+**Current status: submitted November 2, 2026; pending review.** The dashboard
+confirmed that the item was submitted for compliance review. Unlisted
+distribution and automatic publication after approval are selected. It is not
+approved or available to install yet. Google assigned
 the store ID `kcdaoppmbobecgoajneamoimiohmkipj`. The
 [store URL](https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj)
 will become usable after approval and publication. The compatible v0.1.4
-companion DMG is being prepared; its download is not yet available.
+companion DMG is available in the
+[v0.1.4 prerelease](https://github.com/unixist/kids-quota/releases/tag/v0.1.4).
 
 ## Prepared artifacts
 
@@ -42,11 +46,12 @@ installer and test it with the store build before submitting for review. Do not
 point reviewers or families to the old DMG as though it already supports the
 new ID.
 
-The planned companion release is
+The published companion prerelease is
 `https://github.com/unixist/kids-quota/releases/tag/v0.1.4`, with direct asset URL
 `https://github.com/unixist/kids-quota/releases/download/v0.1.4/KidsQuota-0.1.4-Local.dmg`.
-These are release targets, not a claim that the upload is complete. Verify the
-uploaded asset and checksum before submitting the reviewer instructions below.
+The DMG and checksum file are uploaded. The DMG is 3,738,323 bytes with SHA-256
+`625462869970a8091f6499bc2aa6a835e78da17a5aaa3fdc45ed94380fe66812`.
+Upload verification does not establish supervised-profile runtime behavior.
 
 Publish [the privacy policy](privacy-policy.md) to the public repository before
 using its URL in the dashboard. The expected public URL is
@@ -79,6 +84,8 @@ does not bypass Family Link or an organization's policy.
 | Store ID | `kcdaoppmbobecgoajneamoimiohmkipj` |
 | Store URL, usable after approval/publication | `https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj` |
 | Visibility | Unlisted |
+| Review status | Submitted November 2, 2026; pending review |
+| Publication | Automatic after approval |
 | Mature content | No |
 | Remote code | No |
 
@@ -186,10 +193,9 @@ and old aggregate periods remain in the database.
 
 ## Reviewer test instructions
 
-The instructions below reference the exact planned v0.1.4 asset. Before pasting
-them into a submitted review, verify that the asset is uploaded and the native
-host allows `chrome-extension://kcdaoppmbobecgoajneamoimiohmkipj/`. Do not submit
-with a missing asset or substitute v0.1.3.
+The instructions below reference the uploaded v0.1.4 companion asset. Its native
+host authorizes `chrome-extension://kcdaoppmbobecgoajneamoimiohmkipj/`. Do not
+substitute v0.1.3, which does not authorize that store ID.
 No Kids Quota cloud account, subscription, Google login, or test credentials are
 required to test the allowance features. Website accounts are unnecessary for
 the custom-domain test below.

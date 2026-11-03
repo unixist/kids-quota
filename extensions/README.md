@@ -13,13 +13,16 @@ can consume time, but native apps retain network access after exhaustion.
 
 ### Chrome Web Store
 
-The store item is currently a **draft, not approved or published**. Its assigned
+The store item was **submitted November 2, 2026 and is pending review**.
+Automatic unlisted publication is selected after approval. It is not approved
+or available to install yet. Its assigned
 ID is `kcdaoppmbobecgoajneamoimiohmkipj`, recorded in
 [chrome-store.json](chrome-store.json). The
 [store listing](https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj)
-becomes usable after approval and publication. The v0.1.4 companion installer
-registers that ID in addition to the local ID; its download is still being
-prepared. v0.1.3 only allows the local extension ID.
+becomes usable after approval and publication. The
+[v0.1.4 companion prerelease](https://github.com/unixist/kids-quota/releases/tag/v0.1.4)
+is available and registers that ID in addition to the local ID. v0.1.3 only
+allows the local extension ID.
 
 Supervised Google child profiles cannot use Developer mode or Load unpacked.
 Install the published store extension with the compatible companion and any

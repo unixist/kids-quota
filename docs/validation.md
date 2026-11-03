@@ -71,11 +71,16 @@ checking in an installed child's account remains part of acceptance below.
 
 ## v0.1.4 Chrome Web Store preparation
 
-The store upload has a draft item with assigned ID
-`kcdaoppmbobecgoajneamoimiohmkipj`. This is not approval, publication, or a
-supervised-profile runtime test. The companion installer is being prepared to
-authorize that exact ID alongside the existing unpacked extension ID. The
-v0.1.4 DMG has not yet been published at this documentation checkpoint.
+The store item `kcdaoppmbobecgoajneamoimiohmkipj` was submitted November 2, 2026.
+The dashboard confirmed **Pending Review** and compliance review in progress.
+Unlisted distribution and automatic publication after approval are selected.
+Submission is not approval, publication, or a supervised-profile runtime test.
+The companion installer authorizes that exact
+ID alongside the existing unpacked extension ID. The
+[v0.1.4 prerelease](https://github.com/unixist/kids-quota/releases/tag/v0.1.4)
+contains the uploaded DMG and checksum file. GitHub reports 3,738,323 bytes and
+SHA-256 `625462869970a8091f6499bc2aa6a835e78da17a5aaa3fdc45ed94380fe66812`
+for the DMG.
 
 The store package removes the local manifest key, includes icons, omits the
 redundant Chrome `tabs` permission, and includes a local-data disclosure and

@@ -3,13 +3,14 @@
 Weekly website and Mac app allowances shared across Chrome, Safari, and selected
 apps, with independent balances for children using separate macOS login accounts.
 
-**Status: v0.1.4 companion preparation; Chrome Web Store draft not approved.**
-`dist/KidsQuota-0.1.4-Local.dmg` is the upcoming installer for the app, root service, login agent,
+**Status: v0.1.4 companion prerelease available; Chrome Web Store submitted, pending review.**
+`dist/KidsQuota-0.1.4-Local.dmg` installs the app, root service, login agent,
 browser adapters, and an **inactive** Network Extension for Apple Silicon and
 Intel Macs running macOS 14 or later. It needs no Apple developer membership.
 Website blocking requires manual browser setup; standalone-app network blocking
 is disabled. Safari's unsigned-extension permission resets whenever Safari quits.
-The v0.1.4 download is being prepared and is not yet available. See
+Download the [v0.1.4 companion DMG](https://github.com/unixist/kids-quota/releases/download/v0.1.4/KidsQuota-0.1.4-Local.dmg).
+Its release remains a prerelease. See
 [local installation](docs/local-install.md) for the exact steps and limits.
 
 **Supervised Chrome accounts:** Google blocks Developer mode and unpacked
@@ -17,7 +18,8 @@ extensions for Family Link child profiles. These profiles need the store
 extension and the v0.1.4 companion installer, which recognizes its store ID
 `kcdaoppmbobecgoajneamoimiohmkipj`. The
 [store link](https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj)
-will work after Google approval and publication. The v0.1.3 DMG supports only the
+will work after Google approval; automatic publication is selected. The
+extension is not approved or available yet. The v0.1.3 DMG supports only the
 unpacked extension. See [Chrome installation and release status](docs/chrome-install.md).
 
 ## How the pieces fit together
@@ -104,12 +106,12 @@ included websites and apps → Choose app** to include the installed app.
 
 ## Install and set up
 
-Once the [v0.1.4 companion release](https://github.com/unixist/kids-quota/releases/tag/v0.1.4)
-is available, copy **KidsQuota-0.1.4-Local.dmg** to the new Mac. It installs all Mac
+Download the [v0.1.4 companion release](https://github.com/unixist/kids-quota/releases/tag/v0.1.4)
+and copy **KidsQuota-0.1.4-Local.dmg** to the new Mac. It installs all Mac
 components; Chrome's store extension is installed separately in the browser.
 The destination does not need Xcode, Node, Python, the source repository, or an
-Apple developer account. The steps below describe that release; its download
-and Google approval are still pending.
+Apple developer account. The companion is available now; the store extension
+still needs Google approval and publication before supervised profiles can use it.
 
 1. While signed into the child's Mac account, mount the DMG and open
    **Install Kids Quota.pkg**. Enter the parent's administrator username and

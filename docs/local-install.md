@@ -1,11 +1,12 @@
 # Install the local release
 
-**Release status:** the v0.1.4 companion DMG is being prepared and is not yet
-available to download. The Chrome Web Store item is a **draft, not approved or
-published**. These instructions describe the upcoming compatible release; check
+**Release status:** the v0.1.4 companion DMG is available as a prerelease.
+The Chrome Web Store item was **submitted November 2, 2026 and is pending review**.
+It will publish automatically as an unlisted item after approval; it is not yet
+approved or available to install. Check
 [Chrome release status](chrome-install.md) before setting up supervised accounts.
 
-Once available, copy **KidsQuota-0.1.4-Local.dmg** from the
+Copy **KidsQuota-0.1.4-Local.dmg** from the
 [v0.1.4 release](https://github.com/unixist/kids-quota/releases/tag/v0.1.4) to the
 destination Mac. This is a real installer, not the earlier instructions-only
 `PREVIEW.dmg`. It contains all Mac components; install Chrome's store extension
@@ -74,7 +75,7 @@ needed. If the service cannot be reached, balances are hidden until it reconnect
 
 The v0.1.4 installer recognizes the store extension ID
 `kcdaoppmbobecgoajneamoimiohmkipj` alongside the existing local extension ID.
-After Google approves and publishes the draft, use the
+After Google approves and automatically publishes the submission, use the
 [Kids Quota Chrome Web Store listing](https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj)
 in the child's existing Chrome profile. In Family Link, permit extensions under
 **Controls → Google Chrome and Web → Advanced settings → Extensions**, and
