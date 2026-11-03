@@ -3,7 +3,9 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 VERSION="${VERSION:-0.1.4}"
-CHROME_STORE_EXTENSION_ID="${CHROME_STORE_EXTENSION_ID:-}"
+if [[ -z "${CHROME_STORE_EXTENSION_ID+x}" && -f "$REPO_ROOT/extensions/chrome-store.json" ]]; then
+  CHROME_STORE_EXTENSION_ID="$(/usr/bin/plutil -extract extensionId raw -o - "$REPO_ROOT/extensions/chrome-store.json")"
+else CHROME_STORE_EXTENSION_ID="${CHROME_STORE_EXTENSION_ID:-}"; fi
 [[ -z "$CHROME_STORE_EXTENSION_ID" || "$CHROME_STORE_EXTENSION_ID" =~ ^[a-p]{32}$ ]] || { echo 'Invalid Chrome Web Store extension ID.' >&2; exit 2; }
 MODE=signed; NOTARIZE=0
 PACKAGE=''

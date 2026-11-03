@@ -169,10 +169,13 @@ esac
         self.assertTrue((app / "new").exists())
         self.assertFalse((app / "obsolete").exists())
 
-    def disk_image(self, arguments, package_team="TESTTEAM00", store_id=""):
+    def disk_image(self, arguments, package_team="TESTTEAM00", store_id="", stored_id=None):
         repo = self.work / "repo"
         (repo / "scripts").mkdir(parents=True)
         (repo / "dist").mkdir()
+        if stored_id is not None:
+            (repo / "extensions").mkdir()
+            (repo / "extensions/chrome-store.json").write_text(json.dumps({"extensionId": stored_id}))
         (repo / "dist/KidsQuota-0.1.4.pkg").write_text("non-runnable package fixture")
         (repo / "dist/KidsQuota-0.1.4-Local.pkg").write_text("non-runnable local package fixture")
         capture = self.work / "image-contents"
@@ -192,7 +195,11 @@ fi
         for original, substitute in [("/usr/sbin/pkgutil", pkgutil), ("/usr/bin/codesign", codesign), ("/usr/bin/xcrun", xcrun), ("/usr/bin/hdiutil", hdiutil)]:
             source = source.replace(original, shlex.quote(str(substitute)))
         script = executable(repo / "scripts/create-dmg.sh", source)
-        env = dict(os.environ, VERSION="0.1.4", CHROME_STORE_EXTENSION_ID=store_id, TEAM_ID="TESTTEAM00", SIGN_IDENTITY="Developer ID Application: Test Fixture (TESTTEAM00)", NOTARY_PROFILE="fixture-not-used", PACKAGE_TEAM=package_team, CAPTURE=str(capture), RELEASE_LOG=str(log))
+        env = dict(os.environ, VERSION="0.1.4", TEAM_ID="TESTTEAM00", SIGN_IDENTITY="Developer ID Application: Test Fixture (TESTTEAM00)", NOTARY_PROFILE="fixture-not-used", PACKAGE_TEAM=package_team, CAPTURE=str(capture), RELEASE_LOG=str(log))
+        if store_id is None:
+            env.pop("CHROME_STORE_EXTENSION_ID", None)
+        else:
+            env["CHROME_STORE_EXTENSION_ID"] = store_id
         result = subprocess.run(["/bin/bash", str(script)] + arguments, capture_output=True, text=True, env=env)
         return result, capture, log
 
@@ -257,6 +264,12 @@ fi
         self.assertEqual(result.returncode, 2)
         self.assertIn("Invalid Chrome Web Store extension ID", result.stderr)
         self.assertFalse(contents.exists())
+
+    def test_local_image_defaults_to_persisted_store_id(self):
+        store_id = json.loads((ROOT / "extensions/chrome-store.json").read_text())["extensionId"]
+        result, contents, _ = self.disk_image(["--local"], store_id=None, stored_id=store_id)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("https://chromewebstore.google.com/detail/" + store_id, (contents / "Start here.txt").read_text())
 
     def test_local_image_rejects_notarization_and_conflicting_modes(self):
         result, contents, _ = self.disk_image(["--local", "--notarize"])

@@ -3,7 +3,7 @@
 Validated locally on Apple Silicon with Xcode 27.1. No protection was installed
 or activated on the development Mac; no real child accounts were linked.
 
-## Automated checks
+## v0.1.3 automated baseline
 
 | Suite | Result | Coverage |
 | --- | --- | --- |
@@ -69,6 +69,29 @@ The child-status tests decode real controller replies through the UI model and
 verify that polling balances does not renew an activity heartbeat. Interactive
 checking in an installed child's account remains part of acceptance below.
 
+## v0.1.4 Chrome Web Store preparation
+
+The store upload has a draft item with assigned ID
+`kcdaoppmbobecgoajneamoimiohmkipj`. This is not approval, publication, or a
+supervised-profile runtime test. The companion installer is being prepared to
+authorize that exact ID alongside the existing unpacked extension ID. The
+v0.1.4 DMG has not yet been published at this documentation checkpoint.
+
+The store package removes the local manifest key, includes icons, omits the
+redundant Chrome `tabs` permission, and includes a local-data disclosure and
+privacy-policy link. The listing screenshot renders the production popup with
+explicitly labeled example balances; it does not show actual child usage or
+prove native connectivity. Record current v0.1.4 test and package-inspection
+results separately from the v0.1.3 baseline above.
+
+Before relying on the store distribution, verify an upgrade and a fresh install
+on a test Mac, inspect native-host registration for the exact store ID, and
+exercise the published extension in an existing supervised Chrome profile.
+Confirm Family Link installation approval, foreground timing, exhaustion,
+already-open pages, reset, browser restart, and independent Mac-login balances.
+The [reviewer procedure](chrome-web-store.md#reviewer-test-instructions) uses
+`example.com` so website credentials are not required.
+
 ## Local runtime acceptance still required
 
 The package has not been installed on a fresh second Mac in this task. On that Mac:
@@ -83,8 +106,11 @@ The package has not been installed on a fresh second Mac in this task. On that M
    controls. Test Touch ID if macOS offers it; cross-account Touch ID is not
    guaranteed. A child who can authenticate as an administrator, including using
    Touch ID if macOS accepts it, can unlock settings with the current rule.
-2. Load the Chrome package in each child profile and verify new and already-open
-   limited pages block. Test login, sleep, wake, and browser restart.
+2. For supervised Google profiles, install the store extension after its
+   approval and publication, using v0.1.4 or a later compatible companion.
+   For unmanaged profiles, separately test the unpacked option. Run only one
+   Kids Quota extension per profile. Verify new and already-open limited pages
+   block. Test login, sleep, wake, and browser restart.
 3. Check Safari discovery, website permissions, and native messaging with
    **Allow unsigned extensions** enabled. Confirm Safari loses that permission on
    quit; this limitation is expected and displayed in setup instructions.

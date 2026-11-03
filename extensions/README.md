@@ -11,12 +11,24 @@ silently enable extensions. Complete these steps in **each child's macOS login**
 The Network Extension is included but inactive in this build; native app usage
 can consume time, but native apps retain network access after exhaustion.
 
-### Chrome
+### Chrome Web Store
 
-Supervised Google child profiles cannot use this unpacked installation method.
-They need a Chrome Web Store build and an updated native-host installer that
-allows its store ID. The v0.1.3 DMG only allows the local extension ID. See
-[store packaging and submission](../docs/chrome-web-store.md).
+The store item is currently a **draft, not approved or published**. Its assigned
+ID is `kcdaoppmbobecgoajneamoimiohmkipj`, recorded in
+[chrome-store.json](chrome-store.json). The
+[store listing](https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj)
+becomes usable after approval and publication. The v0.1.4 companion installer
+registers that ID in addition to the local ID; its download is still being
+prepared. v0.1.3 only allows the local extension ID.
+
+Supervised Google child profiles cannot use Developer mode or Load unpacked.
+Install the published store extension with the compatible companion and any
+Family Link approval required. See [Chrome installation](../docs/chrome-install.md)
+and [store packaging and submission](../docs/chrome-web-store.md).
+
+### Chrome development installation
+
+For unmanaged profiles that permit Developer mode:
 
 1. Open `chrome://extensions` and enable **Developer mode**.
 2. Choose **Load unpacked**.
@@ -29,8 +41,9 @@ key in [chrome-public-key.json](chrome-public-key.json) gives this local build a
 stable extension ID on every Mac and installation path. The builder writes that
 ID to `extensions/build/chrome-extension-id.txt`; the local installer registers
 the native host for that exact ID. This file contains only a public key, not a
-private signing key. A future Chrome Web Store release must use the store's real
-key/ID and keep the host registration consistent.
+private signing key. Store packaging omits that local manifest key and uses the
+separately assigned store identity. The installer permits both exact IDs; run
+only one of these extension distributions within a single Chrome profile.
 
 ### Safari
 

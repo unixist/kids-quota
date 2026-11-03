@@ -22,8 +22,11 @@ else
 fi
 CHROME_EXTENSION_ID="${CHROME_EXTENSION_ID:-}"
 [[ -z "$CHROME_EXTENSION_ID" || "$CHROME_EXTENSION_ID" =~ ^[a-p]{32}$ ]] || { echo 'Invalid Chrome extension ID.' >&2; exit 2; }
-CHROME_STORE_EXTENSION_ID="${CHROME_STORE_EXTENSION_ID:-}"
+if [[ -z "${CHROME_STORE_EXTENSION_ID+x}" && -f "$REPO_ROOT/extensions/chrome-store.json" ]]; then
+  CHROME_STORE_EXTENSION_ID="$(/usr/bin/plutil -extract extensionId raw -o - "$REPO_ROOT/extensions/chrome-store.json")"
+else CHROME_STORE_EXTENSION_ID="${CHROME_STORE_EXTENSION_ID:-}"; fi
 [[ -z "$CHROME_STORE_EXTENSION_ID" || "$CHROME_STORE_EXTENSION_ID" =~ ^[a-p]{32}$ ]] || { echo 'Invalid Chrome Web Store extension ID.' >&2; exit 2; }
+export CHROME_STORE_EXTENSION_ID
 VERSION="${VERSION:-0.1.4}"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Version must be major.minor.patch.' >&2; exit 2; }
 INSTALL_ARGS=(--artifacts "$REPO_ROOT/dist/$MODE")

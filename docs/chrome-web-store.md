@@ -1,8 +1,13 @@
 # Chrome Web Store submission
 
 This file contains release notes for the publisher, ready-to-paste listing text,
-permission explanations, and reviewer instructions. It does not mean the
-extension has been submitted, approved, or published.
+permission explanations, and reviewer instructions.
+
+**Current status: draft created; not approved or published.** Google assigned
+the store ID `kcdaoppmbobecgoajneamoimiohmkipj`. The
+[store URL](https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj)
+will become usable after approval and publication. The compatible v0.1.4
+companion DMG is being prepared; its download is not yet available.
 
 ## Prepared artifacts
 
@@ -17,22 +22,31 @@ balances. Serve that directory on localhost and capture it at 1280 × 800.
 The prepared screenshot is
 `dist/chrome-store-artwork/remaining-time-1280x800.jpg`.
 
-After obtaining the real store ID, build the updated companion and package with
-`CHROME_STORE_EXTENSION_ID=<store-id> VERSION=0.1.4 scripts/package.sh --local`.
+The real store ID is recorded in `extensions/chrome-store.json`. After building
+the updated companion, package it with
+`VERSION=0.1.4 scripts/package.sh --local`; the script reads that ID by default.
+An explicit equivalent is
+`CHROME_STORE_EXTENSION_ID=kcdaoppmbobecgoajneamoimiohmkipj VERSION=0.1.4 scripts/package.sh --local`.
 The installer accepts the exact local and store IDs together; existing local
 extension installations continue to work. Do not run both extensions in one
-Chrome profile. The app version and its setup links must be updated before
-making that companion release.
+Chrome profile. The v0.1.4 app's setup links direct families to the store
+installation guide, which distinguishes pending approval from availability.
 
 ## Release prerequisites
 
 The Chrome Web Store assigns its own extension ID. The native messaging host
 installed by Kids Quota must explicitly allow that ID. **The published v0.1.3
 local DMG registers the unpacked extension's ID and is not the store companion
-installer.** After uploading the extension, obtain the store ID, produce and
-publish an installer that recognizes it, and test that installer with the store
-build before submitting for review. Do not point reviewers or families to the
-old DMG as though it already supports the new ID.
+installer.** The v0.1.4 companion authorizes the assigned store ID. Publish that
+installer and test it with the store build before submitting for review. Do not
+point reviewers or families to the old DMG as though it already supports the
+new ID.
+
+The planned companion release is
+`https://github.com/unixist/kids-quota/releases/tag/v0.1.4`, with direct asset URL
+`https://github.com/unixist/kids-quota/releases/download/v0.1.4/KidsQuota-0.1.4-Local.dmg`.
+These are release targets, not a claim that the upload is complete. Verify the
+uploaded asset and checksum before submitting the reviewer instructions below.
 
 Publish [the privacy policy](privacy-policy.md) to the public repository before
 using its URL in the dashboard. The expected public URL is
@@ -62,6 +76,8 @@ does not bypass Family Link or an organization's policy.
 | Homepage | `https://github.com/unixist/kids-quota` |
 | Support | `https://github.com/unixist/kids-quota/issues` |
 | Privacy policy | `https://github.com/unixist/kids-quota/blob/main/docs/privacy-policy.md` |
+| Store ID | `kcdaoppmbobecgoajneamoimiohmkipj` |
+| Store URL, usable after approval/publication | `https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj` |
 | Visibility | Unlisted |
 | Mature content | No |
 | Remote code | No |
@@ -170,15 +186,16 @@ and old aggregate periods remain in the database.
 
 ## Reviewer test instructions
 
-Before pasting these instructions into the dashboard, replace the release
-dependency paragraph with the exact verified download URL for the companion DMG
-that recognizes this store extension ID. Do not submit a placeholder or v0.1.3.
+The instructions below reference the exact planned v0.1.4 asset. Before pasting
+them into a submitted review, verify that the asset is uploaded and the native
+host allows `chrome-extension://kcdaoppmbobecgoajneamoimiohmkipj/`. Do not submit
+with a missing asset or substitute v0.1.3.
 No Kids Quota cloud account, subscription, Google login, or test credentials are
 required to test the allowance features. Website accounts are unnecessary for
 the custom-domain test below.
 
 1. Use macOS 14 or later on Apple Silicon or Intel. Download the store-compatible
-   Kids Quota companion DMG from the release URL supplied with the submission.
+   [KidsQuota-0.1.4-Local.dmg](https://github.com/unixist/kids-quota/releases/download/v0.1.4/KidsQuota-0.1.4-Local.dmg).
    Mount it and run **Install Kids Quota.pkg**. Enter credentials for an
    administrator on the test Mac when macOS Installer requests them. This local
    build is unnotarized; macOS may require approval in **System Settings →

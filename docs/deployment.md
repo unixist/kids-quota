@@ -16,11 +16,17 @@ scripts/package.sh --local
 ```
 
 This builds universal Apple Silicon/Intel artifacts and creates the real
-`dist/KidsQuota-0.1.3-Local.pkg` and `dist/KidsQuota-0.1.3-Local.dmg`. Only the DMG
+`dist/KidsQuota-0.1.4-Local.pkg` and `dist/KidsQuota-0.1.4-Local.dmg`. Only the DMG
 needs to be copied to the new Mac. It contains **Install Kids Quota.pkg** and
 **Start here.txt**. The package needs no development tools on the destination.
 See [local installation](local-install.md) for Gatekeeper approval, child browser
 setup, and Safari's permission-reset limitation.
+
+v0.1.4 packaging reads the assigned Chrome Web Store ID from
+`extensions/chrome-store.json` and registers it alongside the local extension
+ID. The store item is a draft until Google approves and it is published; the
+companion download is still being prepared. See [Chrome installation status](chrome-install.md)
+before directing supervised profiles to the store link.
 
 Local code uses ad-hoc hardened-runtime signatures and exact build hashes rather
 than an Apple Team ID. The root installer pins the service, agent, Chrome host,
@@ -178,7 +184,7 @@ export TEAM_ID SIGN_IDENTITY INSTALLER_IDENTITY CHROME_EXTENSION_ID
 scripts/package.sh
 ```
 
-This creates `dist/KidsQuota-0.1.3.pkg` and a signed `dist/KidsQuota-0.1.3.dmg`.
+This creates `dist/KidsQuota-0.1.4.pkg` and a signed `dist/KidsQuota-0.1.4.dmg`.
 The DMG contains the package named **Install Kids Quota.pkg** and **Start here.txt**.
 Set `CHROME_INSTALL_URL` to your actual HTTPS extension installation link to add it
 to the instructions. Set `VERSION=major.minor.patch` for another release.
@@ -212,7 +218,7 @@ release; signing alone is not approval or proof of enforcement. See Apple's
 [notarization guidance](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution).
 
 Without signing credentials, `scripts/create-dmg.sh --preview` makes
-`dist/KidsQuota-0.1.3-PREVIEW.dmg` containing instructions only. It cannot install
+`dist/KidsQuota-0.1.4-PREVIEW.dmg` containing instructions only. It cannot install
 or enable protection. Packaging unit tests use temporary fixtures and mock signing,
 launchd, and disk-image utilities:
 

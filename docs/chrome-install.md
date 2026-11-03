@@ -4,10 +4,16 @@ Kids Quota needs two components: the Mac companion installer and the Chrome
 extension. The Mac service owns the allowances; the extension identifies the
 active website and displays the time-limit page.
 
-**Store release status:** the Chrome Web Store submission is being prepared.
-There is no published store installation link yet. The v0.1.3 DMG supports the
-local unpacked extension only. Do not expect that installer to connect to a
-future store extension without updating it.
+**Store release status: draft, not approved or published.** Google assigned
+Kids Quota the extension ID `kcdaoppmbobecgoajneamoimiohmkipj`. Its
+[store link](https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj)
+will be usable after approval and publication. A link may show unavailable while
+the submission is a draft or under review.
+
+The compatible companion installer is **KidsQuota-0.1.4-Local.dmg**, currently
+being prepared for the [v0.1.4 release](https://github.com/unixist/kids-quota/releases/tag/v0.1.4).
+It is not yet available to download. The v0.1.3 DMG supports the local unpacked
+extension only; upgrade to v0.1.4 before using the store extension.
 
 ## Supervised Google accounts
 
@@ -17,14 +23,15 @@ features. These profiles need the Chrome Web Store distribution.
 
 When the store release and compatible companion installer are available:
 
-1. Install the compatible Kids Quota DMG on the Mac. Run **Install Kids Quota.pkg**
+1. Install **KidsQuota-0.1.4-Local.dmg** on the Mac. Run **Install Kids Quota.pkg**
    and authorize it with the parent's Mac administrator credentials. Upgrading
    preserves existing allowances and usage.
 2. Open Kids Quota, unlock parent settings, and choose the Mac login to track if
    it is not already configured. Standard and administrator logins both work.
 3. In Family Link, select the child and open **Controls → Google Chrome and Web →
    Advanced settings → Extensions**. Permit Web Store extension installation.
-4. Open the Kids Quota store listing in that child's existing Chrome profile.
+4. Open the [Kids Quota store listing](https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj)
+   in that child's existing Chrome profile once it is published.
    Add the extension and complete Google's parental approval flow if prompted.
    Allow the requested website access so custom domains work.
 5. Disable or remove any older unpacked Kids Quota extension from that same

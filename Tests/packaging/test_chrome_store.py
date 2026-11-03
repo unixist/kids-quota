@@ -69,11 +69,14 @@ class ChromeStoreInstallerTests(unittest.TestCase):
         self.assertIn("32 letters a-p", result.stderr)
         self.assertNotIn("Missing local release", result.stderr)
 
-    def package_fixture(self, store_id):
+    def package_fixture(self, store_id, stored_id=None):
         repo = self.work / "repo"
         (repo / "scripts").mkdir(parents=True)
         (repo / "dist/local").mkdir(parents=True)
         (repo / "dist/local/local-release.json").write_text('{"fixture":true}')
+        if stored_id is not None:
+            (repo / "extensions").mkdir()
+            (repo / "extensions/chrome-store.json").write_text(json.dumps({"extensionId": stored_id}))
         executable(repo / "scripts/install.sh", '#!/bin/bash\nprintf "%s\\n" "$@" > "$ARG_LOG"\n')
         executable(repo / "scripts/create-local-trust.sh", '#!/bin/bash\nexit 0\n')
         capture = self.work / "captured"
@@ -86,7 +89,11 @@ printf fixture > "$output"
         source = (ROOT / "scripts/package.sh").read_text().replace("/usr/bin/pkgbuild", shlex.quote(str(pkgbuild)))
         script = executable(repo / "scripts/package.sh", source)
         env = dict(os.environ, VERSION="0.1.4", CHROME_EXTENSION_ID="a" * 32,
-                   CHROME_STORE_EXTENSION_ID=store_id, CAPTURE=str(capture), ARG_LOG=str(self.work / "check.log"))
+                   CAPTURE=str(capture), ARG_LOG=str(self.work / "check.log"))
+        if store_id is None:
+            env.pop("CHROME_STORE_EXTENSION_ID", None)
+        else:
+            env["CHROME_STORE_EXTENSION_ID"] = store_id
         result = subprocess.run([str(script), "--local", "--pkg-only"], env=env, capture_output=True, text=True)
         return result, capture, env
 
@@ -112,6 +119,25 @@ printf fixture > "$output"
         self.assertIn("Invalid Chrome Web Store extension ID", result.stderr)
         self.assertFalse(capture.exists())
         self.assertFalse(marker.exists())
+
+    def test_package_defaults_to_persisted_store_id(self):
+        store_id = json.loads((ROOT / "extensions/chrome-store.json").read_text())["extensionId"]
+        result, capture, _ = self.package_fixture(None, stored_id=store_id)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.work / "check.log").read_text().splitlines()[-2:], ["--chrome-store-extension-id", store_id])
+        self.assertIn(store_id, (capture / "postinstall").read_text())
+
+    def test_explicit_store_id_overrides_persisted_config(self):
+        result, capture, _ = self.package_fixture("c" * 32, stored_id="b" * 32)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.work / "check.log").read_text().splitlines()[-2:], ["--chrome-store-extension-id", "c" * 32])
+        self.assertNotIn("b" * 32, (capture / "postinstall").read_text())
+
+    def test_invalid_persisted_store_id_is_rejected(self):
+        result, capture, _ = self.package_fixture(None, stored_id="*")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("Invalid Chrome Web Store extension ID", result.stderr)
+        self.assertFalse(capture.exists())
 
 
 if __name__ == "__main__":

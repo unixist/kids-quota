@@ -1,8 +1,15 @@
 # Install the local release
 
-Copy **KidsQuota-0.1.3-Local.dmg** to the destination Mac. This is a real installer,
-not the earlier instructions-only `PREVIEW.dmg`. The package contains everything
-needed to install Kids Quota; the new Mac does not need the repository, Xcode,
+**Release status:** the v0.1.4 companion DMG is being prepared and is not yet
+available to download. The Chrome Web Store item is a **draft, not approved or
+published**. These instructions describe the upcoming compatible release; check
+[Chrome release status](chrome-install.md) before setting up supervised accounts.
+
+Once available, copy **KidsQuota-0.1.4-Local.dmg** from the
+[v0.1.4 release](https://github.com/unixist/kids-quota/releases/tag/v0.1.4) to the
+destination Mac. This is a real installer, not the earlier instructions-only
+`PREVIEW.dmg`. It contains all Mac components; install Chrome's store extension
+separately in the browser. The new Mac does not need the repository, Xcode,
 Node.js, Python, or an Apple developer membership.
 
 Requires macOS 14 or later on Apple Silicon or Intel, an administrator account
@@ -65,12 +72,26 @@ needed. If the service cannot be reached, balances are hidden until it reconnect
 
 ## Chrome setup in each child's account
 
-These unpacked-extension steps require a Chrome profile that permits Developer
-mode. A supervised Google child account may show **"This setting isn't available
-for your account"**. That profile cannot install the v0.1.3 bundled extension.
+The v0.1.4 installer recognizes the store extension ID
+`kcdaoppmbobecgoajneamoimiohmkipj` alongside the existing local extension ID.
+After Google approves and publishes the draft, use the
+[Kids Quota Chrome Web Store listing](https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj)
+in the child's existing Chrome profile. In Family Link, permit extensions under
+**Controls → Google Chrome and Web → Advanced settings → Extensions**, and
+complete any parental approval prompt. Allow the requested website access.
+Use only one Kids Quota extension per Chrome profile. See the
+[full Chrome setup](chrome-install.md).
+
+The v0.1.3 DMG cannot connect to the store extension; upgrade the companion first.
+Installing a new DMG preserves existing allowances and usage. Quit and reopen
+Chrome after upgrading.
+
+### Optional unpacked setup for unmanaged Chrome profiles
+
+These steps require a Chrome profile that permits Developer mode. A supervised
+Google child account may show **"This setting isn't available for your account"**.
 Family Link's Extensions setting permits Web Store extensions; it does not permit
-unpacked loading. A store release needs a separate, compatible companion
-installer. See [store release requirements](chrome-web-store.md).
+unpacked loading. Do not use this procedure for a supervised profile.
 
 1. Sign into the child's macOS account and open Chrome.
 2. Visit `chrome://extensions` and enable **Developer mode**.
@@ -80,14 +101,15 @@ installer. See [store release requirements](chrome-web-store.md).
    /Library/Application Support/KidsQuota/BrowserExtensions/Chrome
    ```
 
-4. Select that folder. Allow the extension to access all websites so future
+4. Select that folder. Allow the extension to access all websites so configured
    custom services can work. Repeat for every Chrome profile the child uses.
 5. Open Chess.com or ChatGPT and check the Kids Quota popup. The parent dashboard
    should show usage changing while the website is foreground and the Mac unlocked.
 
-The installer registers the machine-wide native messaging host. The included
-public manifest key gives the unpacked extension the same ID on both computers;
-no extension-ID copying or terminal command is needed on the destination Mac.
+The installer registers the machine-wide native messaging host for the exact
+store and local IDs. The included public manifest key gives the unpacked
+extension the same local ID on both computers; no extension-ID copying or
+terminal command is needed on the destination Mac.
 The browser files are root-owned, but Chrome still lets a child disable/remove an
 unpacked extension. This local build does not implement managed forced installation.
 

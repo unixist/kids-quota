@@ -3,20 +3,22 @@
 Weekly website and Mac app allowances shared across Chrome, Safari, and selected
 apps, with independent balances for children using separate macOS login accounts.
 
-**Status: local development release with a real installer.**
-`dist/KidsQuota-0.1.3-Local.dmg` packages the app, root service, login agent,
+**Status: v0.1.4 companion preparation; Chrome Web Store draft not approved.**
+`dist/KidsQuota-0.1.4-Local.dmg` is the upcoming installer for the app, root service, login agent,
 browser adapters, and an **inactive** Network Extension for Apple Silicon and
 Intel Macs running macOS 14 or later. It needs no Apple developer membership.
 Website blocking requires manual browser setup; standalone-app network blocking
 is disabled. Safari's unsigned-extension permission resets whenever Safari quits.
-See [local installation](docs/local-install.md) for the exact steps and limits.
+The v0.1.4 download is being prepared and is not yet available. See
+[local installation](docs/local-install.md) for the exact steps and limits.
 
 **Supervised Chrome accounts:** Google blocks Developer mode and unpacked
-extensions for Family Link child profiles. The v0.1.3 Chrome setup below does
-not work in those profiles. They require a Chrome Web Store release and a
-companion installer that recognizes its store ID. Store packaging is now
-available in the source; see [publishing progress and requirements](docs/chrome-web-store.md).
-Preparing a package does not mean a store release is available.
+extensions for Family Link child profiles. These profiles need the store
+extension and the v0.1.4 companion installer, which recognizes its store ID
+`kcdaoppmbobecgoajneamoimiohmkipj`. The
+[store link](https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj)
+will work after Google approval and publication. The v0.1.3 DMG supports only the
+unpacked extension. See [Chrome installation and release status](docs/chrome-install.md).
 
 ## How the pieces fit together
 
@@ -102,9 +104,12 @@ included websites and apps → Choose app** to include the installed app.
 
 ## Install and set up
 
-For this membership-free build, copy **KidsQuota-0.1.3-Local.dmg** to the new Mac.
-It is the only file needed; the destination does not need Xcode, Node, Python,
-the source repository, or a developer account.
+Once the [v0.1.4 companion release](https://github.com/unixist/kids-quota/releases/tag/v0.1.4)
+is available, copy **KidsQuota-0.1.4-Local.dmg** to the new Mac. It installs all Mac
+components; Chrome's store extension is installed separately in the browser.
+The destination does not need Xcode, Node, Python, the source repository, or an
+Apple developer account. The steps below describe that release; its download
+and Google approval are still pending.
 
 1. While signed into the child's Mac account, mount the DMG and open
    **Install Kids Quota.pkg**. Enter the parent's administrator username and
@@ -116,9 +121,13 @@ the source repository, or a developer account.
 3. Select the child's existing local Mac login account (standard or administrator)
    and choose **Set up account**. Chess.com and ChatGPT are created automatically,
    each with six hours per week and a Monday reset. No token entry or terminal is needed.
-4. In each child's Chrome account, open `chrome://extensions`, enable Developer
-   mode, choose **Load unpacked**, and select
-   `/Library/Application Support/KidsQuota/BrowserExtensions/Chrome`.
+4. Once published, install the
+   [Kids Quota store extension](https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj)
+   in each child's existing Chrome profile. Permit extension installation in
+   Family Link if required and complete any parental approval prompt. Allow
+   website access, then quit and reopen Chrome after a companion upgrade.
+   [Chrome setup](docs/chrome-install.md) also describes the unpacked option for
+   unmanaged profiles; supervised profiles cannot use it.
 5. Safari is included for testing: enable **Allow unsigned extensions**, then
    enable Kids Quota and its website permissions. Safari clears the unsigned
    extension permission every time it quits. Native-app network filtering stays
