@@ -169,12 +169,12 @@ esac
         self.assertTrue((app / "new").exists())
         self.assertFalse((app / "obsolete").exists())
 
-    def disk_image(self, arguments, package_team="TESTTEAM00"):
+    def disk_image(self, arguments, package_team="TESTTEAM00", store_id=""):
         repo = self.work / "repo"
         (repo / "scripts").mkdir(parents=True)
         (repo / "dist").mkdir()
-        (repo / "dist/KidsQuota-0.1.3.pkg").write_text("non-runnable package fixture")
-        (repo / "dist/KidsQuota-0.1.3-Local.pkg").write_text("non-runnable local package fixture")
+        (repo / "dist/KidsQuota-0.1.4.pkg").write_text("non-runnable package fixture")
+        (repo / "dist/KidsQuota-0.1.4-Local.pkg").write_text("non-runnable local package fixture")
         capture = self.work / "image-contents"
         log = self.work / "release.log"
         pkgutil = executable(self.work / "pkgutil", '#!/bin/bash\nprintf "Developer ID Installer: Fixture (%s)\\n" "$PACKAGE_TEAM"\n')
@@ -192,7 +192,7 @@ fi
         for original, substitute in [("/usr/sbin/pkgutil", pkgutil), ("/usr/bin/codesign", codesign), ("/usr/bin/xcrun", xcrun), ("/usr/bin/hdiutil", hdiutil)]:
             source = source.replace(original, shlex.quote(str(substitute)))
         script = executable(repo / "scripts/create-dmg.sh", source)
-        env = dict(os.environ, TEAM_ID="TESTTEAM00", SIGN_IDENTITY="Developer ID Application: Test Fixture (TESTTEAM00)", NOTARY_PROFILE="fixture-not-used", PACKAGE_TEAM=package_team, CAPTURE=str(capture), RELEASE_LOG=str(log))
+        env = dict(os.environ, VERSION="0.1.4", CHROME_STORE_EXTENSION_ID=store_id, TEAM_ID="TESTTEAM00", SIGN_IDENTITY="Developer ID Application: Test Fixture (TESTTEAM00)", NOTARY_PROFILE="fixture-not-used", PACKAGE_TEAM=package_team, CAPTURE=str(capture), RELEASE_LOG=str(log))
         result = subprocess.run(["/bin/bash", str(script)] + arguments, capture_output=True, text=True, env=env)
         return result, capture, log
 
@@ -239,6 +239,24 @@ fi
         self.assertIn("Stay in the child's login", welcome)
         self.assertIn("parent's administrator username", welcome)
         self.assertNotIn("in the parent's administrator account", welcome)
+        self.assertIn("For an unmanaged Chrome profile", welcome)
+        self.assertIn("Supervised Google child profiles require the Chrome Web Store version", welcome)
+        self.assertIn("https://github.com/unixist/kids-quota/blob/main/docs/chrome-install.md", welcome)
+
+    def test_local_image_supplies_actual_store_url_when_store_id_is_configured(self):
+        result, contents, _ = self.disk_image(["--local"], store_id="b" * 32)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        welcome = (contents / "Start here.txt").read_text()
+        self.assertIn("https://chromewebstore.google.com/detail/" + "b" * 32, welcome)
+        self.assertIn("Supervised Google child profiles require", welcome)
+        self.assertIn("Do not enable the store and local versions together", welcome)
+        self.assertNotIn("choose “Load unpacked”", welcome)
+
+    def test_image_rejects_invalid_store_id_before_building(self):
+        result, contents, _ = self.disk_image(["--local"], store_id='b"; echo unsafe')
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("Invalid Chrome Web Store extension ID", result.stderr)
+        self.assertFalse(contents.exists())
 
     def test_local_image_rejects_notarization_and_conflicting_modes(self):
         result, contents, _ = self.disk_image(["--local", "--notarize"])
@@ -270,7 +288,7 @@ printf fixture > "$output"
         self.assertIn("--local", (self.work / "check.log").read_text())
         self.assertNotIn("--sign", (self.work / "package.log").read_text())
         self.assertIn("--auth root", (self.work / "package.log").read_text())
-        self.assertTrue((repo / "dist/KidsQuota-0.1.3-Local.pkg").exists())
+        self.assertTrue((repo / "dist/KidsQuota-0.1.4-Local.pkg").exists())
         self.assertTrue((captured / "create-local-trust.sh").exists())
         postinstall = (captured / "postinstall").read_text()
         self.assertIn("--local", postinstall)

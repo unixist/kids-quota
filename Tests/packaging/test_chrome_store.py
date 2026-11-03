@@ -85,7 +85,7 @@ printf fixture > "$output"
 ''')
         source = (ROOT / "scripts/package.sh").read_text().replace("/usr/bin/pkgbuild", shlex.quote(str(pkgbuild)))
         script = executable(repo / "scripts/package.sh", source)
-        env = dict(os.environ, VERSION="0.1.3", CHROME_EXTENSION_ID="a" * 32,
+        env = dict(os.environ, VERSION="0.1.4", CHROME_EXTENSION_ID="a" * 32,
                    CHROME_STORE_EXTENSION_ID=store_id, CAPTURE=str(capture), ARG_LOG=str(self.work / "check.log"))
         result = subprocess.run([str(script), "--local", "--pkg-only"], env=env, capture_output=True, text=True)
         return result, capture, env

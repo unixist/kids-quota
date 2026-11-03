@@ -11,6 +11,7 @@
 		0C2076C093BB20E4786190F5 /* ParentStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34C0C8CBA3370EC5CD0D9406 /* ParentStore.swift */; };
 		13C9689127140E0F76B308BA /* FilterPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C85D794878CFF5AAE3F8C22 /* FilterPolicy.swift */; };
 		19A75D99C86731A3F674B26E /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 996356B88C15A8A949E4F7F6 /* Models.swift */; };
+		1C4FF795DB3EBE5C94F4FED9 /* icons in Resources */ = {isa = PBXBuildFile; fileRef = 6E94AB309458AB2D4B8D2E57 /* icons */; };
 		1D64391A68A62DFE2F6644EA /* AccountDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = E91A0E3F4E3798DB46C7CB48 /* AccountDiscovery.swift */; };
 		22A7C0DAA40A2D9717BFB86D /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 996356B88C15A8A949E4F7F6 /* Models.swift */; };
 		2E9D69EA0FD194DCC0FBD1B4 /* FilterPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C85D794878CFF5AAE3F8C22 /* FilterPolicy.swift */; };
@@ -112,6 +113,7 @@
 		6A231BBECEC8FF80ECF74B49 /* blocked.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = blocked.js; sourceTree = "<group>"; };
 		6C85D794878CFF5AAE3F8C22 /* FilterPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterPolicy.swift; sourceTree = "<group>"; };
 		6DC96A4666268F04B0584523 /* blocked.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = blocked.html; sourceTree = "<group>"; };
+		6E94AB309458AB2D4B8D2E57 /* icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = icons; path = extensions/build/safari/icons; sourceTree = SOURCE_ROOT; };
 		78CFD972A8045BD26EB40966 /* OpenDirectory.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenDirectory.framework; path = System/Library/Frameworks/OpenDirectory.framework; sourceTree = SDKROOT; };
 		79726C89A0A8759010F74649 /* KidsQuotaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KidsQuotaApp.swift; sourceTree = "<group>"; };
 		868443CEC3154221C14E2B8B /* popup.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = popup.js; sourceTree = "<group>"; };
@@ -228,6 +230,7 @@
 				6DC96A4666268F04B0584523 /* blocked.html */,
 				6A231BBECEC8FF80ECF74B49 /* blocked.js */,
 				A8C27909B3EDFAA62A945FE2 /* content.js */,
+				6E94AB309458AB2D4B8D2E57 /* icons */,
 				FCB3EE697E64AC130374AEB0 /* manifest.json */,
 				438D684D08F5BF9DFE5BB20E /* pages.css */,
 				BB1B22E8D2EB2C4C94649A03 /* popup.html */,
@@ -437,6 +440,7 @@
 				9243702DF859087639A91F28 /* blocked.html in Resources */,
 				E444904B11C855DB3411FB86 /* blocked.js in Resources */,
 				8BD0A8AFC80E4E14B42705F5 /* content.js in Resources */,
+				1C4FF795DB3EBE5C94F4FED9 /* icons in Resources */,
 				D2F7EF0ED9E7B45BEC4165AE /* manifest.json in Resources */,
 				0A804CFC1343DFE58573DA2A /* pages.css in Resources */,
 				A9A7AEA9DEBE25523F51BECC /* popup.html in Resources */,
@@ -568,7 +572,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.3;
+				MARKETING_VERSION = 0.1.4;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -752,7 +756,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.3;
+				MARKETING_VERSION = 0.1.4;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

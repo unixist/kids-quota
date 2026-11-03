@@ -2,7 +2,9 @@
 set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
-VERSION="${VERSION:-0.1.3}"
+VERSION="${VERSION:-0.1.4}"
+CHROME_STORE_EXTENSION_ID="${CHROME_STORE_EXTENSION_ID:-}"
+[[ -z "$CHROME_STORE_EXTENSION_ID" || "$CHROME_STORE_EXTENSION_ID" =~ ^[a-p]{32}$ ]] || { echo 'Invalid Chrome Web Store extension ID.' >&2; exit 2; }
 MODE=signed; NOTARIZE=0
 PACKAGE=''
 while [[ $# -gt 0 ]]; do
@@ -86,11 +88,32 @@ It is not Apple-notarized. App network blocking is intentionally disabled.
    when the parent window is closed. Settings and resets require parent unlock.
    Use Touch ID if macOS offers it; otherwise use the administrator password.
 
-3. In EACH child's Chrome, open chrome://extensions, turn on Developer mode,
+LOCAL
+  if [[ -n "$CHROME_STORE_EXTENSION_ID" ]]; then
+    cat >> "$STAGE/Start here.txt" <<STORE
+3. In EACH child's Chrome profile, install Kids Quota from the Chrome Web Store:
+   https://chromewebstore.google.com/detail/$CHROME_STORE_EXTENSION_ID
+   Allow its requested website access. Supervised Google child profiles require
+   this store version; Developer mode and Load unpacked are unavailable there.
+   In Family Link, allow Extensions under the child's Google Chrome and Web
+   advanced settings if needed. Installing the Mac package alone does not enable
+   the browser extension. Do not enable the store and local versions together.
+STORE
+  else
+    cat >> "$STAGE/Start here.txt" <<'CHROME_LOCAL'
+3. Chrome setup guide (including supervised Google child profiles):
+   https://github.com/unixist/kids-quota/blob/main/docs/chrome-install.md
+   Supervised Google child profiles require the Chrome Web Store version and
+   a matching installer. They cannot use Developer mode or Load unpacked.
+
+   For an unmanaged Chrome profile, open chrome://extensions, turn on Developer mode,
    choose “Load unpacked”, press Command-Shift-G in the folder picker, and enter:
    /Library/Application Support/KidsQuota/BrowserExtensions/Chrome
-   Select that folder. This browser extension is included in the installation;
-   there is no Chrome Web Store download. The child can still disable/remove it.
+   Select that folder. This local browser extension is included in the installation.
+   The child can still disable/remove it.
+CHROME_LOCAL
+  fi
+  cat >> "$STAGE/Start here.txt" <<'LOCAL'
 
 4. Safari uses the bundled native Safari extension. In EACH child's Safari,
    open Settings → Advanced and enable “Show features for web developers”.
@@ -165,7 +188,9 @@ Restart any limited apps after first enabling the network filter.
 Chrome requires the published or managed Kids Quota extension supplied with this
 release. Installing this package alone does not install Chrome's extension.
 WELCOME
-  if [[ -n "${CHROME_INSTALL_URL:-}" ]]; then
+  if [[ -n "$CHROME_STORE_EXTENSION_ID" ]]; then
+    printf '\nChrome extension: https://chromewebstore.google.com/detail/%s\n' "$CHROME_STORE_EXTENSION_ID" >> "$STAGE/Start here.txt"
+  elif [[ -n "${CHROME_INSTALL_URL:-}" ]]; then
     [[ "$CHROME_INSTALL_URL" == https://* && "$CHROME_INSTALL_URL" != *$'\n'* && "$CHROME_INSTALL_URL" != *$'\r'* ]] || { echo 'CHROME_INSTALL_URL must be a single HTTPS URL.' >&2; exit 2; }
     printf '\nChrome extension: %s\n' "$CHROME_INSTALL_URL" >> "$STAGE/Start here.txt"
   fi

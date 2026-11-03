@@ -45,11 +45,17 @@ struct SettingsView: View {
                 }
                 Section("Browser setup") {
                     Text("Enable Kids Quota in Chrome and Safari for each child's login. Allow it on all websites so it can identify the active site and show the time-limit page.")
+                    Text("Chrome").font(.headline)
+                    Text("Install the Chrome Web Store version in each child's Chrome profile. Supervised Google child profiles require the store version; Developer mode and Load unpacked are unavailable in those profiles.").font(.callout)
+                    Link("Open Chrome setup guide", destination: URL(string: "https://github.com/unixist/kids-quota/blob/main/docs/chrome-install.md")!)
+                    Text("The guide includes the store link and matching Mac installer. Installing Kids Quota on the Mac does not automatically enable its browser extension.").font(.caption).foregroundStyle(.secondary)
                     if features.isLocalInstall {
-                        Text("Chrome").font(.headline)
-                        Text("In the child's account, open chrome://extensions, turn on Developer mode, choose Load unpacked, and select this installed folder:").font(.callout)
-                        Text(BuildFeatures.chromeExtensionPath).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
-                        Button("Show Chrome extension folder") { NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: BuildFeatures.chromeExtensionPath) }
+                        DisclosureGroup("Alternative: local extension for unmanaged Chrome profiles") {
+                            Text("For a profile without Google child supervision, open chrome://extensions, turn on Developer mode, choose Load unpacked, and select this installed folder:").font(.callout)
+                            Text(BuildFeatures.chromeExtensionPath).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
+                            Button("Show Chrome extension folder") { NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: BuildFeatures.chromeExtensionPath) }
+                            Text("Use either the store version or the local version in a profile. Do not enable both together.").font(.caption).foregroundStyle(.secondary)
+                        }
                         Text("Safari").font(.headline)
                         Text("In Safari Settings → Advanced, enable Show features for web developers. In Settings → Developer, enable Allow unsigned extensions, then enable Kids Quota under Extensions and allow website access.").font(.callout)
                         Text("Safari turns off Allow unsigned extensions every time it quits. Repeat that step after each restart; Safari protection is unavailable until the extension is enabled again.").font(.caption).foregroundStyle(.orange)
