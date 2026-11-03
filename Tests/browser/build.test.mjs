@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
+import {readFile,writeFile,rm} from 'node:fs/promises';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
@@ -16,6 +16,7 @@ test('both browser packages contain compatible manifests and self-contained back
     assert.ok(manifest.permissions.includes('nativeMessaging'));
     assert.ok(manifest.permissions.includes('declarativeNetRequestWithHostAccess'));
     assert.ok(manifest.host_permissions.includes('https://*/*'));
+    assert.equal(manifest.permissions.includes('tabs'),browser==='safari','Chrome HTTP(S) host access already permits reading matching tab URLs');
     const backgroundFile=browser==='chrome'?manifest.background.service_worker:manifest.background.scripts[0];
     const background=await readFile(path.join(folder,backgroundFile),'utf8');
     assert.equal(/^import |^export /m.test(background),false);
@@ -24,7 +25,49 @@ test('both browser packages contain compatible manifests and self-contained back
       assert.ok((await readFile(path.join(folder,filename))).length>0,filename);
     }
     assert.equal(Object.hasOwn(manifest,'externally_connectable'),false,'ordinary pages cannot submit extension messages');
+    for(const size of [16,32,48,128]) {
+      const png=await readFile(path.join(folder,manifest.icons[size]));
+      assert.deepEqual([...png.subarray(0,8)],[137,80,78,71,13,10,26,10]);
+      assert.equal(png.readUInt32BE(16),size); assert.equal(png.readUInt32BE(20),size);
+      assert.equal(manifest.action.default_icon[size],manifest.icons[size]);
+    }
   }
+});
+
+test('store ZIP contains only its complete root-level extension and preserves local host pairing',async()=>{
+  const root=fileURLToPath(new URL('../../',import.meta.url));
+  const metadata=JSON.parse(await readFile(path.join(root,'package.json'),'utf8'));
+  const archive=path.join(root,`dist/KidsQuota-Chrome-${metadata.config.chromeStoreVersion}.zip`);
+  const localManifestPath=path.join(root,'extensions/build/chrome/manifest.json');
+  const localIdPath=path.join(root,'extensions/build/chrome-extension-id.txt');
+  execFileSync(process.execPath,['scripts/build-extensions.mjs'],{cwd:root});
+  const localManifest=await readFile(localManifestPath), localId=await readFile(localIdPath);
+  execFileSync(process.execPath,['scripts/package-chrome-store.mjs'],{cwd:root});
+  const before=await readFile(archive);
+  const stray=path.join(root,'dist/chrome-store/not-for-upload.txt');
+  try {
+    await writeFile(stray,'A stale build file must never be uploaded.');
+    execFileSync(process.execPath,['scripts/package-chrome-store.mjs'],{cwd:root});
+  } finally {await rm(stray,{force:true});}
+  assert.deepEqual(await readFile(archive),before,'archive is reproducible and excludes stale output');
+  assert.deepEqual(await readFile(localManifestPath),localManifest);
+  assert.deepEqual(await readFile(localIdPath),localId);
+  const entries=execFileSync('/usr/bin/unzip',['-Z1',archive],{encoding:'utf8'}).trim().split('\n');
+  assert.deepEqual(entries,[
+    'background.js','blocked.html','blocked.js','content.js','icons/icon128.png',
+    'icons/icon16.png','icons/icon32.png','icons/icon48.png','manifest.json',
+    'pages.css','popup.html','popup.js'
+  ]);
+  execFileSync('/usr/bin/unzip',['-t',archive]);
+  const manifest=JSON.parse(execFileSync('/usr/bin/unzip',['-p',archive,'manifest.json'],{encoding:'utf8'}));
+  assert.equal(manifest.version,metadata.config.chromeStoreVersion);
+  assert.equal(Object.hasOwn(manifest,'key'),false);
+  assert.equal(Object.hasOwn(manifest,'update_url'),false);
+  assert.equal(manifest.background.service_worker,'background.js');
+  assert.deepEqual(manifest.permissions,['storage','nativeMessaging','alarms','declarativeNetRequestWithHostAccess']);
+  assert.ok(manifest.description.length<=132);
+  const checksum=await readFile(archive+'.sha256','utf8');
+  assert.equal(checksum,`${createHash('sha256').update(before).digest('hex')}  ${path.basename(archive)}\n`);
 });
 
 test('local Chrome key gives a stable native-host ID independent of installation path',async()=>{

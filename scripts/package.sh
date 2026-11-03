@@ -22,6 +22,8 @@ else
 fi
 CHROME_EXTENSION_ID="${CHROME_EXTENSION_ID:-}"
 [[ -z "$CHROME_EXTENSION_ID" || "$CHROME_EXTENSION_ID" =~ ^[a-p]{32}$ ]] || { echo 'Invalid Chrome extension ID.' >&2; exit 2; }
+CHROME_STORE_EXTENSION_ID="${CHROME_STORE_EXTENSION_ID:-}"
+[[ -z "$CHROME_STORE_EXTENSION_ID" || "$CHROME_STORE_EXTENSION_ID" =~ ^[a-p]{32}$ ]] || { echo 'Invalid Chrome Web Store extension ID.' >&2; exit 2; }
 VERSION="${VERSION:-0.1.3}"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Version must be major.minor.patch.' >&2; exit 2; }
 INSTALL_ARGS=(--artifacts "$REPO_ROOT/dist/$MODE")
@@ -29,6 +31,7 @@ SUFFIX=''
 if [[ "$MODE" == local ]]; then INSTALL_ARGS+=(--local); SUFFIX='-Local'
 else INSTALL_ARGS+=(--team-id "$TEAM_ID"); fi
 if [[ -n "$CHROME_EXTENSION_ID" ]]; then INSTALL_ARGS+=(--chrome-extension-id "$CHROME_EXTENSION_ID"); fi
+if [[ -n "$CHROME_STORE_EXTENSION_ID" ]]; then INSTALL_ARGS+=(--chrome-store-extension-id "$CHROME_STORE_EXTENSION_ID"); fi
 "$REPO_ROOT/scripts/install.sh" --check "${INSTALL_ARGS[@]}"
 mkdir -p "$REPO_ROOT/.build" "$REPO_ROOT/dist"
 STAGE="$(/usr/bin/mktemp -d "$REPO_ROOT/.build/package.XXXXXX")"
@@ -44,7 +47,7 @@ cat > "$STAGE/scripts/postinstall" <<POSTINSTALL
 set -euo pipefail
 [[ "\${3:-/}" == / ]] || { echo 'Kids Quota must be installed on the running startup volume.' >&2; exit 1; }
 PACKAGE_SCRIPTS="\$(cd "\$(dirname "\$0")" && pwd)"
-exec "\$PACKAGE_SCRIPTS/install.sh" --artifacts "\$PACKAGE_SCRIPTS/artifacts" $INSTALL_MODE ${CHROME_EXTENSION_ID:+--chrome-extension-id "$CHROME_EXTENSION_ID"}
+exec "\$PACKAGE_SCRIPTS/install.sh" --artifacts "\$PACKAGE_SCRIPTS/artifacts" $INSTALL_MODE ${CHROME_EXTENSION_ID:+--chrome-extension-id "$CHROME_EXTENSION_ID"} ${CHROME_STORE_EXTENSION_ID:+--chrome-store-extension-id "$CHROME_STORE_EXTENSION_ID"}
 POSTINSTALL
 chmod 0755 "$STAGE/scripts/postinstall"
 # The same installer is used for direct and packaged deployment. All artifacts

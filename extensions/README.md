@@ -13,6 +13,11 @@ can consume time, but native apps retain network access after exhaustion.
 
 ### Chrome
 
+Supervised Google child profiles cannot use this unpacked installation method.
+They need a Chrome Web Store build and an updated native-host installer that
+allows its store ID. The v0.1.3 DMG only allows the local extension ID. See
+[store packaging and submission](../docs/chrome-web-store.md).
+
 1. Open `chrome://extensions` and enable **Developer mode**.
 2. Choose **Load unpacked**.
 3. Select `/Library/Application Support/KidsQuota/BrowserExtensions/Chrome`.

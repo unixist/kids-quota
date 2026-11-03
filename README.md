@@ -11,6 +11,13 @@ Website blocking requires manual browser setup; standalone-app network blocking
 is disabled. Safari's unsigned-extension permission resets whenever Safari quits.
 See [local installation](docs/local-install.md) for the exact steps and limits.
 
+**Supervised Chrome accounts:** Google blocks Developer mode and unpacked
+extensions for Family Link child profiles. The v0.1.3 Chrome setup below does
+not work in those profiles. They require a Chrome Web Store release and a
+companion installer that recognizes its store ID. Store packaging is now
+available in the source; see [publishing progress and requirements](docs/chrome-web-store.md).
+Preparing a package does not mean a store release is available.
+
 ## How the pieces fit together
 
 The **root quota service owns time and balances**. Chrome/Safari extensions and

@@ -6,6 +6,7 @@ CHECK_ONLY=0
 MODE=signed
 TEAM_ID=''
 CHROME_ID=''
+CHROME_STORE_ID=''
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --check) CHECK_ONLY=1; shift ;;
@@ -13,8 +14,12 @@ while [[ $# -gt 0 ]]; do
     --artifacts) ARTIFACTS="${2:?Missing artifacts directory}"; shift 2 ;;
     --team-id) TEAM_ID="${2:?Missing team ID}"; shift 2 ;;
     --chrome-extension-id) CHROME_ID="${2:?Missing Chrome extension ID}"; shift 2 ;;
-    *) echo 'Usage: install.sh [--check] [--local] --artifacts DIR [--team-id TEAM] [--chrome-extension-id ID]' >&2; exit 2 ;;
+    --chrome-store-extension-id) CHROME_STORE_ID="${2:?Missing Chrome Web Store extension ID}"; shift 2 ;;
+    *) echo 'Usage: install.sh [--check] [--local] --artifacts DIR [--team-id TEAM] [--chrome-extension-id ID] [--chrome-store-extension-id ID]' >&2; exit 2 ;;
   esac
+done
+for extension_id in "$CHROME_ID" "$CHROME_STORE_ID"; do
+  [[ -z "$extension_id" || "$extension_id" =~ ^[a-p]{32}$ ]] || { echo 'Chrome IDs must contain 32 letters a-p.' >&2; exit 2; }
 done
 ARTIFACTS="${ARTIFACTS:-$(cd "$SCRIPT_DIR/.." && pwd)/dist/$MODE}"
 if [[ "$MODE" == signed ]]; then
@@ -33,6 +38,21 @@ else
   [[ "$CHROME_ID" == "$DERIVED_CHROME_ID" ]] || { echo 'The bundled Chrome key does not match the local release extension ID.' >&2; exit 1; }
 fi
 [[ -z "$CHROME_ID" || "$CHROME_ID" =~ ^[a-p]{32}$ ]] || { echo 'Chrome IDs must contain 32 letters a-p.' >&2; exit 2; }
+chrome_native_host_manifest() {
+  local primary="$1" store="${2:-}" extension_id origins=''
+  # Only exact publisher IDs may talk to the native bridge. Preserve the local
+  # extension when adding the separate ID assigned by the Chrome Web Store.
+  for extension_id in "$primary" "$store"; do
+    [[ -z "$extension_id" || "$extension_id" =~ ^[a-p]{32}$ ]] || { echo 'Chrome IDs must contain 32 letters a-p.' >&2; return 2; }
+  done
+  if [[ -n "$primary" ]]; then origins="\"chrome-extension://$primary/\""; fi
+  if [[ -n "$store" && "$store" != "$primary" ]]; then
+    if [[ -n "$origins" ]]; then origins+=','; fi
+    origins+="\"chrome-extension://$store/\""
+  fi
+  [[ -n "$origins" ]] || { echo 'At least one Chrome extension ID is required.' >&2; return 2; }
+  printf '%s\n' "{\"name\":\"com.kidsquota.bridge\",\"description\":\"Kids Quota authenticated native bridge\",\"path\":\"/Library/Application Support/KidsQuota/bin/kids-quota-bridge\",\"type\":\"stdio\",\"allowed_origins\":[$origins]}"
+}
 verify_code() {
   local path="$1" identifier="$2" requirement details
   # Drain codesign's output before matching. With pipefail, an early grep -q
@@ -203,14 +223,12 @@ PLIST
 /usr/sbin/chown root:wheel "$DAEMON_STAGE" "$AGENT_STAGE"
 /bin/chmod 0644 "$DAEMON_STAGE" "$AGENT_STAGE"
 /usr/bin/plutil -lint "$DAEMON_STAGE" "$AGENT_STAGE"
-if [[ -n "$CHROME_ID" ]]; then
+if [[ -n "$CHROME_ID" || -n "$CHROME_STORE_ID" ]]; then
   HOST_DIR='/Library/Google/Chrome/NativeMessagingHosts'
   [[ ! -L "$HOST_DIR" && ! -L "$HOST_DIR/com.kidsquota.bridge.json" ]] || { echo 'Refusing a symbolic link at the native host destination.' >&2; exit 1; }
   /usr/bin/install -d -o root -g wheel -m 0755 "$HOST_DIR"
   stage_destination "$HOST_DIR/com.kidsquota.bridge.json"; HOST_STAGE="$STAGED_PATH"
-  cat > "$HOST_STAGE" <<JSON
-{"name":"com.kidsquota.bridge","description":"Kids Quota authenticated native bridge","path":"/Library/Application Support/KidsQuota/bin/kids-quota-bridge","type":"stdio","allowed_origins":["chrome-extension://$CHROME_ID/"]}
-JSON
+  chrome_native_host_manifest "$CHROME_ID" "$CHROME_STORE_ID" > "$HOST_STAGE"
   /usr/sbin/chown root:wheel "$HOST_STAGE"
   /bin/chmod 0644 "$HOST_STAGE"
 else

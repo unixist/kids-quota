@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "build:extensions": "node scripts/build-extensions.mjs",
+    "package:chrome-store": "node scripts/package-chrome-store.mjs",
     "test": "node --test Tests/browser/*.test.mjs"
   },
+  "config": { "chromeStoreVersion": "0.1.4" },
   "engines": { "node": ">=20" }
 }

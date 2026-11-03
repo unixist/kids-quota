@@ -65,6 +65,13 @@ needed. If the service cannot be reached, balances are hidden until it reconnect
 
 ## Chrome setup in each child's account
 
+These unpacked-extension steps require a Chrome profile that permits Developer
+mode. A supervised Google child account may show **"This setting isn't available
+for your account"**. That profile cannot install the v0.1.3 bundled extension.
+Family Link's Extensions setting permits Web Store extensions; it does not permit
+unpacked loading. A store release needs a separate, compatible companion
+installer. See [store release requirements](chrome-web-store.md).
+
 1. Sign into the child's macOS account and open Chrome.
 2. Visit `chrome://extensions` and enable **Developer mode**.
 3. Click **Load unpacked**. In the folder picker, press **Command–Shift–G** and enter:

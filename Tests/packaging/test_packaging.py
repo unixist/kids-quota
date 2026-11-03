@@ -263,7 +263,7 @@ printf fixture > "$output"
 ''')
         source = (ROOT / "scripts/package.sh").read_text().replace("/usr/bin/pkgbuild", shlex.quote(str(pkgbuild)))
         script = executable(repo / "scripts/package.sh", source)
-        env = {key: value for key, value in os.environ.items() if key not in ["TEAM_ID", "SIGN_IDENTITY", "INSTALLER_IDENTITY", "CHROME_EXTENSION_ID", "NOTARY_PROFILE"]}
+        env = {key: value for key, value in os.environ.items() if key not in ["TEAM_ID", "SIGN_IDENTITY", "INSTALLER_IDENTITY", "CHROME_EXTENSION_ID", "CHROME_STORE_EXTENSION_ID", "NOTARY_PROFILE"]}
         env.update(CAPTURE=str(captured), PACKAGE_LOG=str(self.work / "package.log"), CHECK_LOG=str(self.work / "check.log"))
         result = subprocess.run([str(script), "--local", "--pkg-only"], env=env, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -314,7 +314,7 @@ fi
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Invalid code-directory hash", result.stderr)
 
-    def local_check(self, wrong_key=False, activatable_filter=False):
+    def local_check(self, wrong_key=False, activatable_filter=False, store_id=None):
         repo = self.work / "repo"
         scripts = repo / "scripts"; scripts.mkdir(parents=True)
         artifacts = repo / "dist/local"; artifacts.mkdir(parents=True)
@@ -332,7 +332,10 @@ fi
         codesign = executable(self.work / "codesign", "#!/bin/bash\nprintf 'Signature=adhoc\\nflags=0x10000(runtime)\\n'\n")
         source = self.installer.replace("/usr/bin/codesign", shlex.quote(str(codesign)))
         script = executable(scripts / "install.sh", source)
-        return subprocess.run([str(script), "--local", "--check", "--artifacts", str(artifacts)], capture_output=True, text=True)
+        arguments = [str(script), "--local", "--check", "--artifacts", str(artifacts)]
+        if store_id is not None:
+            arguments += ["--chrome-store-extension-id", store_id]
+        return subprocess.run(arguments, capture_output=True, text=True)
 
     def test_local_installer_check_accepts_matching_browser_id_without_team(self):
         result = self.local_check()
@@ -364,6 +367,15 @@ fi
         result = self.local_check(wrong_key=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("does not match", result.stderr)
+
+    def test_store_id_does_not_replace_local_browser_key_validation(self):
+        result = self.local_check(wrong_key=True, store_id="b" * 32)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("does not match", result.stderr)
+
+    def test_local_installer_check_accepts_additional_store_id(self):
+        result = self.local_check(store_id="b" * 32)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_local_installer_rejects_activatable_filter_bundle(self):
         result = self.local_check(activatable_filter=True)
