@@ -1,6 +1,6 @@
 {
   "name": "kids-quota-browser",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,6 +8,6 @@
     "package:chrome-store": "node scripts/package-chrome-store.mjs",
     "test": "node --test Tests/browser/*.test.mjs"
   },
-  "config": { "chromeStoreVersion": "0.1.4" },
+  "config": { "chromeStoreVersion": "0.1.5" },
   "engines": { "node": ">=20" }
 }

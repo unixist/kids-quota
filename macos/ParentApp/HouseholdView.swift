@@ -107,10 +107,14 @@ private struct ServiceCard: View {
                     Text(Presentation.duration(balance.remainingSeconds)).font(.system(size: 30, weight: .semibold, design: .rounded)).monospacedDigit()
                     Text(balance.quotaState == "exhausted" ? "weekly limit reached" : "remaining").foregroundStyle(.secondary)
                     Spacer()
-                    Label(!store.connected ? "Connection lost" : balance.coverage == "complete" ? "Covered" : "Check coverage", systemImage: balance.coverage == "complete" && store.connected ? "checkmark.shield" : "exclamationmark.shield")
+                    Label(!store.connected ? "Connection lost" : balance.trackingPaused ? "Tracking paused" : balance.coverage == "complete" ? "Covered" : "Check coverage", systemImage: balance.coverage == "complete" && store.connected ? "checkmark.shield" : "exclamationmark.shield")
                         .font(.caption).foregroundStyle(balance.coverage == "complete" && store.connected ? .green : .orange)
                 }
                 ProgressView(value: Double(max(0, balance.limitSeconds - balance.remainingSeconds)), total: Double(max(1, balance.limitSeconds))).tint(balance.quotaState == "exhausted" ? .orange : .accentColor)
+                if balance.trackingPaused {
+                    Text("The allowance is still available, but this account's usage tracking isn't connected. Protected websites stay paused until it reconnects. If needed, sign out of that Mac account and back in.")
+                        .font(.callout).foregroundStyle(.orange)
+                }
             } else { Text("Waiting for the service…").foregroundStyle(.secondary) }
             DisclosureGroup("Includes") {
                 VStack(alignment: .leading, spacing: 7) {

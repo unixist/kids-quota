@@ -4,9 +4,10 @@ import {createController} from '../../extensions/shared/controller.js';
 
 const nextTurn=()=>new Promise(resolve=>setImmediate(resolve));
 function event() { const listeners=[];return {listeners,addListener:fn=>listeners.push(fn),emit:(...args)=>listeners.forEach(fn=>fn(...args))}; }
-function policy({blocked=false,sequence=1,revision=2,remainingSeconds=21600}={}) {
-  return {type:'policy',revision,requestSequence:sequence,configured:true,coverage:'complete',rules:[
-    {serviceId:'chess',name:'Chess.com',domains:[{hostname:'chess.com',includeSubdomains:true}],blocked,remainingSeconds,resetAt:'2026-10-26T05:00:00Z'}
+function policy({blocked=false,sequence=1,revision=2,remainingSeconds=21600,reason,
+  resetAt='2026-10-26T05:00:00Z',resetTimeZone}={}) {
+  return {type:'policy',revision,requestSequence:sequence,configured:true,coverage:'complete',resetTimeZone,rules:[
+    {serviceId:'chess',name:'Chess.com',domains:[{hostname:'chess.com',includeSubdomains:true}],blocked,remainingSeconds,resetAt,reason}
   ]};
 }
 function harness(platform='chrome') {
@@ -28,7 +29,7 @@ function harness(platform='chrome') {
 
 test('exhaustion installs navigation rules and replaces already-loaded matching tabs',async()=>{
   const h=harness();
-  assert.equal(await h.controller.acceptPolicy(policy({blocked:true})),true);
+  assert.equal(await h.controller.acceptPolicy(policy({blocked:true,remainingSeconds:0})),true);
   assert.equal(h.getDynamic().length,1);
   assert.equal(h.tabs[0].url,'chrome-extension://test/blocked.html?service=chess');
   assert.equal(h.tabs[1].url,'https://unrelated.example/');
@@ -40,6 +41,54 @@ test('exhaustion installs navigation rules and replaces already-loaded matching 
   await h.controller.acceptPolicy(policy({sequence:3,revision:3}));
   assert.equal(h.getDynamic().length,0,'native-authorized new allowance releases the restriction');
   assert.match(h.tabs[0].url,/blocked.html/,'reset never unexpectedly replaces a page the child is reading');
+});
+
+test('full allowance paused for monitor loss clears its rules when the monitor recovers without a policy edit',async()=>{
+  const h=harness();
+  await h.controller.acceptPolicy(policy({blocked:true,reason:'collector_unavailable',resetTimeZone:'America/Chicago'}));
+  assert.equal(h.getDynamic().length,1);
+  const paused=await h.controller.handleMessage({type:'blockedInfo',serviceId:'chess'},{id:'test'});
+  assert.equal(paused.connected,true);
+  assert.equal(paused.rule.remainingSeconds,21600);
+  assert.equal(paused.rule.reason,'collector_unavailable');
+  assert.equal(paused.resetTimeZone,'America/Chicago');
+  await h.controller.acceptPolicy(policy({sequence:2,reason:'available',resetTimeZone:'America/Chicago'}));
+  assert.equal(h.getDynamic().length,0);
+  const recovered=await h.controller.handleMessage({type:'blockedInfo',serviceId:'chess'},{id:'test'});
+  assert.equal(recovered.rule.reason,'available');
+  assert.equal(recovered.rule.remainingSeconds,21600);
+  assert.equal(recovered.rule.blocked,false);
+});
+
+test('a Monday midnight Chicago rollover removes exhausted rules and rejects the prior week',async()=>{
+  const h=harness(), midnight=Date.parse('2026-11-09T06:00:00Z');
+  h.setTime(midnight-1000);
+  await h.controller.acceptPolicy(policy({blocked:true,remainingSeconds:0,reason:'exhausted',
+    resetAt:'2026-11-09T06:00:00Z',resetTimeZone:'America/Chicago'}));
+  assert.equal(h.getDynamic().length,1);
+  h.setTime(midnight+1000);
+  await h.controller.reconcile();
+  assert.equal(h.getDynamic().length,1,'browser clock alone does not invent a reset');
+  await h.controller.acceptPolicy(policy({sequence:2,reason:'available',resetAt:'2026-11-16T06:00:00Z',resetTimeZone:'America/Chicago'}));
+  assert.equal(h.getDynamic().length,0);
+  assert.equal(h.controller.snapshot().rules[0].remainingSeconds,21600);
+  assert.equal(await h.controller.acceptPolicy(policy({sequence:3,blocked:true,remainingSeconds:0,
+    resetAt:'2026-11-09T06:00:00Z'})),false);
+  assert.equal(h.getDynamic().length,0,'late previous-week reply cannot re-block restored allowance');
+});
+
+test('manual reset after cached exhaustion clears restart rules and ignores late exhausted replies',async()=>{
+  const h=harness(), exhausted=policy({blocked:true,remainingSeconds:0,revision:4,sequence:20});
+  h.setStorage({lastPolicy:{policy:exhausted}});
+  await h.controller.start();
+  assert.equal(h.getDynamic().length,1);
+  assert.equal(h.controller.snapshot().rules[0].reason,'unavailable');
+  await h.controller.acceptPolicy(policy({revision:5,sequence:1}));
+  assert.equal(h.getDynamic().length,0);
+  assert.equal(h.controller.snapshot().rules[0].remainingSeconds,21600);
+  assert.equal(await h.controller.acceptPolicy({...exhausted,requestSequence:2}),false);
+  assert.equal(h.getDynamic().length,0);
+  h.controller.stop();
 });
 
 test('loss of valid native replies fails closed only for configured domains',async()=>{
@@ -107,6 +156,50 @@ test('failed policy persistence never prevents current enforcement',async()=>{
   await h.controller.acceptPolicy(policy({blocked:true}));
   assert.equal(h.getDynamic().length,1);
   assert.match(h.controller.snapshot().enforcementError,/saved/);
+});
+
+test('a failed removal of an exhausted rule is reported until the browser update succeeds',async()=>{
+  const h=harness();
+  await h.controller.acceptPolicy(policy({blocked:true,remainingSeconds:0}));
+  const update=h.api.declarativeNetRequest.updateDynamicRules;
+  h.api.declarativeNetRequest.updateDynamicRules=async()=>{throw new Error('unavailable');};
+  await h.controller.acceptPolicy(policy({sequence:2}));
+  assert.equal(h.getDynamic().length,1,'the old exhausted rule is still installed');
+  const blocked=await h.controller.handleMessage({type:'blockedInfo',serviceId:'chess'},{id:'test'});
+  assert.equal(blocked.rule.remainingSeconds,21600);
+  assert.equal(blocked.rule.blocked,false,'the native balance is available independently of browser enforcement');
+  assert.match(blocked.enforcementError,/permission/);
+  h.api.declarativeNetRequest.updateDynamicRules=update;
+  await h.controller.reconcile();
+  const recovered=await h.controller.handleMessage({type:'blockedInfo',serviceId:'chess'},{id:'test'});
+  assert.equal(h.getDynamic().length,0);
+  assert.equal(recovered.enforcementError,null);
+});
+
+test('a new allowance is still updating while removal of the old browser rule is pending',async()=>{
+  const h=harness();
+  await h.controller.acceptPolicy(policy({blocked:true,remainingSeconds:0}));
+  const update=h.api.declarativeNetRequest.updateDynamicRules;let finish;
+  h.api.declarativeNetRequest.updateDynamicRules=change=>new Promise(resolve=>{finish=async()=>{await update(change);resolve();};});
+  const accepted=h.controller.acceptPolicy(policy({sequence:2}));await nextTurn();
+  const pending=await h.controller.handleMessage({type:'blockedInfo',serviceId:'chess'},{id:'test'});
+  assert.equal(pending.rule.remainingSeconds,21600);
+  assert.match(pending.enforcementError,/updating/);
+  await finish();await accepted;
+  const recovered=await h.controller.handleMessage({type:'blockedInfo',serviceId:'chess'},{id:'test'});
+  assert.equal(recovered.enforcementError,null);
+});
+
+test('a recovered policy save clears its previous error even when browser rules are unchanged',async()=>{
+  const h=harness(),save=h.api.storage.local.set;
+  h.api.storage.local.set=async()=>{throw new Error('quota');};
+  await h.controller.acceptPolicy(policy());
+  assert.match(h.controller.snapshot().enforcementError,/saved/);
+  const changes=h.changes.length;
+  h.api.storage.local.set=save;
+  await h.controller.acceptPolicy(policy({sequence:2}));
+  assert.equal(h.controller.snapshot().enforcementError,null);
+  assert.equal(h.changes.length,changes,'successful saving does not churn the same browser rules');
 });
 
 test('unknown policy never clears persisted browser rules and unauthenticated messages disclose no policy',async()=>{

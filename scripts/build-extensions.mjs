@@ -6,7 +6,7 @@ import {writeExtensionIcons} from './generate-extension-icons.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const source=path.join(root,'extensions/shared');
 
-export async function buildBrowser({platform,out,version='0.1.4',chromeKey}) {
+export async function buildBrowser({platform,out,version='0.1.5',chromeKey}) {
   if (!['chrome','safari'].includes(platform)) throw new Error('Unknown browser platform');
   const core=(await readFile(path.join(source,'core.js'),'utf8')).replace(/^export /gm,'');
   const controller=(await readFile(path.join(source,'controller.js'),'utf8')).replace(/^import .*;\n/gm,'').replace(/^export /gm,'');

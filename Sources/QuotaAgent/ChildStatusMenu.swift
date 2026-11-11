@@ -22,9 +22,11 @@ final class ChildStatusModel: ObservableObject {
         refresh()
         timer?.invalidate()
         // A dedicated connection and queue keep UI reads out of metering's path.
-        timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+        let refreshTimer = Timer(timeInterval: 5, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refresh() }
         }
+        RunLoop.main.add(refreshTimer, forMode: .common)
+        timer = refreshTimer
     }
     func close() {
         guard !preview else { return }
@@ -104,7 +106,7 @@ struct ChildStatusView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         ForEach(status.items) { item in balance(item) }
                     }.padding(16)
-                }.frame(height: min(CGFloat(status.items.count) * 140 + 32, 400))
+                }.frame(height: min(CGFloat(status.items.count) * 140 + CGFloat(status.items.filter(\.isPaused).count) * 65 + 32, 400))
                 Divider()
                 VStack(alignment: .leading, spacing: 7) {
                     if let reset = status.items.first?.resetAt, let zone = status.resetTimeZone {
@@ -151,6 +153,11 @@ struct ChildStatusView: View {
                 .accessibilityValue("\(ChildStatusPresentation.accessibleDuration(item.remainingSeconds)) of \(ChildStatusPresentation.accessibleDuration(item.weeklyLimitSeconds))")
             Text("\(ChildStatusPresentation.duration(item.usedSeconds)) used of \(ChildStatusPresentation.duration(item.weeklyLimitSeconds)) this week")
                 .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+            if item.isPaused {
+                Label("Tracking paused", systemImage: "pause.circle").font(.caption.weight(.semibold)).foregroundStyle(.orange)
+                Text("Your time is still available. Ask your parent to sign out of this Mac account and back in if tracking doesn't reconnect.")
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)

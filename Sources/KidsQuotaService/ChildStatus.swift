@@ -1,5 +1,13 @@
 import Foundation
 
+/// A positive balance can still be paused when trusted usage tracking is absent.
+/// Keep this separate from the quota balance and broader browser/app coverage.
+public enum QuotaAccessReason: String, Decodable {
+    case available
+    case exhausted
+    case collectorUnavailable = "collector_unavailable"
+}
+
 /// The collector's read-only response. The daemon selects the child from the
 /// authenticated macOS user, so this request never accepts a child identifier.
 public struct ChildStatusSnapshot: Decodable, Equatable {
@@ -48,13 +56,15 @@ public struct ChildStatusItem: Decodable, Equatable, Identifiable {
     public let remainingSeconds: Int
     public let resetAt: Date
     public let coverage: String
+    public let blockingReason: QuotaAccessReason?
+    public var isPaused: Bool { remainingSeconds > 0 && blockingReason == .collectorUnavailable }
     public var id: String { serviceId }
     public var fractionRemaining: Double {
         guard weeklyLimitSeconds > 0 else { return 0 }
         return min(1, max(0, Double(remainingSeconds) / Double(weeklyLimitSeconds)))
     }
 
-    private enum CodingKeys: String, CodingKey { case serviceId, name, domains, weeklyLimitSeconds, usedSeconds, remainingSeconds, resetAt, coverage }
+    private enum CodingKeys: String, CodingKey { case serviceId, name, domains, weeklyLimitSeconds, usedSeconds, remainingSeconds, resetAt, coverage, blockingReason }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         serviceId = try values.decode(String.self, forKey: .serviceId)
@@ -64,6 +74,9 @@ public struct ChildStatusItem: Decodable, Equatable, Identifiable {
         usedSeconds = try values.decode(Int.self, forKey: .usedSeconds)
         remainingSeconds = try values.decode(Int.self, forKey: .remainingSeconds)
         coverage = try values.decode(String.self, forKey: .coverage)
+        // Older installed services do not send a reason; incomplete coverage alone
+        // is not proof that a website is blocked (Safari/app filtering may be off).
+        blockingReason = try values.decodeIfPresent(QuotaAccessReason.self, forKey: .blockingReason)
         let reset = try values.decode(String.self, forKey: .resetAt)
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]

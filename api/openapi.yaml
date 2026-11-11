@@ -291,7 +291,7 @@ paths:
     put:
       operationId: updateResetSchedule
       summary: Schedule a new household reset day, time, and timezone
-      description: Takes effect at the existing period end; does not refill current balances.
+      description: Takes effect at the existing period end; does not refill current balances. Saving the current schedule cancels a pending change.
       x-required-scopes: ["policy:write"]
       x-required-transport: authenticated-native-ipc
       x-required-authorization: com.kidsquota.manage
@@ -713,6 +713,10 @@ components:
         remainingSeconds: {$ref: '#/components/schemas/Seconds'}
         quotaState: {type: string, enum: [available, exhausted]}
         coverage: {type: string, enum: [complete, incomplete]}
+        blockingReason:
+          type: string
+          enum: [available, exhausted, collector_unavailable]
+          description: Optional website access reason for a verified account. A missing or stale activity monitor pauses websites without exhausting a positive balance. Independent of aggregate coverage.
       description: |
         remainingSeconds = max(0, limitSeconds - usedSeconds). Exhausted iff
         remainingSeconds is zero. Coverage is independent of quota state and

@@ -106,7 +106,12 @@ final class Collector {
             observers.append(DistributedNotificationCenter.default().addObserver(forName:NSNotification.Name(name),object:nil,queue:.main){[self] _ in report()})
         }
         observers.append(center.addObserver(forName:NSWorkspace.didActivateApplicationNotification,object:nil,queue:.main){[self] _ in report()})
-        Timer.scheduledTimer(withTimeInterval:1,repeats:true){[self] _ in report()};report()
+        // AppKit uses an event-tracking mode while a menu/popover is being
+        // manipulated. Heartbeats must continue there or a healthy login can
+        // look disconnected to the daemon after 15 seconds.
+        let timer = Timer(timeInterval:1,repeats:true){[self] _ in report()}
+        RunLoop.main.add(timer,forMode:.common)
+        report()
     }
     func report() {
         guard !inFlight else {return}

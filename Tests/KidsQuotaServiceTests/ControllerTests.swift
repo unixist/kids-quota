@@ -99,7 +99,7 @@ final class ControllerTests: XCTestCase {
         XCTAssertEqual(aliceItems.compactMap {$0["serviceId"] as? String},["chesscom"])
         XCTAssertEqual(aliceItems.first?["weeklyLimitSeconds"] as? Int,100)
         XCTAssertEqual(aliceItems.first?["remainingSeconds"] as? Int,100)
-        XCTAssertEqual(Set(try XCTUnwrap(aliceItems.first).keys),["serviceId","name","domains","weeklyLimitSeconds","usedSeconds","remainingSeconds","resetAt","coverage"])
+        XCTAssertEqual(Set(try XCTUnwrap(aliceItems.first).keys),["serviceId","name","domains","weeklyLimitSeconds","usedSeconds","remainingSeconds","resetAt","coverage","blockingReason"])
         let decoded = try ChildStatusSnapshot.decode(alice)
         XCTAssertTrue(decoded.configured);XCTAssertEqual(decoded.childName,"Alice")
         XCTAssertEqual(decoded.items.map(\.serviceId),["chesscom"])
@@ -234,10 +234,108 @@ final class ControllerTests: XCTestCase {
         _ = f.controller.native(["op":"foreground","pid":40,"bundleIdentifier":"com.google.Chrome","active":true,"healthy":false],uid:501,role:"agent")
         let policy = f.browser(sequence:2)
         XCTAssertTrue((policy["rules"] as? [[String:Any]])?.first?["blocked"] as? Bool == true)
+        XCTAssertEqual((policy["rules"] as? [[String:Any]])?.first?["reason"] as? String,"collector_unavailable")
         XCTAssertEqual(policy["coverage"] as? String,"incomplete")
         let before = try f.used()
         f.context.advance(10);try f.controller.tick()
         XCTAssertEqual(try f.used(),before)
+    }
+
+    func testFullAllowancePausedForMissingCollectorMatchesBrowserAndMacBalancesAndRecovers() throws {
+        let f = try Fixture()
+        var policy = f.controller.engine.policy
+        policy.reset.timeZone = "America/Chicago"
+        policy.quotas[0].weeklyLimitSeconds = 21600
+        try f.controller.engine.replacePolicy(policy,expectedRevision:f.revision,now:f.context.now,monotonic:f.context.monotonic)
+        // Another login's collector cannot make Alice's tracking healthy.
+        f.foreground(uid:502)
+        let paused = f.browser()
+        let pausedRule = try XCTUnwrap((paused["rules"] as? [[String:Any]])?.first)
+        XCTAssertEqual(pausedRule["blocked"] as? Bool,true)
+        XCTAssertEqual(pausedRule["reason"] as? String,"collector_unavailable")
+        XCTAssertEqual(pausedRule["remainingSeconds"] as? Int,21600)
+        XCTAssertEqual(paused["resetTimeZone"] as? String,"America/Chicago")
+        let child = try ChildStatusSnapshot.decode(f.controller.native(["op":"childStatus"],uid:501,role:"agent"))
+        XCTAssertEqual(child.items.first?.remainingSeconds,21600)
+        XCTAssertEqual(child.items.first?.blockingReason,.collectorUnavailable)
+        XCTAssertTrue(try XCTUnwrap(child.items.first).isPaused)
+        XCTAssertEqual(child.resetTimeZone,paused["resetTimeZone"] as? String)
+        XCTAssertEqual(child.items.first?.resetAt,ISO8601DateFormatter().date(from:try XCTUnwrap(pausedRule["resetAt"] as? String)))
+        let parent = try XCTUnwrap(items(f.request("GET","/v1/children/alice/balances")).first)
+        XCTAssertEqual(parent["remainingSeconds"] as? Int,21600)
+        XCTAssertEqual(parent["quotaState"] as? String,"available")
+        XCTAssertEqual(parent["blockingReason"] as? String,"collector_unavailable")
+        let revision = f.revision
+        f.context.advance(30)
+        // Browser/child-status reads must not turn an absent collector into one.
+        _ = f.controller.native(["op":"childStatus"],uid:501,role:"agent")
+        XCTAssertEqual((f.browser(sequence:2)["rules"] as? [[String:Any]])?.first?["reason"] as? String,"collector_unavailable")
+        XCTAssertEqual(try f.used(),0)
+        f.foreground()
+        let resumed = try XCTUnwrap((f.browser(sequence:3)["rules"] as? [[String:Any]])?.first)
+        XCTAssertEqual(resumed["reason"] as? String,"available")
+        XCTAssertEqual(resumed["blocked"] as? Bool,false)
+        XCTAssertEqual(resumed["remainingSeconds"] as? Int,21600)
+        XCTAssertEqual(resumed["resetAt"] as? String,pausedRule["resetAt"] as? String)
+        XCTAssertEqual(f.revision,revision)
+        f.context.advance(5)
+        XCTAssertEqual(try f.used(),5)
+    }
+
+    func testExhaustionThenWeeklyResetHasCorrectReasonEvenBeforeCollectorReconnects() throws {
+        let f = try Fixture();var policy = f.controller.engine.policy
+        policy.reset.timeZone = "America/Chicago"
+        policy.quotas[0].weeklyLimitSeconds = 5
+        try f.controller.engine.replacePolicy(policy,expectedRevision:f.revision,now:f.context.now,monotonic:f.context.monotonic)
+        f.foreground();f.browser();f.context.advance(5)
+        let exhausted = try XCTUnwrap((f.browser(sequence:2)["rules"] as? [[String:Any]])?.first)
+        XCTAssertEqual(exhausted["remainingSeconds"] as? Int,0)
+        XCTAssertEqual(exhausted["reason"] as? String,"exhausted")
+        XCTAssertEqual(exhausted["blocked"] as? Bool,true)
+        let reset = try XCTUnwrap(ISO8601DateFormatter().date(from:try XCTUnwrap(exhausted["resetAt"] as? String)))
+        f.foreground(active:false)
+        f.context.advance(20)
+        XCTAssertEqual((f.browser(sequence:3)["rules"] as? [[String:Any]])?.first?["reason"] as? String,"exhausted")
+        f.context.advance(reset.timeIntervalSince(f.context.now) + 1)
+        let newWeek = try XCTUnwrap((f.browser(sequence:4)["rules"] as? [[String:Any]])?.first)
+        XCTAssertEqual(newWeek["remainingSeconds"] as? Int,5)
+        XCTAssertEqual(newWeek["reason"] as? String,"collector_unavailable")
+        XCTAssertEqual(newWeek["blocked"] as? Bool,true)
+        XCTAssertNotEqual(newWeek["resetAt"] as? String,exhausted["resetAt"] as? String)
+        f.foreground()
+        let resumed = try XCTUnwrap((f.browser(sequence:5)["rules"] as? [[String:Any]])?.first)
+        XCTAssertEqual(resumed["reason"] as? String,"available")
+        XCTAssertEqual(resumed["blocked"] as? Bool,false)
+        XCTAssertEqual(resumed["remainingSeconds"] as? Int,5)
+        XCTAssertEqual(try f.used(),0)
+    }
+
+    func testSavingCurrentResetScheduleCancelsPendingChangeWithoutResettingUsage() throws {
+        let f = try Fixture();f.foreground();f.browser();f.context.advance(5)
+        let original = f.controller.engine.policy.reset
+        var proposed = original;proposed.weekday = "wednesday"
+        XCTAssertEqual(original.weekday,"monday")
+        let initial = try XCTUnwrap(items(f.request("GET","/v1/children/alice/balances")).first)
+        let oldRevision = f.revision
+        let pending = try f.request("PUT","/v1/admin/settings",body:["expectedPolicyRevision":oldRevision,"reset":try JSONCodec.object(proposed)])
+        XCTAssertEqual(pending.status,200)
+        XCTAssertEqual(f.controller.engine.policy.pendingReset?.schedule,proposed)
+        XCTAssertEqual(f.controller.engine.policy.reset,original)
+        // Editing an unrelated allowance retains the pending reset schedule.
+        XCTAssertEqual(try f.request("PATCH","/v1/children/alice/quotas/alice-chess",body:["expectedPolicyRevision":f.revision,"weeklyLimitSeconds":120]).status,200)
+        XCTAssertEqual(f.controller.engine.policy.pendingReset?.schedule,proposed)
+        let cancelBody: [String:Any] = ["expectedPolicyRevision":f.revision,"reset":try JSONCodec.object(original)]
+        XCTAssertEqual(try f.request("PUT","/v1/admin/settings",body:cancelBody,authorizedParent:false).status,403)
+        XCTAssertEqual(try f.request("PUT","/v1/admin/settings",body:["expectedPolicyRevision":oldRevision,"reset":try JSONCodec.object(original)]).status,409)
+        XCTAssertNotNil(f.controller.engine.policy.pendingReset)
+        XCTAssertEqual(try f.request("PUT","/v1/admin/settings",body:cancelBody).status,200)
+        XCTAssertNil(f.controller.engine.policy.pendingReset)
+        XCTAssertEqual(f.controller.engine.policy.reset,original)
+        let final = try XCTUnwrap(items(f.request("GET","/v1/children/alice/balances")).first)
+        XCTAssertEqual(final["usedSeconds"] as? Int,initial["usedSeconds"] as? Int)
+        XCTAssertEqual(final["periodEnd"] as? String,initial["periodEnd"] as? String)
+        // JSON booleans must not pass as numeric revisions.
+        XCTAssertEqual(try f.request("PUT","/v1/admin/settings",body:["expectedPolicyRevision":true,"reset":try JSONCodec.object(proposed)]).status,409)
     }
 
     func testFailedCredentialBootstrapDoesNotCommitUnrecoverableAdminDigest() throws {
@@ -513,6 +611,7 @@ final class ControllerTests: XCTestCase {
         let response = f.browser(sequence:2)
         XCTAssertEqual(response["coverage"] as? String,"incomplete")
         XCTAssertEqual((response["rules"] as? [[String:Any]])?.first?["blocked"] as? Bool,true)
+        XCTAssertEqual((response["rules"] as? [[String:Any]])?.first?["reason"] as? String,"collector_unavailable")
         f.context.advance(10);try f.controller.tick();XCTAssertEqual(try f.used(),15)
     }
 

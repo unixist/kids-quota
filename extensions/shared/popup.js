@@ -10,8 +10,14 @@ export function remainingTime(seconds) {
 export function resetTime(value, {locale, timeZone} = {}) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return null;
-  return new Intl.DateTimeFormat(locale, {weekday:'short', month:'short', day:'numeric',
-    hour:'numeric', minute:'2-digit', timeZoneName:'short', ...(timeZone ? {timeZone} : {})}).format(date);
+  const options = {weekday:'short', month:'short', day:'numeric',
+    hour:'numeric', minute:'2-digit', timeZoneName:'short', ...(timeZone ? {timeZone} : {})};
+  try { return new Intl.DateTimeFormat(locale, options).format(date); }
+  catch {
+    // Preserve the authoritative reset instant if this browser lacks the
+    // Mac's timezone. An explicit UTC label avoids suggesting local midnight.
+    return new Intl.DateTimeFormat(locale, {...options, timeZone:'UTC'}).format(date);
+  }
 }
 
 export function popupPresentation(data, dateOptions) {
@@ -30,8 +36,8 @@ export function popupPresentation(data, dateOptions) {
       name:rule.name || rule.serviceId,
       domains:(rule.domains || []).map(domain => domain.hostname + (domain.includeSubdomains ? ' (and subdomains)' : '')).join(', '),
       balance:!current ? 'Time unavailable' : exhausted ? 'No time left' : `${remainingTime(rule.remainingSeconds)} left`,
-      note:!current ? 'Reconnect to see your current balance.' : exhausted ? 'Your weekly allowance is used up.' : rule.blocked ? 'Website access is paused. Ask your parent for help.' : '',
-      reset:current ? resetTime(rule.resetAt, dateOptions) : null,
+      note:!current ? 'Reconnect to see your current balance.' : exhausted ? 'Your weekly allowance is used up.' : rule.blocked ? 'Website access is paused because the Mac activity monitor is unavailable. Ask your parent to sign out of this Mac account and sign back in.' : '',
+      reset:current ? resetTime(rule.resetAt, {...dateOptions, ...(data.resetTimeZone ? {timeZone:data.resetTimeZone} : {})}) : null,
       exhausted
     };
   });

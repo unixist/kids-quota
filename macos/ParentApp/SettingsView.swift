@@ -19,7 +19,13 @@ struct SettingsView: View {
                     TextField("Time (24-hour HH:mm)", text: $localTime)
                     Picker("Time zone", selection: $timeZone) { ForEach(TimeZone.knownTimeZoneIdentifiers, id: \.self) { Text($0).tag($0) } }
                     Text("Reset changes take effect after the current week. Existing usage is preserved.").font(.caption).foregroundStyle(.secondary)
-                    Button("Save reset schedule") { run { _ = try await store.mutate("PUT", "/admin/settings", ["reset": ["weekday": weekday, "localTime": localTime, "timeZone": timeZone]], expectedRevision: openedRevision); openedRevision = store.state?.policyRevision; message = "Reset schedule saved." } }.disabled(busy)
+                    Button("Save reset schedule") { run {
+                        let saved = try await store.mutate("PUT", "/admin/settings", ["reset": ["weekday": weekday, "localTime": localTime, "timeZone": timeZone]], expectedRevision: openedRevision)
+                        // A concurrent balance refresh may still be in flight.
+                        // Use the revision that actually accepted this save.
+                        openedRevision = saved["policyRevision"] as? Int
+                        message = "Reset schedule saved."
+                    } }.disabled(busy)
                 }
                 Section("Parent access") {
                     Text(store.connected ? "Connected to this Mac's Kids Quota service." : "Service not connected.").foregroundStyle(store.connected ? .green : .orange)

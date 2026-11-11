@@ -27,6 +27,26 @@ final class ChildStatusTests: XCTestCase {
         XCTAssertEqual(blocked.items.first?.remainingSeconds, 0)
     }
 
+    func testPausedTrackingRetainsFullAllowanceAndClearsAfterReconnect() throws {
+        var pausedItem = item(remaining:21600,used:0)
+        pausedItem["coverage"] = "incomplete"
+        pausedItem["blockingReason"] = "collector_unavailable"
+        var state = ChildStatusDisplayState.loading
+        state.accept(response(items:[pausedItem]))
+        guard case .ready(let paused) = state else { return XCTFail("Expected paused balances") }
+        XCTAssertEqual(paused.items.first?.remainingSeconds,21600)
+        XCTAssertEqual(paused.items.first?.blockingReason,.collectorUnavailable)
+        XCTAssertTrue(try XCTUnwrap(paused.items.first).isPaused)
+        pausedItem["blockingReason"] = "available"
+        state.accept(response(items:[pausedItem]))
+        guard case .ready(let resumed) = state else { return XCTFail("Expected resumed balances") }
+        XCTAssertFalse(try XCTUnwrap(resumed.items.first).isPaused)
+        XCTAssertEqual(resumed.items.first?.remainingSeconds,21600)
+        // Incomplete app/browser coverage does not imply collector failure.
+        pausedItem.removeValue(forKey:"blockingReason")
+        XCTAssertFalse(try XCTUnwrap(ChildStatusSnapshot.decode(response(items:[pausedItem])).items.first).isPaused)
+    }
+
     func testFailureAndAccountRemovalDiscardPreviousBalances() throws {
         var state = ChildStatusDisplayState.loading
         state.accept(response())

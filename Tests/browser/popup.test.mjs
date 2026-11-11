@@ -69,10 +69,32 @@ test('a paused website with remaining allowance is never described as exhausted'
   assert.equal(row.balance, '2 h 1 min left');
   assert.equal(row.exhausted, false);
   assert.match(row.note, /Website access is paused/);
+  assert.match(row.note, /Mac activity monitor/);
+  assert.match(row.note, /sign out of this Mac account and sign back in/);
   data.rules[0].remainingSeconds = 0;
   const exhausted = popupPresentation(data, dateOptions).rows[0];
   assert.equal(exhausted.balance, 'No time left');
   assert.equal(exhausted.exhausted, true);
+});
+
+test('popup uses the service reset timezone even when the browser timezone differs',()=>{
+  const data=snapshot({resetTimeZone:'America/Chicago'});
+  data.rules[0].resetAt='2026-11-16T06:00:00Z';
+  const row=popupPresentation(data,{locale:'en-US',timeZone:'UTC'}).rows[0];
+  assert.match(row.reset,/Mon, Nov 16/);
+  assert.match(row.reset,/12:00 AM CST/);
+});
+
+test('an unsupported native timezone keeps the popup balance and labels the reset in UTC',()=>{
+  const data=snapshot({resetTimeZone:'GMT-0600'});
+  data.rules[0].remainingSeconds=21600;
+  data.rules[0].resetAt='2026-11-16T06:00:00Z';
+  const model=popupPresentation(data,dateOptions);
+  assert.equal(model.status,'Your remaining time this week');
+  assert.equal(model.rows[0].balance,'6 h left');
+  assert.equal(model.rows[0].exhausted,false);
+  assert.match(model.rows[0].reset,/Mon, Nov 16/);
+  assert.match(model.rows[0].reset,/6:00 AM UTC/);
 });
 
 test('disconnected or stale snapshots never present cached numbers as current balances', () => {

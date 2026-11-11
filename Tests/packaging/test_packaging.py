@@ -295,7 +295,7 @@ printf fixture > "$output"
         source = (ROOT / "scripts/package.sh").read_text().replace("/usr/bin/pkgbuild", shlex.quote(str(pkgbuild)))
         script = executable(repo / "scripts/package.sh", source)
         env = {key: value for key, value in os.environ.items() if key not in ["TEAM_ID", "SIGN_IDENTITY", "INSTALLER_IDENTITY", "CHROME_EXTENSION_ID", "CHROME_STORE_EXTENSION_ID", "NOTARY_PROFILE"]}
-        env.update(CAPTURE=str(captured), PACKAGE_LOG=str(self.work / "package.log"), CHECK_LOG=str(self.work / "check.log"))
+        env.update(VERSION="0.1.4", CAPTURE=str(captured), PACKAGE_LOG=str(self.work / "package.log"), CHECK_LOG=str(self.work / "check.log"))
         result = subprocess.run([str(script), "--local", "--pkg-only"], env=env, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("--local", (self.work / "check.log").read_text())

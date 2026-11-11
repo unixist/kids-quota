@@ -19,6 +19,8 @@ struct QuotaItem: Identifiable, Decodable { let id: String; let childId: String;
 struct BalanceItem: Decodable {
     let quotaId: String; let serviceId: String; let limitSeconds: Int; let usedSeconds: Int; let remainingSeconds: Int
     let quotaState: String; let coverage: String; let periodEnd: String
+    let blockingReason: String?
+    var trackingPaused: Bool { remainingSeconds > 0 && blockingReason == "collector_unavailable" }
 }
 struct ResetItem: Decodable { var weekday: String; var localTime: String; var timeZone: String }
 struct PendingResetItem: Decodable { let schedule: ResetItem; let effectiveAt: String }

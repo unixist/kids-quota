@@ -50,7 +50,12 @@ export function createController({api, platform, now = Date.now, sessionId = cry
       // A stalled Safari request must not postpone the fail-closed deadline.
       staleTimer = timers.setTimeout(()=>{void serial(reconcile);},STALE_AFTER_MS);
       let persistenceFailed = false;
-      try { await api.storage.local.set({lastPolicy:{policy:state.policy}}); }
+      try {
+        await api.storage.local.set({lastPolicy:{policy:state.policy}});
+        // A successful save retries the previous operation; do not leave a
+        // recovered storage or reconciliation error visible indefinitely.
+        enforcementError = null;
+      }
       catch { persistenceFailed = true; }
       await reconcile();
       if (persistenceFailed) enforcementError = 'Website policy could not be saved. Open Kids Quota.';
@@ -130,7 +135,11 @@ export function createController({api, platform, now = Date.now, sessionId = cry
       void refresh();
       const snapshot = state.snapshot(now(),enforcementError);
       const rule = snapshot.rules.find(item=>item.serviceId===message.serviceId);
-      return {connected:snapshot.connected, rule:rule || null};
+      // A native allowance can arrive before the browser finishes removing its
+      // old rules. Do not offer a return link until that update has succeeded.
+      const updating = state.policy !== null && JSON.stringify(makeBlockingRules(snapshot.rules,blockedPage)) !== sweepSignature;
+      return {connected:snapshot.connected, resetTimeZone:snapshot.resetTimeZone,
+        enforcementError:enforcementError || (updating ? 'Website blocking is updating. Try Refresh status.' : null), rule:rule || null};
     }
     return {error:'Unknown extension message'};
   }

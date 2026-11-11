@@ -175,7 +175,7 @@ public final class ServiceController {
                 let c = try child(parts[2],client:client)
                 if parts.count == 4 && request.method == "GET" && parts[3] == "balances" {
                     try requireScope(client,"balances:read")
-                    return .init(json:try JSONCodec.object(snapshot(childId:c.id)))
+                    return .init(json:try balanceResponse(childId:c.id))
                 }
                 if parts.count == 4 && request.method == "GET" && parts[3] == "quotas" {
                     try requireScope(client,"quotas:read")
@@ -243,7 +243,7 @@ public final class ServiceController {
                     // Audit the requesting login; Authorization Services does not
                     // expose the identity of the administrator who authenticated.
                     let policy = try engine.resetUsage(childId:c.id,expectedRevision:revision.intValue,actorUID:authorizedNativeParentUID!,now:date(),monotonic:monotonic())
-                    return .init(json:["policyRevision":policy.revision,"balances":try JSONCodec.object(snapshot(childId:c.id))])
+                    return .init(json:["policyRevision":policy.revision,"balances":try balanceResponse(childId:c.id)])
                 }
                 if request.method == "POST" && parts == ["v1","admin","applications"] {
                     let data = try payload(request,keys:["expectedPolicyRevision","path"])
@@ -258,7 +258,11 @@ public final class ServiceController {
                     let data = try payload(request,keys:["expectedPolicyRevision","reset"])
                     guard let reset = data["reset"] else { throw APIError(422,"invalid_policy","Reset schedule required.") }
                     let schedule = try JSONCodec.decode(ResetSchedule.self,from:reset)
-                    let policy = try change(data) {$0.reset = schedule}
+                    guard let revision = data["expectedPolicyRevision"] as? NSNumber,
+                          CFGetTypeID(revision) != CFBooleanGetTypeID(), revision.doubleValue == Double(engine.policy.revision) else {
+                        throw APIError(409,"conflict","Policy changed; refresh before saving.")
+                    }
+                    let policy = try engine.setResetSchedule(schedule,expectedRevision:revision.intValue,now:date(),monotonic:monotonic())
                     return .init(json:["policyRevision":policy.revision,"policy":try JSONCodec.object(policy)])
                 }
                 if request.method == "POST" && parts == ["v1","admin","clients"] {
@@ -284,6 +288,15 @@ public final class ServiceController {
     }
 
     private var filterConnected: Bool { filterLastSeen.map {monotonic() - $0 < 5} ?? false }
+    private func collectorIsFresh(uid: UInt32) -> Bool {
+        guard let report = foreground[uid], report.healthy else { return false }
+        let age = monotonic() - report.lastSeen
+        return age >= 0 && age < 15
+    }
+    private func accessReason(remainingSeconds: Int, freshCollector: Bool) -> QuotaAccessReason {
+        if remainingSeconds == 0 { return .exhausted }
+        return freshCollector ? .available : .collectorUnavailable
+    }
     private func accountIsCurrent(_ child: Child) -> Bool {
         guard child.macOSAccount.status == "ready", let guid = child.macOSAccount.generatedUid, let uid = child.macOSAccount.uid else { return false }
         let key = guid + ":" + String(uid), clock = monotonic()
@@ -296,7 +309,7 @@ public final class ServiceController {
     private func snapshot(childId: String) throws -> BalanceSnapshot {
         let child = engine.policy.children.first {$0.id == childId}
         let uid = child?.macOSAccount.uid
-        let active = uid.flatMap {foreground[$0]}.map {$0.healthy && monotonic() - $0.lastSeen < 15} ?? false
+        let active = uid.map {collectorIsFresh(uid: $0)} ?? false
         let seenBrowser = uid.map {u in ["chrome","safari"].allSatisfy {browser in browsers.contains {$0.key.hasPrefix("\(u):\(browser):") && monotonic() - $0.value.lastSeen < 15}}} ?? false
         var coverage: [String:Bool] = [:]
         for service in engine.policy.services {
@@ -304,6 +317,20 @@ public final class ServiceController {
             coverage[service.id] = child.map {accountIsCurrent($0)} == true && active && (service.domains.isEmpty || seenBrowser) && (service.applicationIds.isEmpty || (filterConnected && filterGaps == 0 && readyApps))
         }
         return try engine.balances(childId:childId,now:date(),monotonic:monotonic(),coverage:coverage)
+    }
+
+    private func balanceResponse(childId: String) throws -> [String:Any] {
+        let balance = try snapshot(childId:childId)
+        guard var response = try JSONCodec.object(balance) as? [String:Any] else { throw TransportError.invalidRequest }
+        guard let child = engine.policy.children.first(where: {$0.id == childId}),
+              accountIsCurrent(child), let uid = child.macOSAccount.uid else { return response }
+        let freshCollector = collectorIsFresh(uid:uid)
+        response["items"] = try balance.items.map { item -> [String:Any] in
+            guard var encoded = try JSONCodec.object(item) as? [String:Any] else { throw TransportError.invalidRequest }
+            encoded["blockingReason"] = accessReason(remainingSeconds:item.remainingSeconds,freshCollector:freshCollector).rawValue
+            return encoded
+        }
+        return response
     }
 
     /// IPC identity comes from kernel peer credentials, never from payload child IDs.
@@ -332,12 +359,13 @@ public final class ServiceController {
                 // report. The collector and service timer own reconciliation.
                 try engine.tick(now:date(),monotonic:monotonic())
                 let balance = try snapshot(childId:child.id)
+                let freshCollector = collectorIsFresh(uid:uid)
                 let items: [[String:Any]] = try balance.items.compactMap { item in
                     guard let service = engine.policy.services.first(where: {$0.id == item.serviceId}) else { return nil }
                     return ["serviceId":service.id,"name":service.name,"domains":try JSONCodec.object(service.domains),
                             "weeklyLimitSeconds":item.limitSeconds,"usedSeconds":item.usedSeconds,
                             "remainingSeconds":item.remainingSeconds,"resetAt":ISO8601DateFormatter().string(from:item.periodEnd),
-                            "coverage":item.coverage]
+                            "coverage":item.coverage,"blockingReason":accessReason(remainingSeconds:item.remainingSeconds,freshCollector:freshCollector).rawValue]
                 }
                 return ["type":"childStatus","configured":true,"childName":child.displayName,
                         "resetTimeZone":engine.policy.reset.timeZone,"items":items]
@@ -349,7 +377,7 @@ public final class ServiceController {
                 var rules: [[String:Any]] = []
                 for child in engine.policy.children {
                     guard accountIsCurrent(child), let accountUID = child.macOSAccount.uid else {continue}
-                    let freshAgent = foreground[accountUID].map {$0.healthy && monotonic() - $0.lastSeen < 15} ?? false
+                    let freshAgent = collectorIsFresh(uid:accountUID)
                     let balance = try snapshot(childId:child.id)
                     for item in balance.items {
                         guard let service = engine.policy.services.first(where: {$0.id == item.serviceId}) else {continue}
@@ -362,7 +390,7 @@ public final class ServiceController {
                 return ["revision":engine.policy.revision,"rules":rules,"childUIDs":engine.policy.children.filter {accountIsCurrent($0)}.compactMap {$0.macOSAccount.uid}]
             }
             guard let child = engine.policy.children.first(where: {$0.macOSAccount.uid == uid && accountIsCurrent($0)}) else {
-                return ["type":"policy","revision":engine.policy.revision,"rules":[],"configured":false,"coverage":"incomplete","error":"This macOS account is not linked to a child."]
+                return ["type":"policy","revision":engine.policy.revision,"rules":[],"configured":false,"coverage":"incomplete","resetTimeZone":engine.policy.reset.timeZone,"error":"This macOS account is not linked to a child."]
             }
             if op == "foreground" {
                 guard role == "agent" else {throw APIError(403,"forbidden","Collector identity required.")}
@@ -385,12 +413,13 @@ public final class ServiceController {
                 }
                 try tick()
                 let balance = try snapshot(childId:child.id)
-                let freshAgent = foreground[uid].map {$0.healthy && monotonic() - $0.lastSeen < 15} ?? false
+                let freshAgent = collectorIsFresh(uid:uid)
                 let rules: [[String:Any]] = try balance.items.compactMap { item in
                     guard let service = engine.policy.services.first(where: {$0.id == item.serviceId}) else {return nil}
-                    return ["serviceId":service.id,"name":service.name,"domains":try JSONCodec.object(service.domains),"blocked":item.remainingSeconds == 0 || !freshAgent,"remainingSeconds":item.remainingSeconds,"resetAt":ISO8601DateFormatter().string(from:item.periodEnd)]
+                    let reason = accessReason(remainingSeconds:item.remainingSeconds,freshCollector:freshAgent)
+                    return ["serviceId":service.id,"name":service.name,"domains":try JSONCodec.object(service.domains),"blocked":reason != .available,"reason":reason.rawValue,"remainingSeconds":item.remainingSeconds,"resetAt":ISO8601DateFormatter().string(from:item.periodEnd)]
                 }
-                return ["type":"policy","revision":engine.policy.revision,"rules":rules,"configured":true,"coverage":freshAgent ? "complete" : "incomplete","requestSequence":seq.uint64Value]
+                return ["type":"policy","revision":engine.policy.revision,"rules":rules,"configured":true,"coverage":freshAgent ? "complete" : "incomplete","resetTimeZone":engine.policy.reset.timeZone,"requestSequence":seq.uint64Value]
             }
             throw APIError(400,"bad_request","Unknown operation.")
         } catch {return ["error":"Service request failed.","configured":false,"coverage":"incomplete"]}

@@ -3,7 +3,18 @@
 Weekly website and Mac app allowances shared across Chrome, Safari, and selected
 apps, with independent balances for children using separate macOS login accounts.
 
-**Status: v0.1.4 companion prerelease available; Chrome Web Store submitted, pending review.**
+**v0.1.5 fixes are prepared locally; they are not yet published to GitHub Releases
+or the Chrome Web Store.** This revision distinguishes a disconnected activity
+monitor from an exhausted allowance, prevents older balance replies from replacing
+newer ones, fixes cancellation of pending reset-day changes, and preserves usage
+when a database write must be retried. Regression tests cover these cases.
+The verified local installer is `dist/KidsQuota-0.1.5-Local.dmg`; the separate
+store upload is `dist/KidsQuota-Chrome-0.1.5.zip`. Supervised Chrome profiles need
+the store update after publication; the DMG cannot replace that browser update.
+Validation: 64 core, 69 service, 52 browser/build, 34 packaging, and 26 Mac UI
+tests passed, plus the isolated live-service authorization/crash-recovery check.
+
+**Published companion: v0.1.4 prerelease.** Chrome installation uses the direct store link below.
 `dist/KidsQuota-0.1.4-Local.dmg` installs the app, root service, login agent,
 browser adapters, and an **inactive** Network Extension for Apple Silicon and
 Intel Macs running macOS 14 or later. It needs no Apple developer membership.
@@ -18,8 +29,8 @@ extensions for Family Link child profiles. These profiles need the store
 extension and the v0.1.4 companion installer, which recognizes its store ID
 `kcdaoppmbobecgoajneamoimiohmkipj`. The
 [store link](https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj)
-will work after Google approval; automatic publication is selected. The
-extension is not approved or available yet. The v0.1.3 DMG supports only the
+was verified installable on November 8, 2026. The listing is unlisted, so use
+the direct link rather than Chrome Web Store search. The v0.1.3 DMG supports only the
 unpacked extension. See [Chrome installation and release status](docs/chrome-install.md).
 
 ## How the pieces fit together
@@ -110,8 +121,8 @@ Download the [v0.1.4 companion release](https://github.com/unixist/kids-quota/re
 and copy **KidsQuota-0.1.4-Local.dmg** to the new Mac. It installs all Mac
 components; Chrome's store extension is installed separately in the browser.
 The destination does not need Xcode, Node, Python, the source repository, or an
-Apple developer account. The companion is available now; the store extension
-still needs Google approval and publication before supervised profiles can use it.
+Apple developer account. The v0.1.5 changes above require a new companion build and a separate browser
+extension update; installing only the DMG does not update the store extension.
 
 1. While signed into the child's Mac account, mount the DMG and open
    **Install Kids Quota.pkg**. Enter the parent's administrator username and
@@ -123,7 +134,7 @@ still needs Google approval and publication before supervised profiles can use i
 3. Select the child's existing local Mac login account (standard or administrator)
    and choose **Set up account**. Chess.com and ChatGPT are created automatically,
    each with six hours per week and a Monday reset. No token entry or terminal is needed.
-4. Once published, install the
+4. Install the
    [Kids Quota store extension](https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj)
    in each child's existing Chrome profile. Permit extension installation in
    Family Link if required and complete any parental approval prompt. Allow
@@ -161,6 +172,15 @@ view shows that status instead of presenting an old balance as current. No
 password or read-client token is needed; the service identifies the current Mac
 login and returns only that child's assigned services. Changes and manual resets
 still require the parent app and administrator authorization.
+
+If a website is blocked while both views show time remaining, its Mac activity
+monitor may have stopped reporting. Older blocked pages incorrectly call this
+“weekly limit reached.” v0.1.5 shows **Tracking paused** and preserves the real
+balance. Sign out of the affected Mac account and back in to restart its monitor;
+then refresh the blocked page. Do not reset the allowance to repair the connection.
+The updated browser clears its restrictions when current monitoring and an
+available allowance are confirmed. A missing connection continues to pause known
+restricted sites.
 
 The installed parent executable is root-owned with mode `0755`, so any login can
 open its locked screen but standard accounts cannot modify it. macOS Authorization

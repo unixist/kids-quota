@@ -31,10 +31,58 @@ test('policy validation rejects partial or untrusted restrictions as a whole',()
     {rules:[{...policy().rules[0],resetAt:'not a date'}]},
     {rules:[{...policy().rules[0],domains:[{hostname:'https://chess.com/',includeSubdomains:true}]}]},
     {rules:[{...policy().rules[0],domains:[{hostname:'chess.com',includeSubdomains:'true'}]}]},
-    {rules:[policy().rules[0],policy().rules[0]]}
+    {rules:[policy().rules[0],policy().rules[0]]},
+    {resetTimeZone:''}, {resetTimeZone:'   '}, {resetTimeZone:'a'.repeat(101)}, {resetTimeZone:42},
+    {rules:[{...policy().rules[0],reason:'invented-reason'}]}
   ]) assert.equal(normalizePolicy(policy(change)),null,JSON.stringify(change));
   const zero=policy();zero.rules[0].remainingSeconds=0;
   assert.equal(normalizePolicy(zero).rules[0].blocked,true);
+});
+
+test('positive balances blocked by missing monitoring retain their balance and explicit reason',()=>{
+  for (const reason of [undefined,'collector_unavailable','exhausted']) {
+    const state=new PolicyState(), paused=policy();
+    paused.rules[0].blocked=true;
+    if (reason !== undefined) paused.rules[0].reason=reason;
+    assert.equal(state.accept(paused,1000),true);
+    assert.equal(state.snapshot(1000).connected,true);
+    assert.equal(state.rules(1000)[0].remainingSeconds,21600);
+    assert.equal(state.rules(1000)[0].reason,'collector_unavailable');
+    assert.equal(state.rules(1000)[0].blocked,true);
+    assert.equal(state.rules(16000)[0].reason,'unavailable','lost service contact is a separate state');
+    assert.equal(state.accept(policy({requestSequence:2}),17000),true);
+    assert.equal(state.rules(17000)[0].reason,'available');
+    assert.equal(state.rules(17000)[0].blocked,false);
+  }
+  const exhausted=policy();exhausted.rules[0].remainingSeconds=0;
+  assert.equal(normalizePolicy(exhausted).rules[0].reason,'exhausted');
+  const inconsistent=policy();inconsistent.rules[0].reason='collector_unavailable';
+  assert.equal(normalizePolicy(inconsistent).rules[0].blocked,true,'explicit monitor failure never grants access');
+});
+
+test('authoritative reset timezone survives fresh snapshots and cached restoration',()=>{
+  const state=new PolicyState();
+  assert.equal(state.accept(policy({resetTimeZone:'America/Chicago'}),1000),true);
+  assert.equal(state.snapshot(1000).resetTimeZone,'America/Chicago');
+  const restarted=new PolicyState();
+  assert.equal(restarted.restore({policy:state.policy}),true);
+  assert.equal(restarted.snapshot(1001).resetTimeZone,'America/Chicago');
+  assert.equal(restarted.snapshot(1001).connected,false);
+});
+
+test('a timezone missing from the browser database never prevents authoritative balance recovery',()=>{
+  for(const resetTimeZone of ['America/Coyhaique','GMT-0600']) {
+    const state=new PolicyState(), exhausted=policy({resetTimeZone});
+    exhausted.rules[0].remainingSeconds=0;exhausted.rules[0].blocked=true;
+    assert.equal(state.accept(exhausted,1000),true);
+    assert.equal(state.accept(policy({resetTimeZone,requestSequence:2}),2000),true);
+    const current=state.snapshot(2000);
+    assert.equal(current.connected,true);
+    assert.equal(current.resetTimeZone,resetTimeZone);
+    assert.equal(current.rules[0].remainingSeconds,21600);
+    assert.equal(current.rules[0].reason,'available');
+    assert.equal(current.rules[0].blocked,false);
+  }
 });
 
 test('cached policies fail closed until live native contact; native time owns balances and reset',()=>{

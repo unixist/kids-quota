@@ -13,16 +13,13 @@ can consume time, but native apps retain network access after exhaustion.
 
 ### Chrome Web Store
 
-The store item was **submitted November 2, 2026 and is pending review**.
-Automatic unlisted publication is selected after approval. It is not approved
-or available to install yet. Its assigned
-ID is `kcdaoppmbobecgoajneamoimiohmkipj`, recorded in
+Chrome v0.1.4 was verified installable on November 8, 2026. The listing is
+unlisted; use the [direct store link](https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj).
+Its ID is `kcdaoppmbobecgoajneamoimiohmkipj`, recorded in
 [chrome-store.json](chrome-store.json). The
-[store listing](https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj)
-becomes usable after approval and publication. The
 [v0.1.4 companion prerelease](https://github.com/unixist/kids-quota/releases/tag/v0.1.4)
-is available and registers that ID in addition to the local ID. v0.1.3 only
-allows the local extension ID.
+registers both store and local IDs. v0.1.3 allows only the local extension ID.
+The v0.1.5 fixes are prepared locally; packaging a ZIP does not publish a store update.
 
 Supervised Google child profiles cannot use Developer mode or Load unpacked.
 Install the published store extension with the compatible companion and any
@@ -86,9 +83,13 @@ authenticate the connecting OS user, arbitrate the actual foreground OS session,
 and return only that user's policy. Browser reports never include elapsed seconds.
 
 Replies have `type: policy`, `revision`, `requestSequence` (echoed when available),
-`configured`, `coverage`, and `rules`. Each rule has `serviceId`, optional `name`,
+`configured`, `coverage`, optional `resetTimeZone`, and `rules`. Each rule has `serviceId`, optional `name`,
 `domains: [{hostname, includeSubdomains}]`, `blocked`, `remainingSeconds`, and an
-ISO-8601 `resetAt`. Temporary errors should return `type: error`, not an empty
+ISO-8601 `resetAt`. New companions include `reason`: `available`, `exhausted`, or
+`collector_unavailable`. A positive balance with `blocked: true` from an older
+companion also means monitoring is paused; it must not be described as exhausted.
+`resetTimeZone` is the saved IANA timezone used to display reset timestamps.
+Temporary errors should return `type: error`, not an empty
 policy. Valid explicit policy changes can clear old rules.
 
 ## Behavior and limits

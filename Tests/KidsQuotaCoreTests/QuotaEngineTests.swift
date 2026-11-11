@@ -164,6 +164,43 @@ final class QuotaEngineTests: XCTestCase {
         XCTAssertEqual(newWeek.items[0].usedSeconds, 0)
     }
 
+    func testChoosingOriginalResetScheduleCancelsPendingChangeAndPreservesUsage() throws {
+        let engine = try engine()
+        let original = engine.policy.reset
+        try report(engine, at: 0)
+        let changed = try engine.setResetSchedule(.init(weekday: "wednesday", timeZone: "UTC"), expectedRevision: 0,
+                                                  now: start.addingTimeInterval(5), monotonic: 5)
+        XCTAssertNotNil(changed.pendingReset)
+        let cancelled = try engine.setResetSchedule(original, expectedRevision: changed.revision,
+                                                    now: start.addingTimeInterval(10), monotonic: 10)
+        XCTAssertNil(cancelled.pendingReset)
+        XCTAssertEqual(cancelled.reset, original)
+        XCTAssertEqual(try balances(engine, at: 10)[0].usedSeconds, 10)
+        XCTAssertEqual(try engine.store.loadPolicy(), cancelled)
+
+        let boundary = instant("2026-10-26T00:00:00Z")
+        let after = try engine.balances(childId: "alice", now: boundary, monotonic: boundary.timeIntervalSince(start))
+        XCTAssertEqual(after.policyRevision, cancelled.revision)
+        XCTAssertEqual(after.items[0].periodStart, boundary)
+        XCTAssertEqual(after.items[0].periodEnd, instant("2026-11-02T00:00:00Z"))
+    }
+
+    func testUnrelatedAllowanceEditPreservesPendingResetAndReschedulingKeepsBoundary() throws {
+        let engine = try engine()
+        let scheduled = try engine.setResetSchedule(.init(weekday: "wednesday", timeZone: "UTC"), expectedRevision: 0, now: start, monotonic: 0)
+        var allowance = scheduled; allowance.quotas[0].weeklyLimitSeconds = 3600
+        let edited = try engine.replacePolicy(allowance, expectedRevision: scheduled.revision, now: start, monotonic: 0)
+        XCTAssertEqual(edited.pendingReset, scheduled.pendingReset)
+        let rescheduled = try engine.setResetSchedule(.init(weekday: "friday", timeZone: "UTC"), expectedRevision: edited.revision, now: start, monotonic: 0)
+        XCTAssertEqual(rescheduled.pendingReset?.schedule.weekday, "friday")
+        XCTAssertEqual(rescheduled.pendingReset?.effectiveAt, scheduled.pendingReset?.effectiveAt)
+        XCTAssertEqual(rescheduled.quotas[0].weeklyLimitSeconds, 3600)
+        XCTAssertThrowsError(try engine.setResetSchedule(edited.reset, expectedRevision: edited.revision, now: start, monotonic: 0)) {
+            XCTAssertEqual($0 as? QuotaError, .conflict)
+        }
+        XCTAssertEqual(engine.policy, rescheduled)
+    }
+
     func testCoverageIsSeparateFromRemainingBalance() throws {
         let engine = try engine()
         let result = try engine.balances(childId: "alice", now: start, monotonic: 0, coverage: ["chesscom": true])

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile,writeFile,rm} from 'node:fs/promises';
 import {execFileSync} from 'node:child_process';
-import {fileURLToPath} from 'node:url';
+import {fileURLToPath,pathToFileURL} from 'node:url';
 import path from 'node:path';
 import {createHash,createPublicKey} from 'node:crypto';
 
@@ -24,6 +24,15 @@ test('both browser packages contain compatible manifests and self-contained back
     for(const filename of [manifest.action.default_popup,...manifest.content_scripts[0].js,...manifest.web_accessible_resources[0].resources]) {
       assert.ok((await readFile(path.join(folder,filename))).length>0,filename);
     }
+    const blockedHTML=await readFile(path.join(folder,'blocked.html'),'utf8');
+    assert.match(blockedHTML,/<script\s+type="module"\s+src="blocked\.js"><\/script>/,
+      'the packaged blocked page must load its exported JavaScript as a module');
+    const blocked=await import(pathToFileURL(path.join(folder,'blocked.js')).href);
+    const paused=blocked.blockedPresentation({connected:true,resetTimeZone:'America/Chicago',rule:{
+      name:'Chess.com',remainingSeconds:21600,blocked:true,resetAt:'2026-11-16T06:00:00Z'
+    }});
+    assert.equal(paused.balance,'6 h remaining');
+    assert.equal(paused.title,'Chess.com is paused');
     assert.equal(Object.hasOwn(manifest,'externally_connectable'),false,'ordinary pages cannot submit extension messages');
     for(const size of [16,32,48,128]) {
       const png=await readFile(path.join(folder,manifest.icons[size]));

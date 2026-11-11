@@ -67,4 +67,19 @@ final class PolicyAndPresentationTests: XCTestCase {
         XCTAssertEqual(Presentation.duration(1), "Less than a minute")
         XCTAssertEqual(Presentation.duration(21_600), "6h 0m")
     }
+    func testAvailableQuotaCanBePausedWithoutBeingExhausted() throws {
+        var item: [String:Any] = ["quotaId":"alice-chess","serviceId":"chesscom","limitSeconds":21600,"usedSeconds":0,"remainingSeconds":21600,
+                                 "quotaState":"available","coverage":"incomplete","periodEnd":"2026-11-09T06:00:00Z","blockingReason":"collector_unavailable"]
+        func decode() throws -> BalanceItem { try JSONDecoder().decode(BalanceItem.self,from:JSONSerialization.data(withJSONObject:item)) }
+        let paused = try decode()
+        XCTAssertTrue(paused.trackingPaused)
+        XCTAssertEqual(paused.remainingSeconds,21600)
+        XCTAssertEqual(paused.quotaState,"available")
+        item["blockingReason"] = "available"
+        XCTAssertFalse(try decode().trackingPaused)
+        item.removeValue(forKey:"blockingReason")
+        // Older daemons remain compatible; incomplete coverage is not exhaustion
+        // or evidence of a missing collector by itself.
+        XCTAssertFalse(try decode().trackingPaused)
+    }
 }

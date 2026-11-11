@@ -39,6 +39,11 @@ export function normalizePolicy(message) {
       typeof message.configured !== 'boolean' || !Array.isArray(message.rules) || message.rules.length > 500) return null;
   if (message.error) return null; // Temporary errors must not clear known restrictions.
   if (message.requestSequence !== undefined && (!Number.isSafeInteger(message.requestSequence) || message.requestSequence < 0)) return null;
+  if (message.resetTimeZone !== undefined) {
+    if (typeof message.resetTimeZone !== 'string' || !message.resetTimeZone.trim() || message.resetTimeZone.length > 100) return null;
+    // macOS may know a timezone that this browser's older timezone database
+    // does not. Display support must never invalidate an authoritative policy.
+  }
   const rules = [], ids = new Set();
   let domainCount = 0;
   for (const rule of message.rules) {
@@ -46,6 +51,7 @@ export function normalizePolicy(message) {
         !Array.isArray(rule.domains) || typeof rule.blocked !== 'boolean' || typeof rule.remainingSeconds !== 'number' ||
         !Number.isFinite(rule.remainingSeconds) || rule.remainingSeconds < 0 || typeof rule.resetAt !== 'string' ||
         !Number.isFinite(Date.parse(rule.resetAt))) return null;
+    if (rule.reason !== undefined && !['available', 'exhausted', 'collector_unavailable'].includes(rule.reason)) return null;
     const domains = [];
     for (const domain of rule.domains) {
       if (!domain || typeof domain.hostname !== 'string' || typeof domain.includeSubdomains !== 'boolean') return null;
@@ -56,12 +62,19 @@ export function normalizePolicy(message) {
       domains.push({hostname: canonical, includeSubdomains: domain.includeSubdomains});
     }
     ids.add(rule.serviceId);
+    // Older companions sent only a blocked flag. A positive balance with that
+    // flag means monitoring is unavailable, not that the allowance is spent.
+    // Keep the restriction in either case, including inconsistent new replies.
+    const blocked = rule.blocked || rule.remainingSeconds === 0 ||
+      rule.reason === 'collector_unavailable' || rule.reason === 'exhausted';
+    const reason = rule.remainingSeconds === 0 ? 'exhausted' : blocked ? 'collector_unavailable' : 'available';
     rules.push({serviceId: rule.serviceId, name: typeof rule.name === 'string' ? rule.name.slice(0,100) : rule.serviceId,
-      domains, blocked: rule.blocked || rule.remainingSeconds === 0,
+      domains, blocked, reason,
       remainingSeconds: rule.remainingSeconds, resetAt: new Date(rule.resetAt).toISOString()});
   }
   return {type:'policy', revision:message.revision, requestSequence:message.requestSequence,
-    configured:message.configured, coverage:message.coverage === 'complete' ? 'complete' : 'incomplete', rules};
+    configured:message.configured, coverage:message.coverage === 'complete' ? 'complete' : 'incomplete',
+    resetTimeZone:message.resetTimeZone, rules};
 }
 
 export class PolicyState {
@@ -102,12 +115,12 @@ export class PolicyState {
   rules(now) {
     const stale = this.isStale(now);
     return (this.policy?.rules || []).map(rule => ({...rule, blocked:rule.blocked || stale,
-      reason: stale ? 'unavailable' : rule.blocked ? 'exhausted' : 'available'}));
+      reason: stale ? 'unavailable' : rule.reason}));
   }
   snapshot(now, enforcementError = null) {
     return {configured:this.policy?.configured || false, connected:!this.isStale(now),
       revision:this.policy?.revision ?? 0, coverage:enforcementError ? 'incomplete' : this.policy?.coverage || 'incomplete',
-      enforcementError, rules:this.rules(now)};
+      resetTimeZone:this.policy?.resetTimeZone, enforcementError, rules:this.rules(now)};
   }
 }
 

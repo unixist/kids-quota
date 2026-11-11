@@ -3,7 +3,14 @@ import SwiftUI
 
 @MainActor final class ParentStore: ObservableObject {
     @Published var state: AdminState?
-    @Published var selectedChild = ""
+    @Published var selectedChild = "" {
+        didSet {
+            if selectedChild != oldValue {
+                refreshGeneration = UUID()
+                balances = []; connected = false
+            }
+        }
+    }
     @Published var balances: [BalanceItem] = []
     @Published var error: String?
     @Published var busy = false
@@ -12,6 +19,7 @@ import SwiftUI
     private var authorization: (any ParentAuthorizationSession)?
     private var expirationTask: Task<Void, Never>?
     private var generation = UUID()
+    private var refreshGeneration = UUID()
     private let authorizationFactory: @Sendable () throws -> any ParentAuthorizationSession
     private let transport: @Sendable (Data) async throws -> Data
 
@@ -63,22 +71,34 @@ import SwiftUI
     var quotas: [QuotaItem] { state?.policy.quotas.filter { $0.childId == selectedChild } ?? [] }
     func refresh() async {
         guard isUnlocked else { return }
-        let attempt = generation
-        do { try await refreshOrThrow(); if generation == attempt { error = nil } }
-        catch { if isUnlocked, generation == attempt { connected = false; self.error = error.localizedDescription } }
+        do { try await refreshOrThrow() } catch { /* Current failures are presented below. */ }
     }
     private func refreshOrThrow() async throws {
-        let attempt = generation
-        let latest: AdminState = try await request("GET", "/admin/state")
-        guard isUnlocked, generation == attempt else { throw ParentError.message("Parent settings are locked.") }
-        state = latest
-        if !children.contains(where: { $0.id == selectedChild }) { selectedChild = children.first?.id ?? "" }
-        if !selectedChild.isEmpty {
-            let result: BalanceList = try await request("GET", "/children/\(selectedChild)/balances")
-            guard isUnlocked, generation == attempt else { throw ParentError.message("Parent settings are locked.") }
-            balances = result.items
-        } else { balances = [] }
-        connected = true
+        let attempt = generation, refresh = UUID()
+        refreshGeneration = refresh
+        do {
+            let latest: AdminState = try await request("GET", "/admin/state")
+            guard isUnlocked, generation == attempt, refreshGeneration == refresh else { return }
+            state = latest
+            if !children.contains(where: { $0.id == selectedChild }) {
+                selectedChild = children.first?.id ?? ""
+                // This refresh chose the initial/fallback child itself.
+                refreshGeneration = refresh
+            }
+            let childID = selectedChild
+            if !childID.isEmpty {
+                let result: BalanceList = try await request("GET", "/children/\(childID)/balances")
+                guard isUnlocked, generation == attempt, refreshGeneration == refresh else { return }
+                balances = result.items
+            } else { balances = [] }
+            connected = true; error = nil
+        } catch {
+            // A late reply (including a failure) must not replace a newer view
+            // or attach another child's balance to the current selection.
+            guard isUnlocked, generation == attempt, refreshGeneration == refresh else { return }
+            connected = false; self.error = error.localizedDescription
+            throw error
+        }
     }
     func request<T: Decodable>(_ method: String, _ path: String, body: [String: Any]? = nil) async throws -> T {
         let data = try await raw(method, path, body: body); return try JSONDecoder().decode(T.self, from: data)

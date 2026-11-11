@@ -139,6 +139,8 @@ The reset setting contains `weekday`, `localTime` (`HH:mm`), and IANA
 `timeZone`. A changed schedule takes effect at the existing period's end. The
 returned policy contains `pendingReset` until then, preventing an immediate
 allowance reset caused by changing the reset day.
+Saving the original schedule again cancels a pending change. Edits to allowances
+or service membership preserve it. Neither operation refills the current week.
 
 ## Parent-authorized manual reset
 
@@ -170,6 +172,11 @@ observed usage is rounded up for display; remaining time is clamped to zero.
 `complete` or `incomplete`. It uses current account verification and recent
 collector/browser/filter reports; a positive balance does not prove protection is
 working. Coverage is operational status, not proof software cannot be disabled.
+For a verified account, each balance also has an optional `blockingReason`:
+`available`, `exhausted`, or `collector_unavailable`. The last value means the
+account's activity monitor is missing, unhealthy, or at least 15 seconds stale;
+websites are paused even when `remainingSeconds` is positive. Do not label that
+pause as an exhausted allowance. Clients using an older companion may omit it.
 Native app enforcement blocks networking and does not remove cached offline
 features. Website usage follows the active tab's top-level hostname; background
 media and third-party frames are not separately attributed.

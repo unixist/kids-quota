@@ -71,7 +71,16 @@ public final class QuotaEngine {
 
     public func tick(now: Date, monotonic: Double) throws {
         guard monotonic.isFinite, monotonic >= 0 else { throw QuotaError.invalidPolicy("Invalid monotonic time.") }
-        let previousPolicy = policy, previousFloor = floor
+        let previousPolicy = policy, previousFloor = floor, previousActive = active
+        var committed = false
+        defer {
+            if !committed {
+                // Expiring a lease is part of the same transaction as settling
+                // its observed usage. Keep it available for retry after a failed
+                // write; otherwise the elapsed interval disappears permanently.
+                policy = previousPolicy; floor = previousFloor; active = previousActive
+            }
+        }
         var increments: [UsageIncrement] = []
         if let previousWall = lastWall, let previousMonotonic = lastMonotonic, let activity = active {
             let elapsed = monotonic - previousMonotonic
@@ -108,15 +117,11 @@ public final class QuotaEngine {
             if monotonic >= expiresAt { active = nil }
         }
         _ = try period(at: now)
-        do {
-            if !increments.isEmpty || floor != previousFloor || policy != previousPolicy {
-                try store.recordUsage(increments, periodFloor: floor, policy: policy != previousPolicy ? policy : nil)
-            }
-            lastWall = now; lastMonotonic = monotonic
-        } catch {
-            policy = previousPolicy; floor = previousFloor
-            throw error
+        if !increments.isEmpty || floor != previousFloor || policy != previousPolicy {
+            try store.recordUsage(increments, periodFloor: floor, policy: policy != previousPolicy ? policy : nil)
         }
+        lastWall = now; lastMonotonic = monotonic
+        committed = true
     }
 
     public func balances(childId: String, now: Date, monotonic: Double, coverage: [String: Bool] = [:]) throws -> BalanceSnapshot {
@@ -153,6 +158,18 @@ public final class QuotaEngine {
 
     @discardableResult
     public func replacePolicy(_ proposed: Policy, expectedRevision: Int, now: Date, monotonic: Double) throws -> Policy {
+        try replacePolicy(proposed, expectedRevision: expectedRevision, now: now, monotonic: monotonic, replacingResetSchedule: false)
+    }
+
+    /// A settings save expresses explicit reset intent. Selecting the current
+    /// schedule cancels a pending change; unrelated policy edits preserve it.
+    @discardableResult
+    public func setResetSchedule(_ schedule: ResetSchedule, expectedRevision: Int, now: Date, monotonic: Double) throws -> Policy {
+        var proposed = policy; proposed.reset = schedule
+        return try replacePolicy(proposed, expectedRevision: expectedRevision, now: now, monotonic: monotonic, replacingResetSchedule: true)
+    }
+
+    private func replacePolicy(_ proposed: Policy, expectedRevision: Int, now: Date, monotonic: Double, replacingResetSchedule: Bool) throws -> Policy {
         guard expectedRevision == policy.revision else { throw QuotaError.conflict }
         try tick(now: now, monotonic: monotonic)
         guard expectedRevision == policy.revision else { throw QuotaError.conflict }
@@ -169,7 +186,7 @@ public final class QuotaEngine {
             let boundary = try period(at: now).end
             next.pendingReset = .init(schedule: next.reset, effectiveAt: boundary)
             next.reset = policy.reset
-        } else { next.pendingReset = policy.pendingReset }
+        } else { next.pendingReset = replacingResetSchedule ? nil : policy.pendingReset }
         try next.validate()
         try store.savePolicy(next)
         policy = next
