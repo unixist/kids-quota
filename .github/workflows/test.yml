@@ -16,7 +16,22 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: swift test
+      - name: Swift core and service tests
+        run: |
+          if swift test > "$RUNNER_TEMP/kids-quota-swift.log" 2>&1; then
+            cat "$RUNNER_TEMP/kids-quota-swift.log"
+          else
+            cat "$RUNNER_TEMP/kids-quota-swift.log"
+            python3 - "$RUNNER_TEMP/kids-quota-swift.log" <<'PY'
+          import pathlib, re, sys
+          lines = pathlib.Path(sys.argv[1]).read_text(errors="replace").splitlines()
+          errors = [line for line in lines if re.search(r"\berror:|Test Case .* failed|threw error", line)]
+          for line in (errors or [line for line in lines if line.strip()])[-10:]:
+              message = line[:600].replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::error title=Swift test failure::{message}")
+          PY
+            exit 1
+          fi
       - run: swift test --package-path ios/QuotaKit
       - run: npm test
       - run: python3 -m unittest discover -s Tests/packaging
