@@ -9,13 +9,24 @@ The November 11, 2026 local checks cover the opt-in Mac publisher, private relay
 iPhone dashboard, and small/medium/large widgets. These results describe local
 builds and tests; they do not imply that Google Cloud or TestFlight is live.
 
+The [GitHub validation run for `04b7bcc`](https://github.com/unixist/kids-quota/actions/runs/43153294519)
+passed both jobs, including the full Swift, browser, packaging, cloud, Mac, and
+iPhone simulator checks. It also built both the Mac app and iPhone app/widget.
+
 | Suite | Result | Coverage |
 | --- | --- | --- |
-| Swift quota core and service | 153 passing tests | Existing accounting/authorization plus consistent phone snapshots, parent-only setup, protected credentials, connection changes, bounded HTTPS responses, cancellation, and malformed ports |
+| Swift quota core and service | 155 passing tests | Existing accounting/authorization plus consistent phone snapshots, parent-only setup, protected credentials, connection changes, bounded HTTPS responses, cancellation, malformed ports, and rejection of missing or weakened administrator authorization rules |
 | Native Mac models and parent session | 28 passing tests | Existing settings and child views plus private phone connection parsing and status presentation |
 | iPhone shared models | 21 passing tests | Protocol validation, timestamps, freshness, weekly reset boundaries, per-Mac child identity, cache ordering, and HTTPS endpoint validation |
 | iPhone app state | 5 passing simulator tests | Late pairing/refresh replies, disconnect/reconnect, and cache failures |
 | Packaging and QR utility | 41 passing tests | Installer regressions plus private QR output, unsafe paths, malformed input, and native QR decoding with synthetic credentials |
+
+The Swift suite also passes with the process timezone set to UTC. The Safari
+registration helper now explicitly owns its C argument buffers so older Swift
+compilers can build it. Administrator-rule checks are deterministic; the live
+empty-reference test on a clean Mac proves missing-rule denial. A successful
+password/Touch ID unlock against the installed rule remains an interactive
+acceptance check.
 
 The relay's **42 Node tests pass** (`npm test --prefix cloud`). They cover
 read/write/device isolation, payload limits,
@@ -28,8 +39,8 @@ as their minimum version. The local installer retains the inactive network
 extension and does not request its activation. The v0.2.0 DMG contains a runnable
 administrator-authorized PKG and phone setup instructions. Packaging verifies
 its checksum; a read-only mount and package expansion inspect its contents
-without installing it. The final DMG is 4,127,945 bytes with SHA-256
-`f1e15c2a3cd6bc549d5fee4169db05f6cf69a94bd01eb495616922606ce56657`.
+without installing it. The final DMG is 4,137,173 bytes with SHA-256
+`dcbcdcbf7e13f722c2d71db9656affae1c9d5e3cfb5a5c8ac27c5c2f48aa2d99`.
 The isolated daemon HTTP/crash-recovery smoke test passes.
 
 The iPhone simulator app and widget build successfully. The unsigned Release
