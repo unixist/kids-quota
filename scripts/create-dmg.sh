@@ -158,37 +158,32 @@ else
   cat > "$STAGE/Start here.txt" <<'WELCOME'
 KIDS QUOTA
 
-1. Double-click “Install Kids Quota.pkg”.
-   Follow Installer and enter an administrator name and password when macOS asks.
+1. Open “Install Kids Quota.pkg” and enter an administrator name and password.
    No Terminal commands are needed.
 
-2. Open “Kids Quota” in Applications while staying in the child's login.
-   Unlock with the parent's administrator username and password, then choose
-   the child's local Mac account, which may be standard or administrator. Chess.com and ChatGPT each start
-   with six hours per week, resetting Monday. You can change hours and reset
-   settings in the app, add other websites, and select companion applications.
-   Use Touch ID if macOS offers it; otherwise use the administrator password.
+2. In the child's login, open Kids Quota from Applications and unlock parent
+   settings with an administrator password (or Touch ID if macOS offers it).
+   Choose the child's local Mac account, standard or administrator. Chess.com
+   and ChatGPT each start with six hours per week, resetting Monday.
+   Adjust hours, reset settings, websites, and companion applications in the app.
 
-3. Finish protection setup in the app.
-   Approve the macOS app network filter when prompted. Enable the Safari
-   extension and its website permissions in each child's account. These macOS
-   permission prompts are separate from installation and cannot be skipped.
+3. Finish protection setup: approve the app network filter when prompted, and
+   enable Safari's extension and website permissions in each child's account.
+   These macOS approvals are separate from installation. Restart limited apps
+   after enabling the network filter.
 
-“Reset this week” restores only the selected child's current-week time. It does
-not change the weekly limits or next reset day, and requires unlocked parent access.
+“Reset this week” restores only the selected child's current-week time. Limits
+and the scheduled reset stay unchanged. Settings and resets require parent unlock.
+The app opens locked in any login; helpers keep running in standard accounts.
 
-The app opens locked in any login. Only parent administrator authorization unlocks
-settings. The background service and browser helpers run in standard accounts.
-Children can click the Kids Quota hourglass in the Mac menu bar, or the browser
-toolbar button, to see their own remaining time and next reset without a password.
-These views are read-only; settings and resets remain restricted to the parent.
+Children can view remaining time and the next reset from the Mac menu bar
+hourglass or browser toolbar button. These views need no password and are read-only.
 
-The installer starts helpers in existing login sessions where possible. If the
-app reports an unavailable account helper, sign out and back in or restart the Mac.
-Restart any limited apps after first enabling the network filter.
+The installer starts helpers in existing login sessions. If a helper is
+unavailable, sign out and back in or restart the Mac.
 
-Chrome requires the published or managed Kids Quota extension supplied with this
-release. Installing this package alone does not install Chrome's extension.
+Chrome requires the published or managed Kids Quota extension. This package
+alone does not install Chrome's extension.
 WELCOME
   if [[ -n "$CHROME_STORE_EXTENSION_ID" ]]; then
     printf '\nChrome extension: https://chromewebstore.google.com/detail/%s\n' "$CHROME_STORE_EXTENSION_ID" >> "$STAGE/Start here.txt"
@@ -203,17 +198,13 @@ if [[ "$MODE" != preview ]]; then
   cat >> "$STAGE/Start here.txt" <<'PHONE'
 
 OPTIONAL IPHONE DASHBOARD
-
-After your private family dashboard has been set up, open Parent settings →
-Phone dashboard. Import this Mac's private connection file and choose “Connect
-and share balances”. Check that “Last sent” appears. Updates are sent about every
-five minutes while this Mac is awake. Sharing is off until you enable it.
-
-Install the separate Kids Quota iPhone app, then scan your own private parent QR
-code or import your iPhone connection file. Each parent should use their own code.
-Add the Kids Quota widget from the iPhone Home Screen. iOS controls widget refresh
-timing; old reports are labeled. The phone cannot change allowances or reset usage.
-The Mac installer does not install the iPhone app or create the cloud dashboard.
+After private dashboard setup, open Parent settings → Phone dashboard. Import
+this Mac's connection file, select “Connect and share balances”, and check
+“Last sent”. Sharing starts only when enabled; awake Macs send every five minutes.
+Install the separate iPhone app; each parent scans their own private QR code
+or imports their own phone connection file. Add its Home Screen widget.
+iOS controls refresh; old reports are labeled. Phones cannot change limits or reset usage.
+This Mac installer does not install the iPhone app or create the cloud dashboard.
 PHONE
 fi
 /usr/bin/hdiutil create -volname "$VOLUME" -srcfolder "$STAGE" -format UDZO -ov "$OUTPUT"
