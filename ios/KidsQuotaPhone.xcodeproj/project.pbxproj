@@ -14,6 +14,7 @@
 		40A0B8357CBF3BF1595171AE /* QuotaKit in Frameworks */ = {isa = PBXBuildFile; productRef = 043DD3DB3F26769844D67C05 /* QuotaKit */; };
 		497A9DA0A6342A83C632A4CA /* KidsQuotaPhoneApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B65948C94E608EDEA7A789 /* KidsQuotaPhoneApp.swift */; };
 		4BEC7E423B4D102E3927331E /* FamilyDashboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A62E59984EA334AA197B106B /* FamilyDashboard.swift */; };
+		4EE33C9C537C4ED5B3E10BC5 /* DashboardReaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92FE3AC68DF790BBB1447655 /* DashboardReaderTests.swift */; };
 		5499FA5BE0D97C2F45F102AE /* FamilyClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0FF082D2E96A9EA497B789 /* FamilyClient.swift */; };
 		622C10CD5EE8DB8FCC9499AF /* QuotaStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 189B4A609A1D048ED44A7C2B /* QuotaStyle.swift */; };
 		649412D165FFFA8B9E0EFE36 /* PhoneStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 629BDE5A2896E8F43C4BAAF5 /* PhoneStorage.swift */; };
@@ -60,6 +61,7 @@
 		52AD51D14F0B1EDE5E2B2270 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		629BDE5A2896E8F43C4BAAF5 /* PhoneStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneStorage.swift; sourceTree = "<group>"; };
 		91116053070D166461840651 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		92FE3AC68DF790BBB1447655 /* DashboardReaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardReaderTests.swift; sourceTree = "<group>"; };
 		A62E59984EA334AA197B106B /* FamilyDashboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyDashboard.swift; sourceTree = "<group>"; };
 		B0E5027275D7852374D04D0B /* KidsQuotaPhone.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = KidsQuotaPhone.entitlements; sourceTree = "<group>"; };
 		B183B533EB5A8BA85210CC6E /* KidsQuotaWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = KidsQuotaWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -105,6 +107,7 @@
 		1944FDA912E08B8CB68F46D8 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				92FE3AC68DF790BBB1447655 /* DashboardReaderTests.swift */,
 				DC581354A9C4DCDCF97BBA9B /* FamilyStoreTests.swift */,
 			);
 			path = Tests;
@@ -322,6 +325,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4EE33C9C537C4ED5B3E10BC5 /* DashboardReaderTests.swift in Sources */,
 				CCEC5B74ECBC91D2E726F075 /* FamilyClient.swift in Sources */,
 				BBC0AD8530FE6F2B48E44A14 /* FamilyStore.swift in Sources */,
 				19B22B9A475F15E203BD444D /* FamilyStoreTests.swift in Sources */,
@@ -413,7 +417,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -484,7 +488,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;

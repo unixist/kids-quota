@@ -36,6 +36,8 @@ The relay stores one object per Mac. Object versioning and soft delete are disab
 the lifecycle deletes an unchanged summary after 30 days. This is not usage history.
 An unreported or expired Mac remains in the response with a null summary. Freshness
 is based on the Mac's `capturedAt`, not the time the phone fetched a cached summary.
+Treat a null summary as **No saved report**: it does not prove the Mac has never
+connected, because an unchanged report expires after 30 days.
 The widget marks data over 15 minutes old and never invents a countdown or reset.
 iOS schedules widget refreshes; a request for 15-minute updates is not a guarantee.
 
@@ -161,11 +163,79 @@ requested. It prints only HTTP statuses and reporting counts; it never prints
 credentials, names, returned summaries, or raw network/JSON errors. Redirects are
 disabled, requests time out after 20 seconds, and response reads are bounded.
 
-For the accepted-write check, use **Send now** in the real Mac's authorized Phone
+For the accepted-write check, connect the real Mac in its authorized Phone
 dashboard settings, then verify that the iPhone receives its actual snapshot with
 the expected update time. Do not insert synthetic children into a live family
 dashboard. Unit tests cover older-update rejection, generation races, and storage
 failure behavior using isolated data.
+
+`GET /healthz` checks only that the relay process is responding. It does not check
+storage permissions, credentials, or whether a Mac has sent anything. The
+authenticated smoke check and a real Mac update verify those separate steps.
+
+Each relay request has one 12-second processing budget, including identity lookup,
+storage responses, and generation conflicts. Client disconnection cancels pending
+work. An upload has at most three read/write attempts in total; a family read has
+at most three attempts per Mac, all within the same request budget. This ends work
+before the Mac's 20-second timeout or Cloud Run's 30-second timeout. The HTTP server
+may still drain an unfinished request body under its separate 20-second receive
+timeout; the 12-second budget bounds application/storage work, not every transport
+connection's lifetime. A response can
+be lost after a write reached storage; the next valid snapshot or identical retry
+is safe, and no queue of historical updates needs replaying.
+
+### Failure behavior
+
+Sharing failures never alter the Mac's local allowances or enforcement. Phones keep
+their last valid balances and show the report's age rather than inventing new time.
+
+| Condition | Meaning and next step |
+| --- | --- |
+| Mac report is old; family request succeeds | The Mac may be asleep, offline, or unable to publish. Check its last successful update in Parent Settings. |
+| No saved report | The Mac has not uploaded, or its unchanged report expired. Connect it or send a new update; this is not a zero balance. |
+| Connection failure, HTTP 429, or HTTP 503 | The update could not complete. Retry later; repeated 503s need the operator checks below. |
+| HTTP 401 or 403 | The connection is not authorized for that operation. Check that the correct Mac/parent connection was imported and has not been revoked. |
+| HTTP 404 | Check the deployed relay address and connection document. Repeated retries will not fix an incorrect address. |
+| Upload HTTP 409 | Storage already has a newer or conflicting report. Check the Mac's automatic date/time and send a fresh update; do not delete a valid newer report. |
+| Upload HTTP 413 or 422 | The summary is too large or invalid. Check the Mac app version, date/time, and supported limits. The previous summary is unchanged. |
+
+For internal failures the relay writes one small JSON log entry with event
+`quota_relay_failure` and a fixed `category`. There are no names, device IDs,
+payloads, credentials, provider messages, URLs, or stacks in that entry:
+
+| Category | Operator check |
+| --- | --- |
+| `request_deadline` | A request exceeded its total budget. Check Google service availability and recurring latency. |
+| `identity_unavailable` | Check the Cloud Run attached runtime service account and metadata-service availability. |
+| `storage_read_failed`, `storage_write_failed`, `storage_unavailable` | Check the selected bucket, runtime bucket permissions, and Cloud Storage availability. |
+| `storage_contention` | Competing uploads changed the object repeatedly. Confirm each physical Mac has its own connection file. |
+| `stored_snapshot_invalid` | A saved object failed validation. Confirm the affected object before using the recovery procedure below. |
+| `family_too_large`, `unexpected_failure` | Check the deployed version and supported limits; the public response remains a generic 503. |
+
+### Recover one corrupt saved report
+
+This is an operator-only repair for a confirmed `stored_snapshot_invalid` object,
+not a routine response to stale data or an HTTP 409. A corrupt object deliberately
+prevents a partial family response and prevents that Mac from overwriting unknown
+saved state. In the private Cloud Storage console, identify the exact
+`snapshots/DEVICE_ID.json` object, confirm that it is malformed, and note its current
+generation. Keep any diagnostic download private; it contains family data.
+
+Remove only that confirmed generation, using the actual dedicated project, bucket,
+device ID, and generation below. Do not use wildcards or recursive deletion:
+
+```sh
+gcloud storage rm gs://YOUR_QUOTA_BUCKET/snapshots/EXACT_DEVICE_ID.json \
+  --if-generation-match=CONFIRMED_GENERATION \
+  --project YOUR_PROJECT_ID
+```
+
+The [generation precondition](https://docs.cloud.google.com/sdk/gcloud/reference/storage/rm)
+prevents this repair from deleting a newer replacement that appeared in the
+meantime. If it fails, inspect the new generation rather than removing the
+precondition. After removal, wait for the affected Mac's next automatic update (or choose **Try again** if shown) and refresh
+the iPhone. Only the saved cloud report is removed; the Mac's usage ledger and
+allowances remain authoritative and unchanged. There is no remote repair endpoint.
 
 The relay returns `Cache-Control: no-store` and no CORS headers. It rejects `Origin`
 headers. Request bodies are limited to 128 KiB, family responses to 4 MiB, each configured credential to 120
@@ -184,8 +254,9 @@ Keep at least one parent and one Mac in the configuration. There is no remote
 administrative endpoint, account signup, or way for a phone to reset a quota.
 
 Cloud Run uses its attached service account's short-lived metadata-server token for
-the Storage JSON API, with redirects disabled. It never logs incoming request
-bodies, tokens, names, URLs, or provider error bodies. Cloud Run's platform request
+the Storage JSON API, with redirects disabled. Its failure logs contain only the
+fixed categories above, never incoming request bodies, tokens, names, URLs, or
+provider error bodies. Cloud Run's platform request
 logs include endpoint paths/statuses; credentials belong only in headers.
 
 Primary references: [Cloud Run deployment](https://cloud.google.com/run/docs/deploying),

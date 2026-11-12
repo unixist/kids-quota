@@ -8,6 +8,12 @@ small/medium/large Home Screen widgets, and optional private cloud synchronizati
 Each Mac sends summaries about every five minutes; phones show time left per
 child, tracking warnings, and report age. iOS controls widget refresh timing.
 The Mac connection requires parent authorization, and phones have read-only access.
+Setup leads with a private QR code. Mac sharing status updates automatically and
+only says **Sharing** after a successful upload. Connection failures have a clear
+next step; unavailable saved credentials do not look like a new family, and a
+cache-write failure does not hide successfully received balances. The service
+keeps only each Mac's latest report, with one short request deadline and no queue
+of missed updates to recover.
 See [phone setup](docs/phone-dashboard.md), [iPhone source and builds](ios/README.md),
 [cloud deployment](docs/phone-cloud.md), and the
 [architecture](docs/architecture.md#optional-iphone-dashboard-v020).

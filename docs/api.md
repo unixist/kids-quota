@@ -222,9 +222,30 @@ limited to 128 KiB, 20 children, and 50 allowances per child.
 
 `GET /v1/admin/phone`, configuration replies, and `phoneDashboard` in admin state
 contain `configured`, `uploading`, `intervalSeconds`, and optional `endpoint`,
-`deviceName`, `lastAttempt`, `lastSuccess`, and `lastError`. Times are RFC 3339;
+`deviceName`, `lastAttempt`, `lastSuccess`, `lastError`, and `problemKind`. Times are RFC 3339;
 status never includes a token or response body from the relay. Status times are
 for this daemon session and clear after reconnection/restart.
+
+`configured` means the connection file is saved; it does not prove delivery.
+The parent app shows connecting until `lastSuccess` exists and polls this status
+while its phone settings are open. A failed local status request is shown as a
+Mac service problem, separate from the publisher's remote delivery problem.
+
+`problemKind` gives a stable recovery category; `lastError` is a plain message:
+
+| Kind | Meaning and recovery |
+| --- | --- |
+| `connection` | Network failure, timeout, HTTP 429, or server failure; retry automatically or try now. |
+| `authorization` | HTTP 401/403; reconnect with a new Mac connection file. |
+| `endpoint` | Redirect or HTTP 404; reconnect using the correct dashboard address. |
+| `clock_conflict` | HTTP 409; check the Mac's clock and use a distinct connection file for each Mac. |
+| `invalid_update` | Invalid/oversized local summary or other rejected update, including HTTP 400/413/415/422; check setup and update Kids Quota. |
+| `local_storage` | Saved connection could not be read safely; reconnect this Mac. |
+
+All failures preserve `lastSuccess` and local quotas. A successful upload clears
+the problem. Automatic attempts remain every 300 seconds, including while a
+configuration problem awaits repair; the UI does not offer a retry as its primary
+action for a problem that requires setup changes.
 
 Disconnection cancels the pending upload and removes the local token. An upload
 already accepted by the relay cannot be recalled; previously received summaries

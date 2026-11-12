@@ -15,11 +15,15 @@ import SwiftUI
     @Published var error: String?
     @Published var busy = false
     @Published var connected = false
+    @Published private(set) var phoneStatus: PhoneDashboardStatus?
+    @Published private(set) var phoneServiceUnavailable = false
     @Published private(set) var isUnlocked = false
     private var authorization: (any ParentAuthorizationSession)?
     private var expirationTask: Task<Void, Never>?
     private var generation = UUID()
     private var refreshGeneration = UUID()
+    private var phoneGeneration = UUID()
+    private var phoneRefreshInFlight: UUID?
     private let authorizationFactory: @Sendable () throws -> any ParentAuthorizationSession
     private let transport: @Sendable (Data) async throws -> Data
 
@@ -49,6 +53,8 @@ import SwiftUI
         expirationTask?.cancel(); expirationTask = nil
         generation = UUID(); authorization?.invalidate(); authorization = nil
         state = nil; balances = []; selectedChild = ""
+        phoneGeneration = UUID(); phoneRefreshInFlight = nil
+        phoneStatus = nil; phoneServiceUnavailable = false
         isUnlocked = false; connected = false; busy = false; error = nil
     }
     func applicationDidResignActive() {
@@ -70,16 +76,38 @@ import SwiftUI
     var childName: String { children.first { $0.id == selectedChild }?.displayName ?? "child" }
     var quotas: [QuotaItem] { state?.policy.quotas.filter { $0.childId == selectedChild } ?? [] }
     func connectPhoneDashboard(_ document: String) async throws {
-        _ = try await raw("PUT", "/admin/phone", body: PhoneConnectionDocument.body(document))
-        try await refreshOrThrow()
+        try await changePhoneDashboard("PUT", "/admin/phone", body: PhoneConnectionDocument.body(document))
     }
     func disconnectPhoneDashboard() async throws {
-        _ = try await raw("DELETE", "/admin/phone")
-        try await refreshOrThrow()
+        try await changePhoneDashboard("DELETE", "/admin/phone")
     }
     func publishPhoneDashboard() async throws {
-        _ = try await raw("POST", "/admin/phone/publish", body: [:])
-        try await refreshOrThrow()
+        try await changePhoneDashboard("POST", "/admin/phone/publish", body: [:])
+    }
+    private func changePhoneDashboard(_ method: String, _ path: String, body: [String: Any]? = nil) async throws {
+        phoneGeneration = UUID()
+        let operation = phoneGeneration, session = generation
+        let latest: PhoneDashboardStatus = try await request(method, path, body: body)
+        guard isUnlocked, generation == session, phoneGeneration == operation, !Task.isCancelled else { return }
+        phoneGeneration = UUID() // Discard status reads that began during this change.
+        phoneStatus = latest; phoneServiceUnavailable = false
+    }
+    /// A visible phone settings tab polls only its own status, independently of
+    /// child balance refreshes. At most one status request can be outstanding.
+    func refreshPhoneDashboard() async {
+        guard isUnlocked, phoneRefreshInFlight == nil, !Task.isCancelled else { return }
+        let requestID = UUID(), operation = phoneGeneration, session = generation
+        phoneRefreshInFlight = requestID
+        defer { if phoneRefreshInFlight == requestID { phoneRefreshInFlight = nil } }
+        do {
+            let latest: PhoneDashboardStatus = try await request("GET", "/admin/phone")
+            guard isUnlocked, generation == session, phoneGeneration == operation, !Task.isCancelled else { return }
+            phoneStatus = latest; phoneServiceUnavailable = false
+        } catch {
+            guard isUnlocked, generation == session, phoneGeneration == operation, !Task.isCancelled else { return }
+            // This is the local IPC connection, not a failed cloud upload.
+            phoneServiceUnavailable = true
+        }
     }
     func refresh() async {
         guard isUnlocked else { return }
@@ -92,6 +120,7 @@ import SwiftUI
             let latest: AdminState = try await request("GET", "/admin/state")
             guard isUnlocked, generation == attempt, refreshGeneration == refresh else { return }
             state = latest
+            if phoneStatus == nil { phoneStatus = latest.phoneDashboard }
             if !children.contains(where: { $0.id == selectedChild }) {
                 selectedChild = children.first?.id ?? ""
                 // This refresh chose the initial/fallback child itself.

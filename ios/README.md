@@ -8,8 +8,9 @@ cannot change an allowance or reset usage.
 ## Connect a phone
 
 1. Install the app using your signed development build or TestFlight.
-2. Choose **Connect your family**. Scan the private iPhone QR code, import the
-   iPhone connection JSON file, or paste that file's contents.
+2. Choose **Connect your family** and scan the private iPhone QR code. For a file
+   or pasted code, open **Other ways**. The code stays hidden by default; review
+   the family name and tap **Connect**. You can cancel while it connects.
 3. The app verifies the connection before saving it. Do this separately on each
    parent's iPhone with their own read credential.
 4. Touch and hold the Home Screen, then choose **Edit → Add Widget → Kids Quota**.
@@ -29,6 +30,14 @@ cached for a real widget, or mixed into a connected family.
 - Data over 15 minutes old, or crossing the reported reset boundary without a
   new Mac report, is labeled **Last known**. The app never invents a countdown or
   grants a new week from cached data.
+- A failed refresh keeps the last known balances and explains the next step.
+  An expired or revoked phone connection says **Reconnect this iPhone**. A saved
+  connection that cannot be read asks you to unlock and retry, rather than
+  pretending the phone was never connected.
+- A successful read remains visible even if it cannot be saved locally. **Can't
+  save balances** means the widget or offline view may not retain that update;
+  retry or install the latest app if it persists. Missing Mac reports and
+  incomplete tracking are shown explicitly, including in the widget.
 - Macs upload about every five minutes while awake. WidgetKit is asked to fetch
   every fifteen minutes, but iOS controls actual refresh timing. Open or pull to
   refresh the app for a fresh relay read; this does not wake a sleeping Mac.
@@ -50,10 +59,11 @@ swift test
 ```
 
 The generated project is `ios/KidsQuotaPhone.xcodeproj`. The app scheme is
-`KidsQuotaPhone`, and its test action runs five asynchronous pairing/refresh
-regressions. The pure `QuotaKit` Swift package has twenty-one tests for validation,
-staleness, reset boundaries, identity, timestamps, and cache ordering.
-CI also runs the five app-state tests on an available iPhone simulator using the
+`KidsQuotaPhone`, and its test action runs nineteen connection, pairing, refresh,
+and widget-read regressions. The pure `QuotaKit` Swift package has twenty-six
+tests for validation, staleness, reset boundaries, identity, timestamps, cache
+ordering, and shared display states.
+CI also runs the app-state tests on an available iPhone simulator using the
 newest installed iOS runtime (17 or later).
 
 ```sh
@@ -64,7 +74,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
 ```
 
 `project.yml` is the source of truth; run `xcodegen generate --spec project.yml`
-from `ios` after changing it. App version is 0.2.0, build 1. The icon is original
+from `ios` after changing it. App version is 0.2.0, build 2. The icon is original
 vector drawing code in `generate-icon.swift`, rendered to an opaque 1024px PNG.
 
 ## Signing and TestFlight
@@ -101,11 +111,14 @@ what was actually built or uploaded.
   identity, staleness transitions, and preservation of newer Mac reports.
 - `Shared/FamilyClient.swift`: bounded HTTPS reads and explicit rejection of
   redirects, so read credentials are never forwarded to a different address.
+  The widget's reader retains valid responses when local caching fails and
+  refuses late results for a changed connection.
 - `Shared/PhoneStorage.swift`: shared Keychain connection and App Group cache.
   Cache files are tied to the connection fingerprint, protected after first
   unlock, and updated through file coordination across app/widget processes.
 - `App/FamilyStore.swift`: connection and refresh state with request generations
   preventing late replies from restoring a disconnected or replaced family.
+  It reloads the saved connection on refresh so temporary access failures recover.
 - `App/FamilyDashboard.swift`: family cards, progress, and connection settings.
 - `App/PairingView.swift`: JSON/file/QR setup; camera frames are not saved.
 - `Widget/KidsQuotaWidget.swift`: child selection, timeline fetches, and cached

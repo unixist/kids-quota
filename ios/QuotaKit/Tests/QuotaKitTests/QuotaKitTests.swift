@@ -138,4 +138,42 @@ final class QuotaKitTests: XCTestCase {
         XCTAssertTrue(changes.contains(value.children[0].capturedAt.addingTimeInterval(901)))
         XCTAssertTrue(value.children[0].isStale(at: end))
     }
+    func testUnreportedMacRemainsVisibleAlongsideReportedChildren() throws {
+        var object = try fixture(), devices = try fixture()["devices"] as! [[String: Any]]
+        devices.append(["deviceId": "other-mac", "deviceName": "Other Mac", "snapshot": NSNull(), "receivedAt": NSNull()])
+        object["devices"] = devices
+        let value = try FamilySnapshot.decode(json(object), now: now)
+        XCTAssertFalse(value.children.isEmpty)
+        XCTAssertEqual(value.unreportedMacCount, 1)
+        XCTAssertEqual(value.unreportedMacSummary, "1 Mac has no saved report")
+    }
+    func testNoSavedReportIsDifferentFromNoConfiguredChildren() throws {
+        var object = try fixture()
+        object["devices"] = [["deviceId": "other-mac", "deviceName": "Other Mac", "snapshot": NSNull(), "receivedAt": NSNull()]]
+        XCTAssertEqual(try FamilySnapshot.decode(json(object), now: now).emptyState(), .waitingForMac)
+        object = try fixture(); var devices = object["devices"] as! [[String: Any]]
+        var snapshot = devices[0]["snapshot"] as! [String: Any]; snapshot["children"] = []
+        devices[0]["snapshot"] = snapshot; object["devices"] = devices
+        XCTAssertEqual(try FamilySnapshot.decode(json(object), now: now).emptyState(), .noChildren)
+        XCTAssertEqual(DemoFamily.snapshot(now: now).emptyState(childID: "removed-child"), .chooseChild)
+    }
+    func testIncompleteCoverageIsVisibleEvenWhenBalanceIsAvailable() throws {
+        let value = try FamilySnapshot.decode(changeBalance { $0["coverage"] = "incomplete"; $0["blockingReason"] = "available" }, now: now)
+        XCTAssertEqual(value.children[0].trackingNotice, "Check tracking on Mac")
+        XCTAssertFalse(value.children[0].child.balances[0].isPaused)
+    }
+    func testFreshStorageWarningDoesNotPretendFetchFailed() {
+        XCTAssertFalse(DashboardIssue.localStorage.usesLastKnownBalance)
+        XCTAssertTrue(DashboardIssue.cannotRefresh.usesLastKnownBalance)
+        XCTAssertTrue(DashboardIssue.reconnect.needsConnectionCode)
+        XCTAssertNotEqual(ConnectionLoad.absent.issue, ConnectionLoad.unavailable.issue)
+    }
+    func testSelectedChildWithoutMacReportWaitsForAnUpdate() throws {
+        var object = try fixture()
+        object["devices"] = [["deviceId": "other-mac", "deviceName": "Other Mac", "snapshot": NSNull(), "receivedAt": NSNull()]]
+        let family = try FamilySnapshot.decode(json(object), now: now)
+        XCTAssertEqual(family.emptyState(childID: "other-mac:alex"), .waitingForMac)
+        XCTAssertEqual(family.emptyState(childID: "removed-mac:alex"), .chooseChild)
+        XCTAssertEqual(DemoFamily.snapshot(now: now).emptyState(childID: "demo-mac:removed-child"), .chooseChild)
+    }
 }

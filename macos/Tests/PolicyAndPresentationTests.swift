@@ -17,6 +17,26 @@ final class PolicyAndPresentationTests: XCTestCase {
         let status = try JSONDecoder().decode(PhoneDashboardStatus.self,from:JSONSerialization.data(withJSONObject:object))
         XCTAssertNotNil(status.lastSuccessDate); XCTAssertNil(status.lastError); XCTAssertNil(status.lastAttempt)
     }
+    func testPhoneStatusDoesNotClaimSharingBeforeTheFirstSuccessfulUpload() throws {
+        var object: [String: Any] = ["configured": true, "uploading": false, "intervalSeconds": 300]
+        func decode() throws -> PhoneDashboardStatus { try JSONDecoder().decode(PhoneDashboardStatus.self, from: JSONSerialization.data(withJSONObject: object)) }
+        XCTAssertEqual(try decode().title, "Connecting…")
+        object["lastSuccess"] = "2026-11-12T02:00:00Z"
+        XCTAssertEqual(try decode().title, "Sharing with your phone")
+        object["problemKind"] = "connection"; object["lastError"] = "Connection failed"
+        XCTAssertEqual(try decode().title, "Sharing needs attention")
+        XCTAssertNotNil(try decode().lastSuccessDate)
+    }
+    func testPhoneRecoveryActionMatchesTheProblemAndHandlesUnknownKinds() throws {
+        for (kind, recovery) in [("connection", PhoneDashboardRecovery.retry), ("authorization", .reconnect),
+                                 ("endpoint", .reconnect), ("local_storage", .reconnect), ("clock_conflict", .checkSetup),
+                                 ("invalid_update", .checkSetup), ("future_problem", .checkSetup)] {
+            let object: [String: Any] = ["configured": true, "uploading": false, "intervalSeconds": 300, "problemKind": kind]
+            let status = try JSONDecoder().decode(PhoneDashboardStatus.self, from: JSONSerialization.data(withJSONObject: object))
+            XCTAssertEqual(status.recovery, recovery)
+            XCTAssertTrue(status.needsAttention)
+        }
+    }
     func testLocalBuildCannotActivateNetworkFiltering() {
         let local = BuildFeatures(info: ["KidsQuotaLocalInstall": true])
         XCTAssertTrue(local.isLocalInstall)

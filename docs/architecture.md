@@ -34,6 +34,17 @@ remain, while selected native apps are tracking-only.
 
 ## Optional iPhone dashboard (v0.2.0)
 
+The communication model is a mailbox: each Mac replaces one complete report,
+and phones read the latest reports. A missed upload needs no replay or recovery
+queue; the next successful upload contains the current totals. Only the Mac
+measures usage and applies resets. Phone refreshes cannot change those totals.
+
+Keep the first release to this path: one HTTPS relay, one private snapshot
+bucket, and fixed read/write pairing credentials. No history database, live
+connection, push service, remote quota controls, or configurable sync intervals
+are needed. The relay keeps Google credentials and token renewal off the Macs
+and phones. Removing it would move that setup and its failure modes onto clients.
+
 ```mermaid
 flowchart LR
     Parent[Parent authorizes phone sync] --> Mac[Protected Mac quota service]
@@ -58,6 +69,18 @@ guarantee. The widget preserves the actual last reported balance and displays it
 age, including tracking-paused and stale states. It never fabricates a countdown
 or resets a cached allowance at midnight. Quotas from separate Macs remain separate
 ledgers even when the children's display names match.
+
+The interface separates three questions: **Is a report available? Is it recent?
+Does the connection need attention?** A sleeping Mac is not the same as a failed
+phone refresh, and neither means an allowance is exhausted. Show the report age
+beside balances and a short recovery action when something fails. Storage and
+connection problems must not masquerade as an unconfigured family. A valid new
+report remains useful even when saving the phone's cache fails.
+
+The normal Mac sharing screen shows whether an update has actually succeeded
+and when it was last sent. Status refresh is automatic while that screen is
+open. Reconnection details belong behind a secondary control; ordinary use
+does not require inspecting server addresses or pressing a separate status button.
 
 See the [phone protocol](phone-sync-contract.md), [cloud setup](phone-cloud.md), and
 [iPhone app](../ios/README.md) for implementation and installation details.

@@ -1,6 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import AVFoundation
+import QuotaKit
 
 struct PairingView: View {
     @ObservedObject var store: FamilyStore
@@ -11,6 +12,8 @@ struct PairingView: View {
     @State private var connecting = false
     @State private var importer = false
     @State private var scanner = false
+    @State private var manualEntry = false
+    private var loadedConnection: PhoneConnection? { try? PhoneConnection.parse(code) }
     var body: some View {
         NavigationStack {
             Form {
@@ -20,29 +23,44 @@ struct PairingView: View {
                 }
                 Section {
                     Button("Scan QR code", systemImage: "qrcode.viewfinder") { scanner = true }
-                    Button("Import connection file", systemImage: "doc.badge.plus") { importer = true }
-                    PasteButton(payloadType: String.self) { strings in if let first = strings.first { code = first; error = nil } }
+                    DisclosureGroup("Other ways") {
+                        Button("Import connection file", systemImage: "doc.badge.plus") { importer = true }
+                        PasteButton(payloadType: String.self) { strings in if let first = strings.first { code = first; error = nil } }
+                        Button("Enter code manually") { manualEntry.toggle() }
+                        if manualEntry {
+                            TextEditor(text: $code).font(.system(.caption, design: .monospaced)).frame(minHeight: 100)
+                                .autocorrectionDisabled().textInputAutocapitalization(.never).privacySensitive()
+                                .accessibilityLabel("Private connection code")
+                        }
+                    }
+                }.disabled(connecting)
+                if let loadedConnection {
+                    Section("Ready to connect") {
+                        Label(loadedConnection.familyName, systemImage: "checkmark.circle").foregroundStyle(.green)
+                        Text("Your private code is loaded. Tap Connect to confirm.").font(.subheadline)
+                    }
+                } else if !code.isEmpty {
+                    Section { Text("This code couldn't be read. Scan the QR code or choose the iPhone connection file from parent setup.").foregroundStyle(.red) }
                 }
-                Section("Connection code") {
-                    TextEditor(text: $code).font(.system(.caption, design: .monospaced)).frame(minHeight: 100)
-                        .autocorrectionDisabled().textInputAutocapitalization(.never).privacySensitive()
+                Section {
                     Text("Keep this code private. It gives read-only access to your family's quota summaries.").font(.caption).foregroundStyle(.secondary)
                 }
                 if let error { Section { Text(error).foregroundStyle(.red) } }
                 Section {
                     Button {
                         connecting = true; error = nil
+                        let submitted = code
                         Task {
-                            do { try await store.connect(code); code = ""; dismiss() }
-                            catch { self.error = error.localizedDescription }
+                            do { try await store.connect(submitted); code = ""; dismiss() }
+                            catch is CancellationError {}
+                            catch { self.error = (error as? QuotaDataError)?.errorDescription ?? DashboardIssue.reporting(error).message }
                             connecting = false
                         }
                     } label: { HStack { Text("Connect"); Spacer(); if connecting { ProgressView() } } }
-                        .disabled(code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || connecting)
+                        .disabled(loadedConnection == nil || connecting)
                 }
             }.navigationTitle("Connect").navigationBarTitleDisplayMode(.inline)
-                .toolbar { Button("Cancel") { dismiss() }.disabled(connecting) }
-                .interactiveDismissDisabled(connecting)
+                .toolbar { Button("Cancel") { store.cancelPairing(); dismiss() } }
                 .onAppear { if code.isEmpty { code = initialCode } }
                 .onDisappear { store.cancelPairing() }
                 .fileImporter(isPresented: $importer, allowedContentTypes: [.json, .plainText], allowsMultipleSelection: false) { result in
@@ -54,7 +72,7 @@ struct PairingView: View {
                         let data = try Data(contentsOf: url)
                         guard data.count <= 16_384, let text = String(data: data, encoding: .utf8) else { throw ImportFailure.tooLarge }
                         code = text; error = nil
-                    } catch { self.error = error.localizedDescription }
+                    } catch { self.error = (error as? ImportFailure)?.errorDescription ?? "Couldn't open that file. Choose the iPhone connection file from parent setup and try again." }
                 }
                 .sheet(isPresented: $scanner) {
                     QRScannerScreen { result in

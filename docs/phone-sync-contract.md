@@ -48,7 +48,9 @@ Snapshot body:
 `blockingReason` is optional: `available`, `exhausted`, or `collector_unavailable`.
 `quotaState` is `available` or `exhausted`; `coverage` is `complete` or `incomplete`.
 The relay validates snapshots, rejects an older capturedAt than the stored snapshot,
-and adds its own `receivedAt`. An identical retry is safe. Never silently filter a
+and adds its own `receivedAt`. An identical retry is safe. Relay work has a 12-second total deadline and at
+most three storage attempts per upload. A failed upload waits for the next
+regular publishing cycle; no missed-update queue is kept. Never silently filter a
 bad child out and publish a partial snapshot as though it were complete.
 
 Family response:
@@ -63,7 +65,9 @@ Family response:
 }
 ```
 
-A device that has not reported is included with `receivedAt: null, snapshot: null`.
+A device with no saved report is included with `receivedAt: null, snapshot: null`.
+This can mean no first upload, an expired report, or an operator-removed report;
+clients must not present it as proof that the Mac has never uploaded.
 Children are keyed by `(deviceId, child.id)`; do not merge independent Mac ledgers.
 Mark data older than 15 minutes stale, preserve its last known balance, and never
 simulate a live countdown or infer a weekly reset without a new Mac snapshot.

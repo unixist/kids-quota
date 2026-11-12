@@ -15,7 +15,7 @@ struct ChildQuery: EntityQuery {
     func entities(for identifiers: [String]) async throws -> [ChildChoice] { choices().filter { identifiers.contains($0.id) } }
     func suggestedEntities() async throws -> [ChildChoice] { choices() }
     private func choices() -> [ChildChoice] {
-        guard let connection = PhoneStorage.connection(), let family = PhoneStorage.cached(for: connection) else { return [] }
+        guard let connection = PhoneStorage.connection().connection, let family = PhoneStorage.cached(for: connection) else { return [] }
         return family.children.map { ChildChoice(id: $0.id, name: $0.child.name, device: $0.deviceName) }
     }
 }
@@ -28,11 +28,10 @@ struct QuotaEntry: TimelineEntry {
     let date: Date
     let family: FamilySnapshot?
     let childId: String?
-    let connected: Bool
-    let refreshFailed: Bool
+    let issue: DashboardIssue?
 }
 struct QuotaProvider: AppIntentTimelineProvider {
-    func placeholder(in context: Context) -> QuotaEntry { QuotaEntry(date: .now, family: DemoFamily.snapshot(), childId: nil, connected: true, refreshFailed: false) }
+    func placeholder(in context: Context) -> QuotaEntry { QuotaEntry(date: .now, family: DemoFamily.snapshot(), childId: nil, issue: nil) }
     func snapshot(for configuration: QuotaWidgetIntent, in context: Context) async -> QuotaEntry {
         if context.isPreview { return placeholder(in: context) }
         return await load(configuration)
@@ -42,20 +41,12 @@ struct QuotaProvider: AppIntentTimelineProvider {
         // A second entry changes the freshness label even when iOS defers networking.
         let transitions = entry.family?.freshnessTransitions(after: entry.date, childId: entry.childId) ?? []
         var entries = [entry]
-        for next in transitions.prefix(100) { entries.append(QuotaEntry(date: next, family: entry.family, childId: entry.childId, connected: entry.connected, refreshFailed: entry.refreshFailed)) }
+        for next in transitions.prefix(100) { entries.append(QuotaEntry(date: next, family: entry.family, childId: entry.childId, issue: entry.issue)) }
         return Timeline(entries: entries, policy: .after(Date().addingTimeInterval(900)))
     }
     private func load(_ configuration: QuotaWidgetIntent) async -> QuotaEntry {
-        guard let connection = PhoneStorage.connection() else { return QuotaEntry(date: .now, family: nil, childId: configuration.child?.id, connected: false, refreshFailed: false) }
-        do {
-            let family = try await FamilyClient.fetch(connection)
-            guard PhoneStorage.connection() == connection else { return QuotaEntry(date: .now, family: nil, childId: nil, connected: false, refreshFailed: false) }
-            let saved = try PhoneStorage.save(family, for: connection)
-            return QuotaEntry(date: .now, family: saved, childId: configuration.child?.id, connected: true, refreshFailed: false)
-        } catch {
-            guard PhoneStorage.connection() == connection else { return QuotaEntry(date: .now, family: nil, childId: nil, connected: false, refreshFailed: false) }
-            return QuotaEntry(date: .now, family: PhoneStorage.cached(for: connection), childId: configuration.child?.id, connected: true, refreshFailed: true)
-        }
+        let result = await DashboardReader.load()
+        return QuotaEntry(date: .now, family: result.family, childId: configuration.child?.id, issue: result.issue)
     }
 }
 struct QuotaWidgetView: View {
@@ -66,20 +57,25 @@ struct QuotaWidgetView: View {
         return entry.childId.map { id in all.filter { $0.id == id } } ?? all
     }
     private var limit: Int { size == .systemSmall ? 1 : size == .systemMedium ? 2 : 4 }
+    private var lastKnown: Bool { entry.issue?.usesLastKnownBalance == true || children.prefix(limit).contains { $0.isStale(at: entry.date) } }
+    private var notice: String? { entry.issue?.title ?? entry.family?.unreportedMacSummary ?? children.prefix(limit).compactMap(\.trackingNotice).first }
     var body: some View {
-        VStack(alignment: .leading, spacing: size == .systemSmall ? 8 : size == .systemMedium ? 6 : 10) {
+        VStack(alignment: .leading, spacing: size == .systemMedium ? 4 : 6) {
             HStack(spacing: 5) {
                 Image(systemName: "hourglass").foregroundStyle(QuotaStyle.blue)
                 Text("Time left").font(.subheadline.bold())
                 Spacer(minLength: 0)
-                if entry.refreshFailed { Image(systemName: "wifi.exclamationmark").foregroundStyle(.orange).accessibilityLabel("Refresh failed; last known balances") }
             }
             if children.isEmpty {
                 Spacer(minLength: 0)
-                Text(entry.connected ? (entry.childId == nil ? "Waiting for a Mac report" : "Choose a child in Edit Widget") : "Connect your family").font(.headline)
-                Text(entry.connected ? "Open Kids Quota for details." : "Open Kids Quota to get started.").font(.caption).foregroundStyle(.secondary)
+                let issue = entry.issue ?? entry.family?.emptyState(childID: entry.childId) ?? .waitingForMac
+                Text(issue.title).font(.headline)
+                Text(issue == .chooseChild ? "Touch and hold, then Edit Widget." : "Open Kids Quota for the next step.").font(.caption).foregroundStyle(.secondary)
                 Spacer(minLength: 0)
             } else {
+                if let notice {
+                    Text(notice).font(.system(size: 10, weight: .medium)).foregroundStyle(.orange).lineLimit(1).minimumScaleFactor(0.8)
+                }
                 ForEach(Array(children.prefix(limit))) { child in
                     if size == .systemSmall { smallChild(child) }
                     else { childRow(child) }
@@ -87,15 +83,14 @@ struct QuotaWidgetView: View {
                 Spacer(minLength: 0)
                 HStack(spacing: 3) {
                     if let oldest = children.prefix(limit).map(\.capturedAt).min() {
-                        let stale = entry.refreshFailed || children.prefix(limit).contains { $0.isStale(at: entry.date) }
-                        Image(systemName: stale ? "clock.badge.exclamationmark" : "clock")
-                        Text(stale ? "Last known" : "Updated")
+                        Image(systemName: lastKnown ? "clock.badge.exclamationmark" : "clock")
+                        Text(lastKnown ? "Last known" : "Updated")
                         Text(oldest, style: .relative)
                         Text("ago")
                     }
                     Spacer(minLength: 0)
                     if children.count > limit { Text("+\(children.count - limit)") }
-                }.font(.system(size: 10)).foregroundStyle(entry.refreshFailed || children.prefix(limit).contains { $0.isStale(at: entry.date) } ? .orange : .secondary).lineLimit(1).minimumScaleFactor(0.8)
+                }.font(.system(size: 10)).foregroundStyle(lastKnown ? .orange : .secondary).lineLimit(1).minimumScaleFactor(0.8)
             }
         }
         .containerBackground(for: .widget) { Color(uiColor: .systemBackground) }
@@ -104,6 +99,8 @@ struct QuotaWidgetView: View {
     }
     @ViewBuilder private func smallChild(_ child: ChildDashboard) -> some View {
         Text(child.child.name).font(.headline).lineLimit(1)
+        Text(child.deviceName).font(.system(size: 9)).foregroundStyle(.secondary).lineLimit(1)
+        if child.child.balances.isEmpty { Text("No allowances configured").font(.caption2).foregroundStyle(.secondary) }
         ForEach(Array(child.child.balances.prefix(2))) { balance in
             HStack {
                 Text(balance.serviceName).font(.caption2).lineLimit(1)
@@ -111,17 +108,15 @@ struct QuotaWidgetView: View {
                 Text(QuotaFormat.duration(balance.remainingSeconds)).font(.caption.bold().monospacedDigit()).foregroundStyle(QuotaStyle.color(balance)).lineLimit(1)
             }
         }
-        if child.child.balances.contains(where: \.isPaused) { Text("Tracking paused").font(.caption2).foregroundStyle(.orange) }
         if child.child.balances.count > 2 { Text("+\(child.child.balances.count - 2) services in app").font(.system(size: 9)).foregroundStyle(.secondary) }
     }
     @ViewBuilder private func childRow(_ child: ChildDashboard) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(child.child.name).font(.subheadline.bold()).lineLimit(1)
                 if child.child.balances.count > 2 { Text("+\(child.child.balances.count - 2) services").font(.system(size: 9)).foregroundStyle(.secondary) }
                 Spacer()
-                if child.child.balances.contains(where: \.isPaused) { Text("Tracking paused").foregroundStyle(.orange).font(.system(size: 10)) }
-                else { Text(child.deviceName).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1) }
+                Text(child.deviceName).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1)
             }
             HStack(spacing: 14) {
                 ForEach(Array(child.child.balances.prefix(2))) { balance in
@@ -131,10 +126,11 @@ struct QuotaWidgetView: View {
                             Spacer(minLength: 0)
                             Text(QuotaFormat.duration(balance.remainingSeconds)).font(.caption.bold().monospacedDigit()).foregroundStyle(QuotaStyle.color(balance)).lineLimit(1).minimumScaleFactor(0.85)
                         }
-                        ProgressView(value: balance.fractionUsed).tint(QuotaStyle.color(balance)).accessibilityLabel("\(balance.serviceName): \(QuotaFormat.duration(balance.remainingSeconds)) left")
-                    }.frame(maxWidth: .infinity)
+                    }.frame(maxWidth: .infinity).accessibilityElement(children: .combine)
+                        .accessibilityLabel("\(balance.serviceName): \(QuotaFormat.duration(balance.remainingSeconds)) left. \(balance.status)")
                 }
             }
+            if child.child.balances.isEmpty { Text("No allowances configured").font(.system(size: 10)).foregroundStyle(.secondary) }
         }
     }
 }

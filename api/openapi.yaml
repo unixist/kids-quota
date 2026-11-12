@@ -781,7 +781,7 @@ components:
       type: object
       required: [configured, uploading, intervalSeconds]
       properties:
-        configured: {type: boolean}
+        configured: {type: boolean, description: Connection saved; delivery is confirmed only by lastSuccess.}
         uploading: {type: boolean}
         intervalSeconds: {type: integer, const: 300}
         endpoint: {type: string, format: uri}
@@ -789,6 +789,10 @@ components:
         lastAttempt: {type: string, format: date-time}
         lastSuccess: {type: string, format: date-time}
         lastError: {type: string}
+        problemKind:
+          type: string
+          enum: [connection, authorization, endpoint, clock_conflict, invalid_update, local_storage]
+          description: Stable recovery category; absent after a successful upload.
     Balance:
       type: object
       required: [quotaId, serviceId, periodStart, periodEnd, limitSeconds, usedSeconds, remainingSeconds, quotaState, coverage]

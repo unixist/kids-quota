@@ -10,10 +10,9 @@ enum FamilyClient {
         case unauthorized, unavailable, redirect, responseTooLarge
         var errorDescription: String? {
             switch self {
-            case .unauthorized: return "This phone's connection is no longer authorized. Get a new connection code from parent setup."
-            case .redirect: return "The dashboard address redirected to another location. Reconnect using the correct address."
-            case .responseTooLarge: return "The dashboard response was too large to read."
-            case .unavailable: return "Couldn't reach your family dashboard. Showing the last known balances."
+            case .unauthorized, .redirect: return DashboardIssue.reconnect.message
+            case .responseTooLarge: return DashboardIssue.invalidReport.message
+            case .unavailable: return DashboardIssue.cannotRefresh.message
             }
         }
     }
@@ -40,5 +39,63 @@ enum FamilyClient {
             data.append(byte)
         }
         return try FamilySnapshot.decode(data)
+    }
+}
+
+extension DashboardIssue {
+    static func reporting(_ error: Error) -> DashboardIssue {
+        if let issue = error as? DashboardIssue { return issue }
+        switch error {
+        case FamilyClient.Failure.unauthorized, FamilyClient.Failure.redirect: return .reconnect
+        case FamilyClient.Failure.responseTooLarge, is QuotaDataError: return .invalidReport
+        case PhoneStorage.StorageError.keychain, PhoneStorage.StorageError.connectionUnavailable: return .connectionUnavailable
+        case PhoneStorage.StorageError.appGroup: return .localStorage
+        default: return .cannotRefresh
+        }
+    }
+}
+
+struct DashboardRead {
+    let family: FamilySnapshot?
+    let issue: DashboardIssue?
+}
+
+/// The widget has no long-lived store. Keep its read path explicit and testable,
+/// including the difference between an unavailable connection and an absent one.
+enum DashboardReader {
+    static func load(
+        connection: () -> ConnectionLoad = { PhoneStorage.connection() },
+        cached: (PhoneConnection) -> FamilySnapshot? = { PhoneStorage.cached(for: $0) },
+        save: (FamilySnapshot, PhoneConnection) throws -> FamilySnapshot = { try PhoneStorage.save($0, for: $1) },
+        fetch: (PhoneConnection) async throws -> FamilySnapshot = { try await FamilyClient.fetch($0) }
+    ) async -> DashboardRead {
+        let loaded = connection()
+        guard let original = loaded.connection else { return DashboardRead(family: nil, issue: loaded.issue) }
+        let previous = cached(original)
+        func changed(_ state: ConnectionLoad) -> DashboardRead? {
+            guard state != .available(original) else { return nil }
+            if state == .unavailable { return DashboardRead(family: previous, issue: .connectionUnavailable) }
+            return DashboardRead(family: nil, issue: state.issue ?? .cannotRefresh)
+        }
+        do {
+            let value = try await fetch(original)
+            if let changed = changed(connection()) { return changed }
+            let current = value.preservingNewerReports(from: previous)
+            do {
+                let saved = try save(current, original)
+                if let changed = changed(connection()) { return changed }
+                return DashboardRead(family: saved.preservingNewerReports(from: current), issue: nil)
+            } catch {
+                if let changed = changed(connection()) { return changed }
+                if case PhoneStorage.StorageError.changedConnection = error {
+                    return DashboardRead(family: previous, issue: .cannotRefresh)
+                }
+                return DashboardRead(family: current.preservingNewerReports(from: cached(original)), issue: .localStorage)
+            }
+        } catch {
+            if let changed = changed(connection()) { return changed }
+            return DashboardRead(family: cached(original)?.preservingNewerReports(from: previous) ?? previous,
+                                 issue: .reporting(error))
+        }
     }
 }

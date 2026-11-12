@@ -12,44 +12,36 @@ struct FamilyDashboard: View {
                 if let snapshot = store.snapshot {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 22) {
-                            HStack(alignment: .top) {
-                                VStack(alignment: .leading, spacing: 7) {
-                                    Text("Time left this week").font(.largeTitle.bold()).fixedSize(horizontal: false, vertical: true)
-                                    Text("Weekly time left for your family").font(.subheadline).foregroundStyle(.secondary)
-                                }
-                                Spacer(minLength: 0)
-                                Image(systemName: "hourglass").font(.title).foregroundStyle(QuotaStyle.blue).padding(15).background(QuotaStyle.blue.opacity(0.1), in: RoundedRectangle(cornerRadius: 20))
-                            }
+                            Text("Time left this week").font(.largeTitle.bold()).fixedSize(horizontal: false, vertical: true)
                             if store.isDemo {
                                 Label("Sample family · not your children's data", systemImage: "sparkles")
                                     .font(.footnote.weight(.medium)).foregroundStyle(QuotaStyle.blue)
                             }
-                            if let error = store.errorMessage {
-                                Label(error, systemImage: "wifi.exclamationmark").font(.subheadline).foregroundStyle(.orange)
-                            }
-                            ForEach(snapshot.children) { child in ChildCard(child: child) }
+                            if let issue = store.issue { issueNotice(issue) }
+                            ForEach(snapshot.children) { child in ChildCard(child: child, lastKnown: store.issue?.usesLastKnownBalance == true) }
                             ForEach(snapshot.devices.filter { $0.snapshot == nil }) { device in
-                                Label("\(device.deviceName) hasn't reported yet. Open parent settings on that Mac to connect it.", systemImage: "desktopcomputer")
+                                Label("Waiting for an update from \(device.deviceName). Open Kids Quota parent settings on that Mac to check its phone connection.", systemImage: "desktopcomputer")
                                     .font(.subheadline).foregroundStyle(.secondary).padding().frame(maxWidth: .infinity, alignment: .leading).background(.background, in: RoundedRectangle(cornerRadius: 20))
                             }
-                            if snapshot.devices.allSatisfy({ $0.snapshot?.children.isEmpty != false }) && snapshot.devices.allSatisfy({ $0.snapshot != nil }) {
-                                ContentUnavailableView("No children yet", systemImage: "person.2", description: Text("Choose the accounts to manage in the Kids Quota Mac app."))
+                            if snapshot.children.isEmpty && snapshot.unreportedMacCount == 0 {
+                                ContentUnavailableView(snapshot.emptyState().title, systemImage: "person.2", description: Text(snapshot.emptyState().message))
                             }
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Your Mac keeps the time").font(.subheadline.weight(.semibold))
-                                Text("Macs report about every 5 minutes while awake. Widgets refresh when iOS allows. Time shown is the last reported balance; opening this app checks for a newer report.").font(.footnote).foregroundStyle(.secondary)
-                            }.padding(.horizontal, 4)
                         }.padding(20)
                     }.refreshable { await store.refresh() }
-                } else if store.connection != nil {
+                } else if store.connection != nil || (store.issue != nil && store.issue != .notConnected) {
                     VStack(spacing: 18) {
-                        ContentUnavailableView("Waiting for your dashboard", systemImage: "icloud", description: Text(store.errorMessage ?? "Connecting to your family's latest quota balances."))
-                        Button("Try again") { Task { await store.refresh() } }.buttonStyle(.borderedProminent)
+                        if store.isRefreshing {
+                            ProgressView("Loading balances")
+                        } else {
+                            let issue = store.issue ?? .cannotRefresh
+                            ContentUnavailableView(issue.title, systemImage: "exclamationmark.circle", description: Text(issue.message))
+                            Button(issue.actionTitle) { resolve(issue) }.buttonStyle(.borderedProminent)
+                        }
                     }
                 } else {
                     VStack(spacing: 24) {
                         Image(systemName: "hourglass.circle.fill").font(.system(size: 76)).foregroundStyle(QuotaStyle.blue)
-                        Text("Their time.\nAt a glance.").font(.largeTitle.bold()).multilineTextAlignment(.center)
+                        Text("See your children's time left").font(.largeTitle.bold()).multilineTextAlignment(.center)
                         Text("See each child's weekly time left on your iPhone and Home Screen.").foregroundStyle(.secondary).multilineTextAlignment(.center)
                         Button("Connect your family") { showPairing = true }.buttonStyle(.borderedProminent).controlSize(.large)
                         Button("See a sample") { store.showDemo() }.font(.subheadline)
@@ -71,10 +63,22 @@ struct FamilyDashboard: View {
             .onChange(of: incomingPairing) { _, value in if value != nil { showPairing = true } }
         }.tint(QuotaStyle.blue)
     }
+    private func resolve(_ issue: DashboardIssue) {
+        if issue.needsConnectionCode { showPairing = true }
+        else { Task { await store.refresh() } }
+    }
+    private func issueNotice(_ issue: DashboardIssue) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Label(issue.title, systemImage: "exclamationmark.circle").font(.subheadline.weight(.semibold)).foregroundStyle(.orange)
+            Text(issue.message).font(.footnote).foregroundStyle(.secondary)
+            Button(issue.actionTitle) { resolve(issue) }.font(.subheadline).disabled(store.isRefreshing)
+        }.frame(maxWidth: .infinity, alignment: .leading)
+    }
 }
 
 private struct ChildCard: View {
     let child: ChildDashboard
+    let lastKnown: Bool
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack {
@@ -106,7 +110,7 @@ private struct ChildCard: View {
                 }
                 if balance.id != child.child.balances.last?.id { Divider() }
             }
-            UpdatedLabel(child: child)
+            UpdatedLabel(child: child, lastKnown: lastKnown)
         }.padding(20).background(.background, in: RoundedRectangle(cornerRadius: 24)).privacySensitive()
     }
 }
@@ -135,7 +139,8 @@ private struct PhoneSettings: View {
                 Section("Privacy and updates") {
                     Text("This phone can only read quota summaries. Allowances and resets are controlled in the parent Mac app.")
                     Text("Each parent's connection can be revoked independently in your cloud setup. Disconnecting here removes the connection and cached balances from this phone.")
-                    Text("Your widget requests a refresh about every 15 minutes. iOS chooses the actual timing. Sleeping or disconnected Macs keep their last reported balance, labeled as old after 15 minutes.")
+                    Text("Macs report about every 5 minutes while awake. Your widget requests updates about every 15 minutes, but iOS chooses the timing. Open or pull to refresh the app to check for a newer report; this does not wake a sleeping Mac.")
+                    Text("Balances are labeled Last known after 15 minutes, at a weekly reset without a new report, or when a refresh fails. The app never guesses how much time remains.")
                 }
             }.navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
                 .toolbar { Button("Done") { dismiss() } }

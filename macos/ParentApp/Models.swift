@@ -41,9 +41,27 @@ struct PhoneDashboardStatus: Decodable {
     let lastAttempt: String?
     let lastSuccess: String?
     let lastError: String?
+    let problemKind: String?
     let intervalSeconds: Int
     var lastSuccessDate: Date? { lastSuccess.flatMap { ISO8601DateFormatter().date(from: $0) } }
+    var problem: PhoneDashboardProblem? { problemKind.flatMap(PhoneDashboardProblem.init(rawValue:)) }
+    var needsAttention: Bool { problemKind != nil || lastError != nil }
+    var title: String {
+        if needsAttention { return "Sharing needs attention" }
+        if !configured { return "Sharing is off" }
+        return lastSuccessDate == nil ? "Connecting…" : "Sharing with your phone"
+    }
+    var recovery: PhoneDashboardRecovery? {
+        if !needsAttention { return nil }
+        switch problem {
+        case .connection: return .retry
+        case .authorization, .endpoint, .localStorage: return .reconnect
+        default: return .checkSetup
+        }
+    }
 }
+enum PhoneDashboardProblem: String { case connection, authorization, endpoint, clockConflict = "clock_conflict", invalidUpdate = "invalid_update", localStorage = "local_storage" }
+enum PhoneDashboardRecovery: Equatable { case retry, reconnect, checkSetup }
 
 enum PhoneConnectionDocument {
     static func body(_ text: String) throws -> [String: Any] {

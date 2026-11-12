@@ -48,6 +48,29 @@ public struct PhoneConnection: Codable, Equatable {
     }
 }
 
+public enum PhonePublisherProblem: String, Encodable {
+    case connection, authorization, endpoint
+    case clockConflict = "clock_conflict", invalidUpdate = "invalid_update", localStorage = "local_storage"
+
+    var message: String {
+        switch self {
+        case .connection: return "This Mac couldn't send updates to your phone dashboard. It will retry automatically. Local quotas still work."
+        case .authorization: return "This Mac's connection is no longer accepted. Reconnect with a new Mac connection file."
+        case .endpoint: return "The dashboard address is unavailable or has moved. Reconnect using the correct Mac connection file."
+        case .clockConflict: return "Check this Mac's date and time, and make sure each Mac uses its own connection file. The last shared balances are unchanged."
+        case .invalidUpdate: return "This update couldn't be shared. Check your dashboard setup and that Kids Quota is up to date. The last shared balances are unchanged."
+        case .localStorage: return "This Mac's saved connection couldn't be read. Reconnect with its Mac connection file. Local quotas still work."
+        }
+    }
+    static func response(_ code: Int) -> PhonePublisherProblem {
+        if [408, 429].contains(code) || (500...599).contains(code) { return .connection }
+        if [401, 403].contains(code) { return .authorization }
+        if (300...399).contains(code) || code == 404 { return .endpoint }
+        if code == 409 { return .clockConflict }
+        return .invalidUpdate
+    }
+}
+
 public struct PhonePublisherStatus: Encodable {
     public var configured = false
     public var endpoint: String?
@@ -56,6 +79,7 @@ public struct PhonePublisherStatus: Encodable {
     public var lastAttempt: Date?
     public var lastSuccess: Date?
     public var lastError: String?
+    public var problemKind: PhonePublisherProblem?
     public let intervalSeconds = 300
 }
 
@@ -207,7 +231,7 @@ final class PhonePublisher {
         do {
             connection = try store.load()
             current.configured = connection != nil; current.endpoint = connection?.endpoint; current.deviceName = connection?.deviceName
-        } catch { current.lastError = "Saved phone connection could not be read. Reconnect to resume sharing. Local quotas still work." }
+        } catch { current.problemKind = .localStorage; current.lastError = PhonePublisherProblem.localStorage.message }
     }
     var status: PhonePublisherStatus { lock.lock(); defer { lock.unlock() }; return current }
 
@@ -272,16 +296,17 @@ final class PhonePublisher {
         lock.lock(); inFlight = false; upload = nil
         if generation == attempt {
             current.uploading = false
-            if snapshotTooLarge { current.lastError = "This Mac has too much quota data for the phone dashboard. The last shared balances and local quotas are unchanged." }
-            else if snapshotFailed { current.lastError = "A complete quota update could not be prepared. The last shared balances are unchanged." }
+            if snapshotFailed { current.problemKind = .invalidUpdate }
             else if let result {
                 switch result {
-                case .success: current.lastSuccess = now(); current.lastError = nil
-                case .failure(.connection): current.lastError = "Could not reach the phone dashboard. Retrying automatically; local quotas still work."
-                case .failure(.rejected(let code)):
-                    current.lastError = [401,403].contains(code) ? "The phone dashboard rejected this connection. Import a new Mac connection document." : "The phone dashboard did not accept the update. Retrying automatically; local quotas still work."
+                case .success: current.lastSuccess = now(); current.problemKind = nil
+                case .failure(.connection): current.problemKind = .connection
+                case .failure(.rejected(let code)): current.problemKind = PhonePublisherProblem.response(code)
                 }
             }
+            current.lastError = snapshotTooLarge
+                ? "This Mac has too much quota data for the phone dashboard. Check the number of children, allowances, and domains in setup. The last shared balances are unchanged."
+                : current.problemKind?.message
         }
         let again = pending && running && connection != nil; pending = false
         lock.unlock()

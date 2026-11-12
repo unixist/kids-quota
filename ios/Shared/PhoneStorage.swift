@@ -14,13 +14,18 @@ enum PhoneStorage {
         if let accessGroup { value[kSecAttrAccessGroup as String] = accessGroup }
         return value
     }
-    static func connection() -> PhoneConnection? {
+    static func connection() -> ConnectionLoad {
         var request = query; request[kSecReturnData as String] = true; request[kSecMatchLimit as String] = kSecMatchLimitOne
         var result: CFTypeRef?
-        guard SecItemCopyMatching(request as CFDictionary, &result) == errSecSuccess,
-              let data = result as? Data, let value = try? JSONDecoder().decode(PhoneConnection.self, from: data),
-              (try? value.validate()) != nil else { return nil }
-        return value
+        let status = SecItemCopyMatching(request as CFDictionary, &result)
+        return decodeConnection(status: status, data: result as? Data)
+    }
+    static func decodeConnection(status: OSStatus, data: Data?) -> ConnectionLoad {
+        if status == errSecItemNotFound { return .absent }
+        guard status == errSecSuccess else { return .unavailable }
+        guard let data, let value = try? JSONDecoder().decode(PhoneConnection.self, from: data),
+              (try? value.validate()) != nil else { return .invalid }
+        return .available(value)
     }
     static func save(_ connection: PhoneConnection) throws {
         try connection.validate()
@@ -55,7 +60,9 @@ enum PhoneStorage {
         var result = snapshot
         NSFileCoordinator().coordinate(writingItemAt: url, options: .forReplacing, error: &coordinationError) { coordinatedURL in
             do {
-                guard connection() == original else { throw StorageError.changedConnection }
+                let loaded = connection()
+                guard loaded != .unavailable else { throw StorageError.connectionUnavailable }
+                guard loaded == .available(original) else { throw StorageError.changedConnection }
                 result = snapshot.preservingNewerReports(from: cached(for: original))
                 let data = try JSONEncoder().encode(Cache(connectionHash: fingerprint(original), snapshot: result.encoded()))
                 try data.write(to: coordinatedURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
@@ -71,12 +78,13 @@ enum PhoneStorage {
         }
     }
     enum StorageError: LocalizedError {
-        case keychain, appGroup, changedConnection
+        case keychain, appGroup, changedConnection, connectionUnavailable
         var errorDescription: String? {
             switch self {
-            case .keychain: return "The secure connection could not be saved. Check this build's signing and shared Keychain configuration."
-            case .appGroup: return "Shared widget storage is unavailable. Check this build's App Group configuration."
+            case .keychain: return "Couldn't save this phone's connection. Unlock your iPhone and try again."
+            case .appGroup: return DashboardIssue.localStorage.message
             case .changedConnection: return "The family connection changed. Open Kids Quota to refresh."
+            case .connectionUnavailable: return DashboardIssue.connectionUnavailable.message
             }
         }
     }

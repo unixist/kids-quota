@@ -12,7 +12,7 @@ settings:
     IPHONEOS_DEPLOYMENT_TARGET: "17.0"
     CODE_SIGN_STYLE: Automatic
     MARKETING_VERSION: "0.2.0"
-    CURRENT_PROJECT_VERSION: "1"
+    CURRENT_PROJECT_VERSION: "2"
     KQ_BUNDLE_PREFIX: com.unixist.kidsquota
     KQ_APP_GROUP: group.com.unixist.kidsquota.mobile
     KQ_KEYCHAIN_SUFFIX: com.unixist.kidsquota.mobile.shared

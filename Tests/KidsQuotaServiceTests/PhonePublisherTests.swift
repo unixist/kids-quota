@@ -113,6 +113,7 @@ final class PhonePublisherTests: XCTestCase {
         XCTAssertThrowsError(try store.load())
         let publisher = PhonePublisher(directory:dir,now:Date.init,snapshot:{_ in Data()})
         XCTAssertFalse(publisher.status.configured); XCTAssertNotNil(publisher.status.lastError)
+        XCTAssertEqual(publisher.status.problemKind, .localStorage)
         XCTAssertFalse(String(describing:publisher.status).contains(token))
         try store.remove()
         let target = dir.appendingPathComponent("other"); try Data(token.utf8).write(to:target)
@@ -166,6 +167,34 @@ final class PhonePublisherTests: XCTestCase {
         transport.complete(2,.success(())); eventually { publisher.status.lastError == nil }
         publisher.stop()
     }
+    func testHTTPFailureKindsChooseRepairInsteadOfRetryForPermanentProblems() {
+        for status in [408, 429, 500, 502, 503, 599] { XCTAssertEqual(PhonePublisherProblem.response(status), .connection) }
+        for status in [401, 403] { XCTAssertEqual(PhonePublisherProblem.response(status), .authorization) }
+        for status in [301, 302, 307, 308, 404] { XCTAssertEqual(PhonePublisherProblem.response(status), .endpoint) }
+        XCTAssertEqual(PhonePublisherProblem.response(409), .clockConflict)
+        for status in [400, 413, 415, 422] { XCTAssertEqual(PhonePublisherProblem.response(status), .invalidUpdate) }
+    }
+    func testProblemStatusKeepsLastSuccessUntilARealUploadRecovers() throws {
+        let transport = FakeTransport()
+        let publisher = PhonePublisher(directory: try directory(), now: Date.init, transport: transport, snapshot: { _ in Data("{}".utf8) })
+        try publisher.configure(connection()); publisher.start()
+        eventually { transport.sent.count == 1 }
+        XCTAssertNil(publisher.status.lastSuccess)
+        transport.complete(0, .success(())); eventually { publisher.status.lastSuccess != nil }
+        let success = publisher.status.lastSuccess
+        for (index, code) in [429, 401, 404, 409, 422].enumerated() {
+            publisher.requestPublish(); eventually { transport.sent.count == index + 2 }
+            transport.complete(index + 1, .failure(.rejected(code)))
+            eventually { !publisher.status.uploading }
+            XCTAssertEqual(publisher.status.lastSuccess, success)
+            XCTAssertEqual(publisher.status.problemKind, PhonePublisherProblem.response(code))
+            XCTAssertEqual(publisher.status.lastError, PhonePublisherProblem.response(code).message)
+        }
+        publisher.requestPublish(); eventually { transport.sent.count == 7 }
+        transport.complete(6, .success(())); eventually { publisher.status.problemKind == nil }
+        XCTAssertNil(publisher.status.lastError)
+        publisher.stop()
+    }
     func testDisconnectCancelsOutstandingRequestAndIgnoresItsLateSuccess() throws {
         let dir = try directory(), transport = FakeTransport()
         let publisher = PhonePublisher(directory:dir,now:Date.init,transport:transport,snapshot:{_ in Data("{}".utf8)})
@@ -209,9 +238,24 @@ final class PhonePublisherTests: XCTestCase {
         })
         try publisher.configure(connection()); publisher.start()
         eventually { publisher.status.lastError != nil }
+        XCTAssertEqual(publisher.status.problemKind, .invalidUpdate)
         XCTAssertEqual(transport.sent.count,0); XCTAssertFalse(publisher.status.lastError!.contains("secret"))
         fail = false; publisher.requestPublish(); eventually { transport.sent.count == 1 }
         transport.complete(0,.success(())); eventually { publisher.status.lastSuccess != nil }; publisher.stop()
+    }
+    func testOversizedSnapshotExplainsTheSetupLimitWithoutClaimingQuotaHealth() throws {
+        let transport = FakeTransport()
+        let publisher = PhonePublisher(directory: try directory(), now: Date.init, transport: transport, snapshot: { _ in
+            throw APIError(422, "phone_snapshot_too_large", "Private data must not appear in status")
+        })
+        try publisher.configure(connection()); publisher.start()
+        eventually { publisher.status.lastError != nil }
+        XCTAssertEqual(publisher.status.problemKind, .invalidUpdate)
+        XCTAssertTrue(publisher.status.lastError?.contains("too much quota data") == true)
+        XCTAssertFalse(publisher.status.lastError?.contains("Local quotas still work") == true)
+        XCTAssertFalse(publisher.status.lastError?.contains("Private data") == true)
+        XCTAssertEqual(transport.sent.count, 0)
+        publisher.stop()
     }
     func testHTTPRedirectIsNeverFollowed() throws {
         let transport = PhoneHTTPSUploadTransport()

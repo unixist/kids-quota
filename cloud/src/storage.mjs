@@ -1,24 +1,43 @@
 import { fullMatch, MAX_BODY_BYTES } from './validation.mjs';
+import { withAbort } from './cancellation.mjs';
 
 export class StorageConflict extends Error {}
-export class StorageUnavailable extends Error {}
+const categories = new Set(['identity_unavailable', 'storage_unavailable', 'storage_read_failed', 'storage_write_failed', 'stored_snapshot_invalid', 'storage_contention', 'family_too_large']);
+export class StorageUnavailable extends Error {
+  constructor(category = 'storage_unavailable') {
+    super('Quota storage is unavailable.');
+    this.category = categories.has(category) ? category : 'storage_unavailable';
+  }
+}
+const boundedSignal = (signal, milliseconds) => signal ? AbortSignal.any([signal, AbortSignal.timeout(milliseconds)]) : AbortSignal.timeout(milliseconds);
 
 // Google Cloud's attached service identity supplies short-lived access tokens.
 // No downloaded service-account key is accepted or required by this service.
 export class MetadataCredentials {
-  constructor(fetcher = fetch, clock = () => Date.now()) { this.fetcher = fetcher; this.clock = clock; this.cached = null; this.pending = null; }
-  async token() {
+  constructor(fetcher = fetch, clock = () => Date.now()) { this.fetcher = fetcher; this.clock = clock; this.cached = null; this.pending = new Map(); }
+  async token(signal) {
+    signal?.throwIfAborted();
     if (this.cached && this.cached.expires > this.clock() + 60000) return this.cached.token;
-    if (this.pending) return this.pending;
-    this.pending = (async () => {
-      const response = await this.fetcher('http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token', { headers: { 'Metadata-Flavor': 'Google' }, redirect: 'error', signal: AbortSignal.timeout(5000) });
-      if (!response.ok || response.headers.get('metadata-flavor') !== 'Google') throw new StorageUnavailable('Service identity is unavailable.');
-      const result = await response.json();
-      if (typeof result.access_token !== 'string' || !result.access_token || !Number.isFinite(result.expires_in) || result.expires_in <= 60) throw new StorageUnavailable('Service identity is unavailable.');
-      this.cached = { token: result.access_token, expires: this.clock() + result.expires_in * 1000 };
-      return this.cached.token;
+    // Coalesce within one request. A disconnected request must not cancel the
+    // identity refresh belonging to another phone or Mac.
+    if (this.pending.has(signal)) return this.pending.get(signal);
+    const work = (async () => {
+      const bounded = boundedSignal(signal, 5000);
+      try {
+        const response = await withAbort(this.fetcher('http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token', { headers: { 'Metadata-Flavor': 'Google' }, redirect: 'error', signal: bounded }), bounded);
+        if (!response.ok || response.headers.get('metadata-flavor') !== 'Google') throw new StorageUnavailable('identity_unavailable');
+        const result = await withAbort(response.json(), bounded);
+        bounded.throwIfAborted();
+        if (typeof result.access_token !== 'string' || !result.access_token || !Number.isFinite(result.expires_in) || result.expires_in <= 60) throw new StorageUnavailable('identity_unavailable');
+        this.cached = { token: result.access_token, expires: this.clock() + result.expires_in * 1000 };
+        return this.cached.token;
+      } catch {
+        signal?.throwIfAborted();
+        throw new StorageUnavailable('identity_unavailable');
+      }
     })();
-    try { return await this.pending; } finally { this.pending = null; }
+    this.pending.set(signal, work);
+    try { return await work; } finally { this.pending.delete(signal); }
   }
 }
 
@@ -28,33 +47,52 @@ export class GCSStorage {
     this.bucket = bucket; this.fetcher = fetcher; this.credentials = credentials;
   }
   objectURL(deviceId) { return `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(this.bucket)}/o/${encodeURIComponent(`snapshots/${deviceId}.json`)}`; }
-  async request(url, options = {}) {
+  async request(url, options, signal, category) {
     try {
-      return await this.fetcher(url, { ...options, headers: { ...options.headers, Authorization: `Bearer ${await this.credentials.token()}` }, redirect: 'error', signal: AbortSignal.timeout(10000) });
-    } catch { throw new StorageUnavailable('Storage is unavailable.'); }
+      signal.throwIfAborted();
+      const token = await this.credentials.token(signal);
+      signal.throwIfAborted();
+      return await withAbort(this.fetcher(url, { ...options, headers: { ...options?.headers, Authorization: `Bearer ${token}` }, redirect: 'error', signal }), signal);
+    } catch (error) {
+      signal.throwIfAborted();
+      if (error instanceof StorageUnavailable) throw error;
+      throw new StorageUnavailable(category);
+    }
   }
-  async read(deviceId) {
-    const url = this.objectURL(deviceId);
-    const metadata = await this.request(`${url}?fields=generation,size`);
-    if (metadata.status === 404) return null;
-    if (!metadata.ok) throw new StorageUnavailable('Storage is unavailable.');
-    const meta = await metadata.json();
-    if (!fullMatch(/^\d+$/, meta.generation) || !fullMatch(/^\d+$/, String(meta.size)) || Number(meta.size) > MAX_BODY_BYTES + 1024) throw new StorageUnavailable('Stored summary is invalid.');
-    const response = await this.request(`${url}?alt=media&generation=${meta.generation}`);
-    // A concurrent write can retire the generation between metadata and media.
-    if (response.status === 404 || response.status === 412) throw new StorageConflict();
-    if (!response.ok) throw new StorageUnavailable('Storage is unavailable.');
-    let value;
-    try { value = await response.json(); } catch { throw new StorageUnavailable('Stored summary is invalid.'); }
-    return { generation: meta.generation, value };
+  async read(deviceId, signal) {
+    const bounded = signal ?? AbortSignal.timeout(10000), url = this.objectURL(deviceId);
+    try {
+      const metadata = await this.request(`${url}?fields=generation,size`, undefined, bounded, 'storage_read_failed');
+      if (metadata.status === 404) return null;
+      if (!metadata.ok) throw new StorageUnavailable('storage_read_failed');
+      const meta = await withAbort(metadata.json(), bounded);
+      if (!fullMatch(/^\d+$/, meta.generation) || !fullMatch(/^\d+$/, String(meta.size)) || Number(meta.size) > MAX_BODY_BYTES + 1024) throw new StorageUnavailable('stored_snapshot_invalid');
+      const response = await this.request(`${url}?alt=media&generation=${meta.generation}`, undefined, bounded, 'storage_read_failed');
+      // A concurrent write can retire the generation between metadata and media.
+      if (response.status === 404 || response.status === 412) throw new StorageConflict();
+      if (!response.ok) throw new StorageUnavailable('storage_read_failed');
+      const value = await withAbort(response.json(), bounded);
+      bounded.throwIfAborted();
+      return { generation: meta.generation, value };
+    } catch (error) {
+      signal?.throwIfAborted();
+      if (error instanceof StorageConflict || error instanceof StorageUnavailable) throw error;
+      throw new StorageUnavailable(error instanceof SyntaxError ? 'stored_snapshot_invalid' : 'storage_read_failed');
+    }
   }
-  async write(deviceId, value, generation) {
-    const name = encodeURIComponent(`snapshots/${deviceId}.json`);
+  async write(deviceId, value, generation, signal) {
+    const bounded = signal ?? AbortSignal.timeout(10000), name = encodeURIComponent(`snapshots/${deviceId}.json`);
     const url = `https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(this.bucket)}/o?uploadType=media&name=${name}&ifGenerationMatch=${generation ?? '0'}`;
-    const response = await this.request(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value) });
-    if (response.status === 412) throw new StorageConflict();
-    if (!response.ok) throw new StorageUnavailable('Storage is unavailable.');
-    // Drain the successful metadata response to reuse the connection.
-    await response.arrayBuffer();
+    try {
+      const response = await this.request(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value) }, bounded, 'storage_write_failed');
+      if (response.status === 412) throw new StorageConflict();
+      if (!response.ok) throw new StorageUnavailable('storage_write_failed');
+      // Drain the successful metadata response to reuse the connection.
+      await withAbort(response.arrayBuffer(), bounded);
+    } catch (error) {
+      signal?.throwIfAborted();
+      if (error instanceof StorageConflict || error instanceof StorageUnavailable) throw error;
+      throw new StorageUnavailable('storage_write_failed');
+    }
   }
 }

@@ -4,6 +4,10 @@ The iPhone app and Home Screen widget show each child's latest reported time lef
 weekly use, and tracking status. Both parents can see the same family dashboard.
 The Mac continues to measure time and enforce quotas; the phone is read-only.
 
+The connection is deliberately simple: each Mac replaces its latest report every
+five minutes. There is no queue of missed updates to repair. Phones keep the last
+known report when a refresh fails and show when it was captured.
+
 ## Set up the family connection
 
 1. Deploy the private relay once using the [cloud setup guide](phone-cloud.md).
@@ -14,10 +18,12 @@ The Mac continues to measure time and enforce quotas; the phone is read-only.
 3. Import that computer's Mac connection file, then choose **Connect and share
    balances**. This explicitly enables sharing of the children's display names,
    configured services, allowances, usage totals, time left, and tracking status.
-   Check that **Last sent** appears. Use **Send update now** after setup if needed.
+   The screen first shows **Connecting**. It changes to **Sharing** after an
+   update actually reaches the dashboard. **Last sent** updates automatically;
+   there is no separate status-refresh step.
 4. Install the iPhone app using the [iPhone installation guide](../ios/README.md).
-   Open **Connect your family** and scan, import, or paste your private iPhone
-   connection document. Use a different parent's document on the other phone so
+   Open **Connect your family** and scan your private iPhone QR code. File import
+   and paste are under **Other ways**. Use a different parent's code on the other phone so
    either connection can later be revoked independently.
 5. Open the app once and confirm the children and balances appear. A computer
    without a report is shown as waiting, rather than as having a full allowance.
@@ -58,9 +64,29 @@ A sleeping Mac cannot send fresh reports. Internet or cloud outages do not stop
 the Mac's local quota enforcement. When connectivity returns, its next successful
 upload replaces the older summary.
 
+## When something needs attention
+
+The balance and its age remain visible whenever a valid report is available.
+Connection trouble does not turn a positive allowance into "weekly limit reached."
+
+| What you see | What to do |
+| --- | --- |
+| **Can't refresh balances** | Check the iPhone's internet connection and try again. Keep reading the last-known report and its age. |
+| **Reconnect this iPhone** | Use a new iPhone connection code from parent setup. Repeated refreshes cannot repair a rejected code. |
+| **Saved connection unavailable** | Unlock the iPhone and reopen Kids Quota. A temporarily unreadable saved connection is not treated as a new, unpaired phone. |
+| **No saved Mac report** | Open Phone dashboard in that Mac's parent settings and check sharing. A report can also disappear after the cloud retention period; this does not reset the Mac's quota. |
+| **Last known / old report** | Wake the Mac and check its internet connection. The phone cannot know whether the Mac is asleep or disconnected, so it does not guess. |
+| **Can't save balances** | The new balances are still shown. Try again; if it persists, install the latest app. Until storage works, widgets or offline views may have an older report. |
+| **Tracking paused / Check tracking on Mac** | Check the browser extension and activity monitor on that Mac. This is separate from a phone-sync problem or an exhausted allowance. |
+
+The Mac's sharing screen supplies one recovery action for its current problem:
+**Try again**, **Reconnect**, or **Check setup**. Its server address and connection
+replacement controls stay under **Connection details**. A failed connection to
+the local Mac service is labeled separately from failure to reach the dashboard.
+
 ## Disconnect or replace a device
 
-**Disconnect** in the Mac's Phone dashboard stops uploads and removes its local
+**Stop sharing** in the Mac's Phone dashboard stops uploads and removes its local
 device credential. The previous cloud report remains until removed or expired.
 **Disconnect this iPhone** removes that phone's saved connection and cached
 balances. It does not revoke a copied connection code; revoke or replace its

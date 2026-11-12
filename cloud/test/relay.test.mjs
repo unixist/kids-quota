@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Readable } from 'node:stream';
+import { EventEmitter } from 'node:events';
 import { createRelay } from '../src/relay.mjs';
 import { GCSStorage, MetadataCredentials, StorageConflict, StorageUnavailable } from '../src/storage.mjs';
 import { authenticate, canonical, MAX_BODY_BYTES, tokenDigest, validateConfig, validateSnapshot, validEndpoint, validID, validUTC } from '../src/validation.mjs';
@@ -27,19 +28,26 @@ class MemoryStorage {
 }
 function setup(custom = {}) {
   const storage = custom.storage ?? new MemoryStorage();
-  const handler = createRelay({ config: custom.config ?? config, storage, now: custom.now ?? now });
-  async function request({ method = 'GET', url = '/v1/family', token = reader, body, headers = {}, raw } = {}) {
+  const logs = [];
+  const handler = createRelay({ config: custom.config ?? config, storage, now: custom.now ?? now,
+    requestTimeoutMs: custom.requestTimeoutMs, logFailure: category => logs.push(category) });
+  async function request({ method = 'GET', url = '/v1/family', token = reader, body, headers = {}, raw, onRequest } = {}) {
     const source = raw ?? (body === undefined ? '' : JSON.stringify(body));
     const input = Readable.from([Buffer.from(source)]);
     input.method = method; input.url = url; input.complete = true;
     input.headers = { ...(token ? { authorization: `Bearer ${token}` } : {}), ...(body !== undefined || raw !== undefined ? { 'content-type': 'application/json' } : {}), ...headers };
     let status, output, responseHeaders;
-    const response = { writeHead(code, h) { status = code; responseHeaders = h; }, end(value) { output = value; } };
-    await handler(input, response);
+    const response = Object.assign(new EventEmitter(), {
+      writeHead(code, h) { status = code; responseHeaders = h; },
+      end(value) { output = value; this.writableEnded = true; }
+    });
+    const pending = handler(input, response);
+    onRequest?.(input, response);
+    await pending;
     return { status, headers: responseHeaders, body: output ? JSON.parse(output) : null };
   }
   const upload = (body = summary(), token = writer) => request({ method: 'PUT', url: `/v1/devices/${body.deviceId}/snapshot`, token, body });
-  return { request, upload, storage };
+  return { request, upload, storage, logs };
 }
 
 test('health exposes only liveness; all family access needs authentication', async () => {
@@ -111,8 +119,21 @@ test('generation race can retry over an older concurrent upload', async () => {
   assert.deepEqual(storage.values.get('mac-1').value.snapshot, summary());
 });
 test('generation contention is bounded', async () => {
-  const storage = { read: async () => null, write: async () => { throw new StorageConflict(); } };
+  let reads = 0, writes = 0;
+  const storage = { read: async () => { reads++; return null; }, write: async () => { writes++; throw new StorageConflict(); } };
+  const value = setup({ storage });
+  assert.equal((await value.upload()).status, 503);
+  assert.equal(reads, 3); assert.equal(writes, 3);
+  assert.deepEqual(value.logs, ['storage_contention']);
+});
+test('raced reads and writes share one three-attempt upload budget', async () => {
+  let reads = 0, writes = 0;
+  const storage = {
+    read: async () => { if (++reads < 3) throw new StorageConflict(); return null; },
+    write: async () => { writes++; throw new StorageConflict(); }
+  };
   assert.equal((await setup({ storage }).upload()).status, 503);
+  assert.equal(reads, 3); assert.equal(writes, 1);
 });
 test('storage failures never return a misleading partial family', async () => {
   const { request, upload, storage } = setup(); await upload();
@@ -121,9 +142,10 @@ test('storage failures never return a misleading partial family', async () => {
   const result = await request(); assert.equal(result.status, 503); assert.equal(result.body.devices, undefined);
 });
 test('corrupt stored snapshots fail closed without leaking provider diagnostics', async () => {
-  const { request, storage } = setup();
+  const { request, storage, logs } = setup();
   storage.values.set('mac-1', { generation: '1', value: { receivedAt: now().toISOString(), snapshot: { privateData: 'secret' } } });
   const result = await request(); assert.equal(result.status, 503); assert.ok(!JSON.stringify(result).includes('secret'));
+  assert.deepEqual(logs, ['stored_snapshot_invalid']);
 });
 test('no CORS and no remote administration endpoints', async () => {
   const { request } = setup();
@@ -257,4 +279,121 @@ test('metadata failures do not poison later credential retries', async () => {
   let count = 0;
   const credentials = new MetadataCredentials(async () => ++count === 1 ? new Response('no', { status: 503 }) : new Response(JSON.stringify({ access_token: 'token', expires_in: 3600 }), { headers: { 'Metadata-Flavor': 'Google' } }));
   await assert.rejects(credentials.token()); assert.equal(await credentials.token(), 'token');
+});
+
+function untilAborted(signal) {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) reject(signal.reason);
+    else signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+  });
+}
+const tick = () => new Promise(resolve => setImmediate(resolve));
+
+test('one request deadline cancels coalesced metadata fetches and returns a private 503', async () => {
+  const signals = [];
+  const credentials = new MetadataCredentials(async (_url, options) => { signals.push(options.signal); return untilAborted(options.signal); });
+  const storage = new GCSStorage('test-bucket', { credentials, fetcher: async () => assert.fail('Storage must wait for identity.') });
+  const { request, logs } = setup({ storage, requestTimeoutMs: 25 });
+  const result = await request();
+  await tick();
+  assert.equal(result.status, 503);
+  assert.deepEqual(logs, ['request_deadline']);
+  assert.equal(signals.length, 1); assert.equal(signals[0].aborted, true);
+  assert.equal(credentials.pending.size, 0); assert.equal(credentials.cached, null);
+});
+
+test('the same total deadline covers storage headers and snapshot body reads', async () => {
+  for (const stallBody of [false, true]) {
+    const signals = [];
+    const storage = new GCSStorage('test-bucket', { credentials: { token: async () => 'private-access-token' }, fetcher: async (url, options) => {
+      signals.push(options.signal);
+      if (!stallBody) return untilAborted(options.signal);
+      if (url.includes('fields=')) return new Response(JSON.stringify({ generation: '1', size: '100' }));
+      return { ok: true, status: 200, json: () => untilAborted(options.signal) };
+    } });
+    const { request, logs } = setup({ storage, requestTimeoutMs: 25 });
+    assert.equal((await request()).status, 503);
+    assert.deepEqual(logs, ['request_deadline']);
+    assert.ok(signals.length >= 2);
+    assert.ok(signals.every(signal => signal === signals[0] && signal.aborted));
+  }
+});
+
+test('client disconnection cancels an in-flight GCS upload without another response', async () => {
+  let markStarted, response, requestInput, writeSignal;
+  const started = new Promise(resolve => { markStarted = resolve; });
+  const storage = new GCSStorage('test-bucket', { credentials: { token: async () => 'private-access-token' }, fetcher: async (url, options) => {
+    if (!url.includes('/upload/')) return new Response(null, { status: 404 });
+    writeSignal = options.signal; markStarted(); return untilAborted(options.signal);
+  } });
+  const { request, logs } = setup({ storage });
+  const pending = request({ method: 'PUT', url: '/v1/devices/mac-1/snapshot', token: writer, body: summary(), onRequest(input, output) {
+    response = output; requestInput = input;
+  } });
+  await started;
+  // IncomingMessage's normal close after its body is consumed must not cancel
+  // storage work while the response is still being prepared.
+  requestInput.emit('close');
+  assert.equal(writeSignal.aborted, false);
+  response.destroyed = true; response.emit('close');
+  const result = await pending;
+  assert.equal(writeSignal.aborted, true); assert.equal(result.status, undefined);
+  assert.deepEqual(logs, []);
+});
+
+test('aborted request bodies cancel request work and never publish', async () => {
+  let writes = 0, signal;
+  const storage = { read: async (_id, received) => { signal = received; return untilAborted(received); }, write: async () => { writes++; } };
+  const { request, logs } = setup({ storage });
+  const result = await request({ onRequest(input) { input.aborted = true; input.emit('aborted'); } });
+  assert.equal(result.status, undefined); assert.equal(signal.aborted, true); assert.equal(writes, 0);
+  assert.deepEqual(logs, []);
+});
+
+test('a late read after deadline cannot start an upload or write a second response', async () => {
+  let release, writes = 0;
+  const storage = { read: () => new Promise(resolve => { release = resolve; }), write: async () => { writes++; } };
+  const { upload, logs } = setup({ storage, requestTimeoutMs: 25 });
+  assert.equal((await upload()).status, 503);
+  release(null); await tick();
+  assert.equal(writes, 0); assert.deepEqual(logs, ['request_deadline']);
+});
+
+test('one client cancellation does not cancel another metadata refresh', async () => {
+  const first = new AbortController(), second = new AbortController(), calls = [];
+  const credentials = new MetadataCredentials((_url, options) => new Promise((resolve, reject) => {
+    calls.push({ signal: options.signal, resolve });
+    options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true });
+  }));
+  const firstToken = credentials.token(first.signal), otherFirstToken = credentials.token(first.signal), secondToken = credentials.token(second.signal);
+  const canceled = Promise.all([assert.rejects(firstToken), assert.rejects(otherFirstToken)]);
+  assert.equal(calls.length, 2);
+  first.abort(new Error('disconnected')); await canceled;
+  assert.equal(calls[0].signal.aborted, true); assert.equal(calls[1].signal.aborted, false);
+  calls[1].resolve(new Response(JSON.stringify({ access_token: 'second-token', expires_in: 3600 }), { headers: { 'Metadata-Flavor': 'Google' } }));
+  assert.equal(await secondToken, 'second-token'); assert.equal(credentials.pending.size, 0);
+  assert.equal(await credentials.token(), 'second-token');
+});
+
+test('internal diagnostics contain only fixed categories, never errors, credentials, or payloads', async () => {
+  const secret = `https://private.example/?token=${writer} Child Alex provider failure`;
+  for (const [error, expected] of [[new Error(secret), 'unexpected_failure'], [new StorageUnavailable(secret), 'storage_unavailable']]) {
+    const { request, logs } = setup({ storage: { read: async () => { throw error; } } });
+    const result = await request();
+    assert.equal(result.status, 503); assert.deepEqual(logs, [expected]);
+    assert.ok(!JSON.stringify({ result, logs }).includes(secret));
+  }
+  const cases = [
+    ['identity_unavailable', new GCSStorage('test-bucket', { fetcher: async () => { throw new Error(secret); } }), false],
+    ['storage_read_failed', new GCSStorage('test-bucket', { credentials: { token: async () => secret }, fetcher: async () => new Response(secret, { status: 403 }) }), false],
+    ['storage_write_failed', new GCSStorage('test-bucket', { credentials: { token: async () => secret }, fetcher: async url => new Response(secret, { status: url.includes('/upload/') ? 503 : 404 }) }), true],
+    ['stored_snapshot_invalid', new GCSStorage('test-bucket', { credentials: { token: async () => secret }, fetcher: async () => new Response(secret) }), false]
+  ];
+  for (const [expected, storage, isUpload] of cases) {
+    const { request, upload, logs } = setup({ storage });
+    const result = await (isUpload ? upload() : request());
+    assert.equal(result.status, 503); assert.deepEqual(logs, [expected]);
+    assert.ok(!JSON.stringify({ result, logs }).includes(writer));
+    assert.ok(!JSON.stringify({ result, logs }).includes('private.example'));
+  }
 });
