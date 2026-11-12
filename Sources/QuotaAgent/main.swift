@@ -75,9 +75,18 @@ private enum SafariDiscovery {
         _ = LSRegisterURL(URL(fileURLWithPath: appPath) as CFURL, true)
         // exec preserves this helper's PID so the parent's deadline also covers
         // PlugInKit. -a only adds discovery; never use -e use or alter preferences.
-        let arguments = ["/usr/bin/pluginkit", "-a", extensionPath].map { strdup($0) } + [nil]
+        let argumentStrings: [String] = ["/usr/bin/pluginkit", "-a", extensionPath]
+        var arguments: [UnsafeMutablePointer<CChar>?] = argumentStrings.map { argument in
+            argument.withCString { strdup($0) }
+        }
         defer { arguments.forEach { if let value = $0 { free(value) } } }
-        return arguments.withUnsafeBufferPointer { execv("/usr/bin/pluginkit", $0.baseAddress!) }
+        guard arguments.allSatisfy({ $0 != nil }) else { return 1 }
+        arguments.append(nil)
+        // strdup owns each buffer until exec replaces the process or returns an
+        // error. Explicit String conversion also works with older Swift compilers.
+        return argumentStrings[0].withCString { executable in
+            arguments.withUnsafeBufferPointer { execv(executable, $0.baseAddress!) }
+        }
     }
 }
 
