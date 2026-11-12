@@ -30,6 +30,13 @@ final class ControllerTests: XCTestCase {
         let administrator: String
         init() throws {
             directory = FileManager.default.temporaryDirectory.appendingPathComponent("kids-quota-controller-" + UUID().uuidString)
+            // Reset-zone changes are deliberately deferred until the next week.
+            // Seed the initial policy so this fixture never inherits the host's zone.
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            do {
+                let store = try QuotaStore(path: directory.appendingPathComponent("quota.sqlite").path)
+                try store.savePolicy(Policy.starter(timeZone: "America/Chicago"))
+            }
             let context = self.context
             controller = try ServiceController(directory: directory, now: { context.readNow() }, monotonic: { context.monotonic }, consoleUID: { context.console }, verifyAccount: { guid in
                 guard let account = context.accounts[guid] else { throw APIError(422,"invalid_policy","Account no longer exists.") }

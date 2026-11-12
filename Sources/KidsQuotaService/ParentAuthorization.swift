@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 import Security
 import Darwin
 
@@ -52,19 +53,56 @@ public enum ParentAuthorization {
         guard externalForm.utf8.count <= 64,
               let bytes = Data(base64Encoded: externalForm),
               bytes.count == MemoryLayout<AuthorizationExternalForm>.size else { return false }
-        var form = AuthorizationExternalForm()
-        withUnsafeMutableBytes(of: &form) { $0.copyBytes(from: bytes) }
-        var reference: AuthorizationRef?
-        guard AuthorizationCreateFromExternalForm(&form, &reference) == errAuthorizationSuccess,
-              let reference else { return false }
-        defer { AuthorizationFree(reference, []) }
+        // An absent custom right falls back to machine policy, which may reuse
+        // shared session credentials even without extendRights. Only our installed,
+        // nonshared administrator rule is an acceptable basis for a parent grant.
+        var definition: CFDictionary?
+        let found = rightName.withCString { AuthorizationRightGet($0, &definition) }
+        guard found == errAuthorizationSuccess else { return false }
+        return validateInstalledRule(definition as? [String: Any]) {
+            var form = AuthorizationExternalForm()
+            withUnsafeMutableBytes(of: &form) { $0.copyBytes(from: bytes) }
+            var reference: AuthorizationRef?
+            guard AuthorizationCreateFromExternalForm(&form, &reference) == errAuthorizationSuccess,
+                  let reference else { return false }
+            defer { AuthorizationFree(reference, []) }
+            return hasCurrentGrant(reference)
+        }
+    }
+
+    // Separate the policy gate from grant inspection so tests can prove a weak
+    // rule never reaches an otherwise successful OS authorization check.
+    static func validateInstalledRule(_ definition: [String: Any]?, checkGrant: () -> Bool) -> Bool {
+        func boolean(_ value: Any?, equals expected: Bool) -> Bool {
+            guard let value = value as? NSNumber, CFGetTypeID(value) == CFBooleanGetTypeID() else { return false }
+            return value.boolValue == expected
+        }
+        guard let definition, definition["class"] as? String == "user",
+              definition["group"] as? String == "admin",
+              boolean(definition["authenticate-user"], equals: true),
+              boolean(definition["session-owner"], equals: false),
+              boolean(definition["shared"], equals: false),
+              boolean(definition["allow-root"], equals: true),
+              let timeout = definition["timeout"] as? NSNumber,
+              CFGetTypeID(timeout) == CFNumberGetTypeID(),
+              ["c", "s", "i", "l", "q", "C", "S", "I", "L", "Q"].contains(String(cString: timeout.objCType)),
+              timeout.int64Value == 300 else { return false }
+        // authd evaluates these optional entitlement shortcuts before requiring
+        // user authentication. They are never part of our installed rule.
+        for key in ["entitled", "entitled-group", "vpn-entitled-group"] {
+            if let value = definition[key], !boolean(value, equals: false) { return false }
+        }
+        return checkGrant()
+    }
+
+    private static func hasCurrentGrant(_ reference: AuthorizationRef) -> Bool {
         return rightName.withCString { name in
             var right = AuthorizationItem(name: name, valueLength: 0, value: nil, flags: 0)
             return withUnsafeMutablePointer(to: &right) { item in
                 var rights = AuthorizationRights(count: 1, items: item)
                 // Recheck the current grant and its expiry on every request. No
-                // interaction or extension flags: this cannot prompt or acquire a
-                // new grant using the daemon's root identity.
+                // interaction or extension flags: validation cannot prompt. The
+                // installed nonshared rule prevents a fallback to session grants.
                 return AuthorizationCopyRights(reference, &rights, nil, [], nil) == errAuthorizationSuccess
             }
         }
