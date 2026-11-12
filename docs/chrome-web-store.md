@@ -3,20 +3,21 @@
 This file contains release notes for the publisher, ready-to-paste listing text,
 permission explanations, and reviewer instructions.
 
-**Current status: submitted November 2, 2026; pending review.** The dashboard
-confirmed that the item was submitted for compliance review. Unlisted
-distribution and automatic publication after approval are selected. It is not
-approved or available to install yet. Google assigned
-the store ID `kcdaoppmbobecgoajneamoimiohmkipj`. The
-[store URL](https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj)
-will become usable after approval and publication. The compatible v0.1.4
-companion DMG is available in the
-[v0.1.4 prerelease](https://github.com/unixist/kids-quota/releases/tag/v0.1.4).
+**Current status: v0.1.5 submitted November 11, 2026; pending Google review.**
+The existing v0.1.4 store extension remains available; it was verified installable
+on November 8, 2026. Unlisted distribution and automatic publication after approval
+are selected for the update. Submission is not approval or publication.
+The store ID remains `kcdaoppmbobecgoajneamoimiohmkipj`; use the
+[direct store URL](https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj),
+because the unlisted extension does not appear in store searches. The compatible
+v0.1.5 companion DMG is published in the
+[v0.1.5 prerelease](https://github.com/unixist/kids-quota/releases/tag/v0.1.5).
+Installing that DMG does not replace the extension in a Chrome Web Store profile.
 
 ## Prepared artifacts
 
 Run `npm run package:chrome-store` to create
-`dist/KidsQuota-Chrome-0.1.4.zip` and its SHA-256 file. The ZIP omits the local
+`dist/KidsQuota-Chrome-0.1.5.zip` and its SHA-256 file. The ZIP omits the local
 manifest key so Google can assign the store ID; local builds retain the existing
 key. The icon is `dist/chrome-store/icons/icon128.png`.
 
@@ -28,12 +29,12 @@ The prepared screenshot is
 
 The real store ID is recorded in `extensions/chrome-store.json`. After building
 the updated companion, package it with
-`VERSION=0.1.4 scripts/package.sh --local`; the script reads that ID by default.
+`VERSION=0.1.5 scripts/package.sh --local`; the script reads that ID by default.
 An explicit equivalent is
-`CHROME_STORE_EXTENSION_ID=kcdaoppmbobecgoajneamoimiohmkipj VERSION=0.1.4 scripts/package.sh --local`.
+`CHROME_STORE_EXTENSION_ID=kcdaoppmbobecgoajneamoimiohmkipj VERSION=0.1.5 scripts/package.sh --local`.
 The installer accepts the exact local and store IDs together; existing local
 extension installations continue to work. Do not run both extensions in one
-Chrome profile. The v0.1.4 app's setup links direct families to the store
+Chrome profile. The v0.1.5 app's setup links direct families to the store
 installation guide, which distinguishes pending approval from availability.
 
 ## Release prerequisites
@@ -41,16 +42,17 @@ installation guide, which distinguishes pending approval from availability.
 The Chrome Web Store assigns its own extension ID. The native messaging host
 installed by Kids Quota must explicitly allow that ID. **The published v0.1.3
 local DMG registers the unpacked extension's ID and is not the store companion
-installer.** The v0.1.4 companion authorizes the assigned store ID. Publish that
-installer and test it with the store build before submitting for review. Do not
-point reviewers or families to the old DMG as though it already supports the
-new ID.
+installer.** Store compatibility was added in v0.1.4 and is retained in
+v0.1.5. Use the v0.1.5 companion for this update and test it with the store build.
+Do not point reviewers or families to v0.1.3 as though it supports the store ID.
 
 The published companion prerelease is
-`https://github.com/unixist/kids-quota/releases/tag/v0.1.4`, with direct asset URL
-`https://github.com/unixist/kids-quota/releases/download/v0.1.4/KidsQuota-0.1.4-Local.dmg`.
-The DMG and checksum file are uploaded. The DMG is 3,738,323 bytes with SHA-256
-`625462869970a8091f6499bc2aa6a835e78da17a5aaa3fdc45ed94380fe66812`.
+`https://github.com/unixist/kids-quota/releases/tag/v0.1.5`, with direct asset URL
+`https://github.com/unixist/kids-quota/releases/download/v0.1.5/KidsQuota-0.1.5-Local.dmg`.
+The DMG and checksum file are uploaded. The DMG is 3,771,686 bytes with SHA-256
+`8dd8772815bddc507123a44fe25d0ff8d7912e5919e50f706ecd8e935a7b5d08`.
+The submitted `KidsQuota-Chrome-0.1.5.zip` is 15,312 bytes with SHA-256
+`bd97c46674df4b4035966edd3cb5764bb4c287ec970fb63a06fa2efb48eb0023`.
 Upload verification does not establish supervised-profile runtime behavior.
 
 Publish [the privacy policy](privacy-policy.md) to the public repository before
@@ -82,9 +84,9 @@ does not bypass Family Link or an organization's policy.
 | Support | `https://github.com/unixist/kids-quota/issues` |
 | Privacy policy | `https://github.com/unixist/kids-quota/blob/main/docs/privacy-policy.md` |
 | Store ID | `kcdaoppmbobecgoajneamoimiohmkipj` |
-| Store URL, usable after approval/publication | `https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj` |
+| Direct store URL | `https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj` |
 | Visibility | Unlisted |
-| Review status | Submitted November 2, 2026; pending review |
+| Review status | v0.1.5 submitted November 11, 2026; pending review |
 | Publication | Automatic after approval |
 | Mature content | No |
 | Remote code | No |
@@ -191,9 +193,23 @@ Do not state that native data is encrypted by Kids Quota or automatically delete
 after each week. Native storage is protected by operating-system permissions
 and old aggregate periods remain in the database.
 
+## v0.1.5 review notes
+
+This update distinguishes a disconnected Mac activity monitor from an exhausted
+allowance. A fresh positive balance displays the real time remaining and explains
+that tracking is paused. Known restricted domains remain blocked until trusted
+monitoring reconnects. A fresh zero balance still displays “weekly limit reached.”
+The extension never grants or resets time itself.
+
+Recovery fixes cover delayed replies, policy-save failures, and old blocking rules.
+The return button stays unavailable until Chrome successfully removes the old
+rules. Reset times use the saved timezone, with an explicit UTC fallback when an
+older browser lacks that timezone. Permissions, privacy declarations, and local
+data handling are unchanged; no remote code was added.
+
 ## Reviewer test instructions
 
-The instructions below reference the uploaded v0.1.4 companion asset. Its native
+The instructions below reference the uploaded v0.1.5 companion asset. Its native
 host authorizes `chrome-extension://kcdaoppmbobecgoajneamoimiohmkipj/`. Do not
 substitute v0.1.3, which does not authorize that store ID.
 No Kids Quota cloud account, subscription, Google login, or test credentials are
@@ -201,7 +217,7 @@ required to test the allowance features. Website accounts are unnecessary for
 the custom-domain test below.
 
 1. Use macOS 14 or later on Apple Silicon or Intel. Download the store-compatible
-   [KidsQuota-0.1.4-Local.dmg](https://github.com/unixist/kids-quota/releases/download/v0.1.4/KidsQuota-0.1.4-Local.dmg).
+   [KidsQuota-0.1.5-Local.dmg](https://github.com/unixist/kids-quota/releases/download/v0.1.5/KidsQuota-0.1.5-Local.dmg).
    Mount it and run **Install Kids Quota.pkg**. Enter credentials for an
    administrator on the test Mac when macOS Installer requests them. This local
    build is unnotarized; macOS may require approval in **System Settings →

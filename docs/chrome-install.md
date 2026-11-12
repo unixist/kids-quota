@@ -4,17 +4,22 @@ Kids Quota needs two components: the Mac companion installer and the Chrome
 extension. The Mac service owns the allowances; the extension identifies the
 active website and displays the time-limit page.
 
-**Store release status:** v0.1.4 was verified installable on November 8, 2026.
+**Store release status:** v0.1.5 was submitted November 11, 2026 and is pending
+Google review. The existing v0.1.4 extension remains available; it was verified
+installable on November 8, 2026.
 The listing is **unlisted**; open the
 [direct store link](https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj)
 instead of searching the store. Its ID is `kcdaoppmbobecgoajneamoimiohmkipj`.
-The v0.1.5 bug fixes are prepared locally and have not yet been submitted.
+Automatic publication after approval is selected. Until Google publishes
+v0.1.5, existing Chrome profiles will still use the earlier blocked-page behavior.
+Installing the companion DMG alone does not update the store extension.
 
 The compatible companion installer is available as
-[KidsQuota-0.1.4-Local.dmg](https://github.com/unixist/kids-quota/releases/download/v0.1.4/KidsQuota-0.1.4-Local.dmg)
-in the [v0.1.4 prerelease](https://github.com/unixist/kids-quota/releases/tag/v0.1.4).
+[KidsQuota-0.1.5-Local.dmg](https://github.com/unixist/kids-quota/releases/download/v0.1.5/KidsQuota-0.1.5-Local.dmg)
+in the [v0.1.5 prerelease](https://github.com/unixist/kids-quota/releases/tag/v0.1.5).
 The v0.1.3 DMG supports the local unpacked
-extension only; upgrade to v0.1.4 before using the store extension.
+extension only; v0.1.4 first added store compatibility. Use v0.1.5 for the latest
+companion fixes.
 
 ## Supervised Google accounts
 
@@ -24,7 +29,7 @@ features. These profiles need the Chrome Web Store distribution.
 
 Install the companion and browser extension separately:
 
-1. Install **KidsQuota-0.1.4-Local.dmg** on the Mac. Run **Install Kids Quota.pkg**
+1. Install **KidsQuota-0.1.5-Local.dmg** on the Mac. Run **Install Kids Quota.pkg**
    and authorize it with the parent's Mac administrator credentials. Upgrading
    preserves existing allowances and usage.
 2. Open Kids Quota, unlock parent settings, and choose the Mac login to track if

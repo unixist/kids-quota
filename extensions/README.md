@@ -17,9 +17,12 @@ Chrome v0.1.4 was verified installable on November 8, 2026. The listing is
 unlisted; use the [direct store link](https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj).
 Its ID is `kcdaoppmbobecgoajneamoimiohmkipj`, recorded in
 [chrome-store.json](chrome-store.json). The
-[v0.1.4 companion prerelease](https://github.com/unixist/kids-quota/releases/tag/v0.1.4)
+[v0.1.5 companion prerelease](https://github.com/unixist/kids-quota/releases/tag/v0.1.5)
 registers both store and local IDs. v0.1.3 allows only the local extension ID.
-The v0.1.5 fixes are prepared locally; packaging a ZIP does not publish a store update.
+Chrome v0.1.5 was submitted November 11, 2026 and is pending Google review,
+with automatic publication after approval selected. The existing v0.1.4 extension
+remains available until the update publishes. Installing the v0.1.5 DMG does not
+update a store-installed extension.
 
 Supervised Google child profiles cannot use Developer mode or Load unpacked.
 Install the published store extension with the compatible companion and any

@@ -1,12 +1,13 @@
 # Install the local release
 
-**Release status:** the v0.1.4 companion DMG is available as a prerelease.
-Chrome v0.1.4 was verified installable on November 8, 2026, through its direct
-unlisted store link. v0.1.5 fixes are prepared locally, not yet published.
+**Release status:** the v0.1.5 companion DMG is published as a prerelease.
+Chrome v0.1.5 was submitted November 11, 2026 and is pending Google review; the
+existing v0.1.4 extension remains available through its direct unlisted store link.
+The DMG does not update a store-installed Chrome extension.
 See [Chrome release status](chrome-install.md) before setting up supervised accounts.
 
-Copy **KidsQuota-0.1.4-Local.dmg** from the
-[v0.1.4 release](https://github.com/unixist/kids-quota/releases/tag/v0.1.4) to the
+Copy **KidsQuota-0.1.5-Local.dmg** from the
+[v0.1.5 release](https://github.com/unixist/kids-quota/releases/tag/v0.1.5) to the
 destination Mac. This is a real installer, not the earlier instructions-only
 `PREVIEW.dmg`. It contains all Mac components; install Chrome's store extension
 separately in the browser. The new Mac does not need the repository, Xcode,
@@ -72,7 +73,7 @@ needed. If the service cannot be reached, balances are hidden until it reconnect
 
 ## Chrome setup in each child's account
 
-The v0.1.4 installer recognizes the store extension ID
+The v0.1.5 installer recognizes the store extension ID
 `kcdaoppmbobecgoajneamoimiohmkipj` alongside the existing local extension ID.
 Use the
 [Kids Quota Chrome Web Store listing](https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj)

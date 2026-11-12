@@ -3,8 +3,9 @@
 Weekly website and Mac app allowances shared across Chrome, Safari, and selected
 apps, with independent balances for children using separate macOS login accounts.
 
-**v0.1.5 fixes are prepared locally; they are not yet published to GitHub Releases
-or the Chrome Web Store.** This revision distinguishes a disconnected activity
+**v0.1.5 companion DMG is published; Chrome v0.1.5 was submitted November 11,
+2026 and is pending Google review.** The existing v0.1.4 store extension remains
+available. This revision distinguishes a disconnected activity
 monitor from an exhausted allowance, prevents older balance replies from replacing
 newer ones, fixes cancellation of pending reset-day changes, and preserves usage
 when a database write must be retried. Regression tests cover these cases.
@@ -14,19 +15,19 @@ the store update after publication; the DMG cannot replace that browser update.
 Validation: 64 core, 69 service, 52 browser/build, 34 packaging, and 26 Mac UI
 tests passed, plus the isolated live-service authorization/crash-recovery check.
 
-**Published companion: v0.1.4 prerelease.** Chrome installation uses the direct store link below.
-`dist/KidsQuota-0.1.4-Local.dmg` installs the app, root service, login agent,
+**Published companion: v0.1.5 prerelease.** Chrome installation uses the direct store link below.
+`dist/KidsQuota-0.1.5-Local.dmg` installs the app, root service, login agent,
 browser adapters, and an **inactive** Network Extension for Apple Silicon and
 Intel Macs running macOS 14 or later. It needs no Apple developer membership.
 Website blocking requires manual browser setup; standalone-app network blocking
 is disabled. Safari's unsigned-extension permission resets whenever Safari quits.
-Download the [v0.1.4 companion DMG](https://github.com/unixist/kids-quota/releases/download/v0.1.4/KidsQuota-0.1.4-Local.dmg).
+Download the [v0.1.5 companion DMG](https://github.com/unixist/kids-quota/releases/download/v0.1.5/KidsQuota-0.1.5-Local.dmg).
 Its release remains a prerelease. See
 [local installation](docs/local-install.md) for the exact steps and limits.
 
 **Supervised Chrome accounts:** Google blocks Developer mode and unpacked
 extensions for Family Link child profiles. These profiles need the store
-extension and the v0.1.4 companion installer, which recognizes its store ID
+extension and a v0.1.4 or later companion installer, which recognizes its store ID
 `kcdaoppmbobecgoajneamoimiohmkipj`. The
 [store link](https://chromewebstore.google.com/detail/kcdaoppmbobecgoajneamoimiohmkipj)
 was verified installable on November 8, 2026. The listing is unlisted, so use
@@ -117,12 +118,13 @@ included websites and apps → Choose app** to include the installed app.
 
 ## Install and set up
 
-Download the [v0.1.4 companion release](https://github.com/unixist/kids-quota/releases/tag/v0.1.4)
-and copy **KidsQuota-0.1.4-Local.dmg** to the new Mac. It installs all Mac
+Download the [v0.1.5 companion release](https://github.com/unixist/kids-quota/releases/tag/v0.1.5)
+and copy **KidsQuota-0.1.5-Local.dmg** to the new Mac. It installs all Mac
 components; Chrome's store extension is installed separately in the browser.
 The destination does not need Xcode, Node, Python, the source repository, or an
-Apple developer account. The v0.1.5 changes above require a new companion build and a separate browser
-extension update; installing only the DMG does not update the store extension.
+Apple developer account. To receive all v0.1.5 fixes, update the companion now
+and the Chrome extension after Google approves the update. Installing only the
+DMG does not update a store-installed extension.
 
 1. While signed into the child's Mac account, mount the DMG and open
    **Install Kids Quota.pkg**. Enter the parent's administrator username and
