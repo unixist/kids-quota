@@ -1,0 +1,4 @@
+QuotaKit/.build/
+*.xcarchive/
+*.ipa
+ExportOptions.local.plist

@@ -27,7 +27,7 @@ if [[ -z "${CHROME_STORE_EXTENSION_ID+x}" && -f "$REPO_ROOT/extensions/chrome-st
 else CHROME_STORE_EXTENSION_ID="${CHROME_STORE_EXTENSION_ID:-}"; fi
 [[ -z "$CHROME_STORE_EXTENSION_ID" || "$CHROME_STORE_EXTENSION_ID" =~ ^[a-p]{32}$ ]] || { echo 'Invalid Chrome Web Store extension ID.' >&2; exit 2; }
 export CHROME_STORE_EXTENSION_ID
-VERSION="${VERSION:-0.1.5}"
+VERSION="${VERSION:-0.2.0}"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Version must be major.minor.patch.' >&2; exit 2; }
 INSTALL_ARGS=(--artifacts "$REPO_ROOT/dist/$MODE")
 SUFFIX=''

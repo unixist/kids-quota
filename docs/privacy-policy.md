@@ -1,10 +1,11 @@
 # Kids Quota Privacy Policy
 
-Last updated: November 2, 2026.
+Last updated: November 11, 2026.
 
 Kids Quota helps a parent or Mac administrator set weekly website allowances.
 This policy describes the Kids Quota Chrome extension and its required macOS
-companion app and background service, maintained in the
+companion app and background service, and the optional iPhone dashboard introduced
+in the v0.2.0 source, maintained in the
 [unixist/kids-quota project](https://github.com/unixist/kids-quota).
 
 ## Website activity processed on your Mac
@@ -70,6 +71,34 @@ directs. The Chrome extension does not use this HTTP API. A separate client's
 data handling is controlled by that client and its operator, and is not automatic
 sharing by the Chrome extension. The parent can revoke these read credentials
 in the companion app.
+
+## Optional iPhone dashboard
+
+Phone synchronization is off until an administrator configures it in the Mac
+app. When enabled, the Mac sends quota summaries to the parent's configured HTTPS
+relay approximately every five minutes. Summaries contain the chosen Mac and
+child display names, opaque record IDs, assigned service names and configured
+domains, weekly allowance and usage totals, remaining time, reset boundaries and
+timezone, and tracking status. They exclude macOS account identifiers, application
+paths or signing identities, full URLs, page content, and a history of visited sites.
+
+The supplied relay runs in the parent's Google Cloud project and stores the latest
+summary per Mac in a private Cloud Storage bucket. The endpoint authenticates each
+Mac's write credential and each parent's separate read credential. The bucket is
+not public. The relay does not grant phones permission to change Mac quotas or
+settings. Google processes hosting requests under its own terms and privacy
+practices; ordinary infrastructure logs can include request times, IP addresses,
+and HTTP status, but the relay does not log authorization headers or summary bodies.
+
+The iPhone app and widget save their connection credential in shared Keychain and
+cache the latest summary in their shared App Group. A widget may show an older
+summary when the Mac is asleep, a connection fails, or iOS delays refresh; it labels
+when the Mac last reported. Disconnecting a phone clears its local credential and
+cached summary. It does not delete the relay's copy or revoke a credential copied
+to another device; the project owner can revoke that credential in relay configuration.
+Disconnecting a Mac stops future uploads and removes its local write credential.
+The project owner controls deletion and retention of cloud copies. The cloud
+deployment guide documents the configured bucket retention behavior.
 
 Chrome, the Chrome Web Store, GitHub, and websites you visit have their own
 privacy practices. Visiting the project's support pages or submitting a GitHub

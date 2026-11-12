@@ -1,0 +1,120 @@
+name: KidsQuotaPhone
+options:
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+packages:
+  QuotaKit:
+    path: QuotaKit
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "0.2.0"
+    CURRENT_PROJECT_VERSION: "1"
+    KQ_BUNDLE_PREFIX: com.unixist.kidsquota
+    KQ_APP_GROUP: group.com.unixist.kidsquota.mobile
+    KQ_KEYCHAIN_SUFFIX: com.unixist.kidsquota.mobile.shared
+    GENERATE_INFOPLIST_FILE: YES
+    SWIFT_STRICT_CONCURRENCY: targeted
+targets:
+  KidsQuotaPhone:
+    type: application
+    platform: iOS
+    sources:
+      - App
+      - Shared
+      - Assets.xcassets
+    dependencies:
+      - package: QuotaKit
+      - target: KidsQuotaWidget
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(KQ_BUNDLE_PREFIX).mobile
+        TARGETED_DEVICE_FAMILY: "1"
+        PRODUCT_NAME: Kids Quota
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Kids Quota
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        QuotaAppGroup: $(KQ_APP_GROUP)
+        QuotaKeychainGroup: $(AppIdentifierPrefix)$(KQ_KEYCHAIN_SUFFIX)
+        NSCameraUsageDescription: Scan your private family connection QR code to connect Kids Quota.
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        CFBundleURLTypes:
+          - CFBundleURLName: com.unixist.kidsquota.pairing
+            CFBundleURLSchemes: [kidsquota]
+    entitlements:
+      path: App/KidsQuotaPhone.entitlements
+      properties:
+        com.apple.security.application-groups: [$(KQ_APP_GROUP)]
+        keychain-access-groups: [$(AppIdentifierPrefix)$(KQ_KEYCHAIN_SUFFIX)]
+  KidsQuotaWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - Widget
+      - Shared
+    dependencies:
+      - package: QuotaKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(KQ_BUNDLE_PREFIX).mobile.widget
+        TARGETED_DEVICE_FAMILY: "1"
+        PRODUCT_NAME: KidsQuotaWidget
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+    info:
+      path: Widget/Info.plist
+      properties:
+        CFBundleDisplayName: Kids Quota
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        QuotaAppGroup: $(KQ_APP_GROUP)
+        QuotaKeychainGroup: $(AppIdentifierPrefix)$(KQ_KEYCHAIN_SUFFIX)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: Widget/KidsQuotaWidget.entitlements
+      properties:
+        com.apple.security.application-groups: [$(KQ_APP_GROUP)]
+        keychain-access-groups: [$(AppIdentifierPrefix)$(KQ_KEYCHAIN_SUFFIX)]
+  KidsQuotaPhoneTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - Tests
+      - App/FamilyStore.swift
+      - Shared/PhoneStorage.swift
+      - Shared/FamilyClient.swift
+    dependencies:
+      - package: QuotaKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(KQ_BUNDLE_PREFIX).mobile.tests
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  KidsQuotaPhone:
+    build:
+      targets:
+        KidsQuotaPhone: all
+    run:
+      config: Debug
+    archive:
+      config: Release
+    test:
+      targets: [KidsQuotaPhoneTests]

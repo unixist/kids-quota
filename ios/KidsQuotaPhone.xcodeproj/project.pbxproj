@@ -1,0 +1,654 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		19B22B9A475F15E203BD444D /* FamilyStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC581354A9C4DCDCF97BBA9B /* FamilyStoreTests.swift */; };
+		2924AAE26A0236D45860C675 /* FamilyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 407DFF0A285C114381CB1ADE /* FamilyStore.swift */; };
+		2B07E23AA10B1528BF6A532D /* KidsQuotaWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B183B533EB5A8BA85210CC6E /* KidsQuotaWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		3E96B92C92CF2CA7DA88B62C /* KidsQuotaWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = F170FFEF1452E2243B34E399 /* KidsQuotaWidget.swift */; };
+		40A0B8357CBF3BF1595171AE /* QuotaKit in Frameworks */ = {isa = PBXBuildFile; productRef = 043DD3DB3F26769844D67C05 /* QuotaKit */; };
+		497A9DA0A6342A83C632A4CA /* KidsQuotaPhoneApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B65948C94E608EDEA7A789 /* KidsQuotaPhoneApp.swift */; };
+		4BEC7E423B4D102E3927331E /* FamilyDashboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A62E59984EA334AA197B106B /* FamilyDashboard.swift */; };
+		5499FA5BE0D97C2F45F102AE /* FamilyClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0FF082D2E96A9EA497B789 /* FamilyClient.swift */; };
+		622C10CD5EE8DB8FCC9499AF /* QuotaStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 189B4A609A1D048ED44A7C2B /* QuotaStyle.swift */; };
+		649412D165FFFA8B9E0EFE36 /* PhoneStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 629BDE5A2896E8F43C4BAAF5 /* PhoneStorage.swift */; };
+		6701294B6CB8CD3B9FB661C4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 91116053070D166461840651 /* Assets.xcassets */; };
+		7F1EA91BAF27C34335A2A08C /* QuotaStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 189B4A609A1D048ED44A7C2B /* QuotaStyle.swift */; };
+		816AFF07593DB8243B07B04E /* FamilyClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0FF082D2E96A9EA497B789 /* FamilyClient.swift */; };
+		8D94EC0E624D7CA93636A428 /* PhoneStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 629BDE5A2896E8F43C4BAAF5 /* PhoneStorage.swift */; };
+		98F8CFB6A878DFDB8FC0B482 /* QuotaKit in Frameworks */ = {isa = PBXBuildFile; productRef = A35472ED8D7C833CE976F7AE /* QuotaKit */; };
+		A6A86C56EF41B3D17A90A349 /* PairingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37FAE09BD4F248C50D136073 /* PairingView.swift */; };
+		ABC8CAE34008D9F78F895877 /* PhoneStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 629BDE5A2896E8F43C4BAAF5 /* PhoneStorage.swift */; };
+		B41B4B564993E569B9E83D9B /* QuotaKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5DCDEBBF231EDF5D557D76E4 /* QuotaKit */; };
+		BBC0AD8530FE6F2B48E44A14 /* FamilyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 407DFF0A285C114381CB1ADE /* FamilyStore.swift */; };
+		CCEC5B74ECBC91D2E726F075 /* FamilyClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD0FF082D2E96A9EA497B789 /* FamilyClient.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		DD6C74C2E9B8967F60C92D81 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 74238EC96E6D483BF067DED1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AAB4764A7E95D9D72BAFF6EF;
+			remoteInfo = KidsQuotaWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		041723A4B80B9D944B54BBC5 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				2B07E23AA10B1528BF6A532D /* KidsQuotaWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		189B4A609A1D048ED44A7C2B /* QuotaStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaStyle.swift; sourceTree = "<group>"; };
+		37FAE09BD4F248C50D136073 /* PairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingView.swift; sourceTree = "<group>"; };
+		407DFF0A285C114381CB1ADE /* FamilyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyStore.swift; sourceTree = "<group>"; };
+		52AD51D14F0B1EDE5E2B2270 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		629BDE5A2896E8F43C4BAAF5 /* PhoneStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneStorage.swift; sourceTree = "<group>"; };
+		91116053070D166461840651 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A62E59984EA334AA197B106B /* FamilyDashboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyDashboard.swift; sourceTree = "<group>"; };
+		B0E5027275D7852374D04D0B /* KidsQuotaPhone.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = KidsQuotaPhone.entitlements; sourceTree = "<group>"; };
+		B183B533EB5A8BA85210CC6E /* KidsQuotaWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = KidsQuotaWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		C0D62DB89E3759B1C7A2F2BD /* QuotaKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = QuotaKit; path = QuotaKit; sourceTree = SOURCE_ROOT; };
+		CBC8528F778AF4D385E5A97C /* KidsQuotaPhone.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = KidsQuotaPhone.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D3DD430C0667DF2CEE58FFD9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		DC581354A9C4DCDCF97BBA9B /* FamilyStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyStoreTests.swift; sourceTree = "<group>"; };
+		DD0FF082D2E96A9EA497B789 /* FamilyClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyClient.swift; sourceTree = "<group>"; };
+		E5B27985EB61891F8F0DAD92 /* KidsQuotaWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = KidsQuotaWidget.entitlements; sourceTree = "<group>"; };
+		F170FFEF1452E2243B34E399 /* KidsQuotaWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KidsQuotaWidget.swift; sourceTree = "<group>"; };
+		F1B65948C94E608EDEA7A789 /* KidsQuotaPhoneApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KidsQuotaPhoneApp.swift; sourceTree = "<group>"; };
+		F8125E7EA32E341784D9CF3E /* KidsQuotaPhoneTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = KidsQuotaPhoneTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		5554D570B2843CD993DB7C84 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B41B4B564993E569B9E83D9B /* QuotaKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D9634ABAE087676D75C1B30B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				98F8CFB6A878DFDB8FC0B482 /* QuotaKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F0DE32E030CFD88133793509 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				40A0B8357CBF3BF1595171AE /* QuotaKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		1944FDA912E08B8CB68F46D8 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				DC581354A9C4DCDCF97BBA9B /* FamilyStoreTests.swift */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		23CE6CE7F2FE6DD6E68538A3 /* Widget */ = {
+			isa = PBXGroup;
+			children = (
+				D3DD430C0667DF2CEE58FFD9 /* Info.plist */,
+				E5B27985EB61891F8F0DAD92 /* KidsQuotaWidget.entitlements */,
+				F170FFEF1452E2243B34E399 /* KidsQuotaWidget.swift */,
+			);
+			path = Widget;
+			sourceTree = "<group>";
+		};
+		3EB97FA1FCF36425B5044DF7 = {
+			isa = PBXGroup;
+			children = (
+				91116053070D166461840651 /* Assets.xcassets */,
+				A2C8A4F73302D27FC7361DF1 /* App */,
+				F775C9A7FD74A274BD24FC32 /* Packages */,
+				92FD7C50CF5F621B3D18217A /* Shared */,
+				1944FDA912E08B8CB68F46D8 /* Tests */,
+				23CE6CE7F2FE6DD6E68538A3 /* Widget */,
+				5339DDEABE270718F99F5A3C /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		5339DDEABE270718F99F5A3C /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CBC8528F778AF4D385E5A97C /* KidsQuotaPhone.app */,
+				F8125E7EA32E341784D9CF3E /* KidsQuotaPhoneTests.xctest */,
+				B183B533EB5A8BA85210CC6E /* KidsQuotaWidget.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		92FD7C50CF5F621B3D18217A /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				DD0FF082D2E96A9EA497B789 /* FamilyClient.swift */,
+				629BDE5A2896E8F43C4BAAF5 /* PhoneStorage.swift */,
+				189B4A609A1D048ED44A7C2B /* QuotaStyle.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		A2C8A4F73302D27FC7361DF1 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				A62E59984EA334AA197B106B /* FamilyDashboard.swift */,
+				407DFF0A285C114381CB1ADE /* FamilyStore.swift */,
+				52AD51D14F0B1EDE5E2B2270 /* Info.plist */,
+				B0E5027275D7852374D04D0B /* KidsQuotaPhone.entitlements */,
+				F1B65948C94E608EDEA7A789 /* KidsQuotaPhoneApp.swift */,
+				37FAE09BD4F248C50D136073 /* PairingView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		F775C9A7FD74A274BD24FC32 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				C0D62DB89E3759B1C7A2F2BD /* QuotaKit */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		177272E63590505B7008BB7A /* KidsQuotaPhone */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D23EFEF63CA6CBD260351062 /* Build configuration list for PBXNativeTarget "KidsQuotaPhone" */;
+			buildPhases = (
+				43E71D06CC13D4BE85E789F3 /* Sources */,
+				CBE627089E351822753FD349 /* Resources */,
+				5554D570B2843CD993DB7C84 /* Frameworks */,
+				041723A4B80B9D944B54BBC5 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D32A39157B5D44513F7C4BF8 /* PBXTargetDependency */,
+			);
+			name = KidsQuotaPhone;
+			packageProductDependencies = (
+				5DCDEBBF231EDF5D557D76E4 /* QuotaKit */,
+			);
+			productName = KidsQuotaPhone;
+			productReference = CBC8528F778AF4D385E5A97C /* KidsQuotaPhone.app */;
+			productType = "com.apple.product-type.application";
+		};
+		AAB4764A7E95D9D72BAFF6EF /* KidsQuotaWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FBD72979F88BE62BFD508C1E /* Build configuration list for PBXNativeTarget "KidsQuotaWidget" */;
+			buildPhases = (
+				9DE1C0F7160CB40A9B69F37E /* Sources */,
+				F0DE32E030CFD88133793509 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = KidsQuotaWidget;
+			packageProductDependencies = (
+				043DD3DB3F26769844D67C05 /* QuotaKit */,
+			);
+			productName = KidsQuotaWidget;
+			productReference = B183B533EB5A8BA85210CC6E /* KidsQuotaWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		DC08A0C596815ADAB0B4648F /* KidsQuotaPhoneTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4F8CAFCA2A879BA3B2422532 /* Build configuration list for PBXNativeTarget "KidsQuotaPhoneTests" */;
+			buildPhases = (
+				DCDB1B7B11E2AE803FBCB067 /* Sources */,
+				D9634ABAE087676D75C1B30B /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = KidsQuotaPhoneTests;
+			packageProductDependencies = (
+				A35472ED8D7C833CE976F7AE /* QuotaKit */,
+			);
+			productName = KidsQuotaPhoneTests;
+			productReference = F8125E7EA32E341784D9CF3E /* KidsQuotaPhoneTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		74238EC96E6D483BF067DED1 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					177272E63590505B7008BB7A = {
+						ProvisioningStyle = Automatic;
+					};
+					AAB4764A7E95D9D72BAFF6EF = {
+						ProvisioningStyle = Automatic;
+					};
+					DC08A0C596815ADAB0B4648F = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = EF88840E5CD215BB4FD5C53F /* Build configuration list for PBXProject "KidsQuotaPhone" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 3EB97FA1FCF36425B5044DF7;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				291489920BBF50928EB2618A /* XCLocalSwiftPackageReference "QuotaKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				177272E63590505B7008BB7A /* KidsQuotaPhone */,
+				DC08A0C596815ADAB0B4648F /* KidsQuotaPhoneTests */,
+				AAB4764A7E95D9D72BAFF6EF /* KidsQuotaWidget */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		CBE627089E351822753FD349 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6701294B6CB8CD3B9FB661C4 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		43E71D06CC13D4BE85E789F3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				816AFF07593DB8243B07B04E /* FamilyClient.swift in Sources */,
+				4BEC7E423B4D102E3927331E /* FamilyDashboard.swift in Sources */,
+				2924AAE26A0236D45860C675 /* FamilyStore.swift in Sources */,
+				497A9DA0A6342A83C632A4CA /* KidsQuotaPhoneApp.swift in Sources */,
+				A6A86C56EF41B3D17A90A349 /* PairingView.swift in Sources */,
+				649412D165FFFA8B9E0EFE36 /* PhoneStorage.swift in Sources */,
+				7F1EA91BAF27C34335A2A08C /* QuotaStyle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9DE1C0F7160CB40A9B69F37E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5499FA5BE0D97C2F45F102AE /* FamilyClient.swift in Sources */,
+				3E96B92C92CF2CA7DA88B62C /* KidsQuotaWidget.swift in Sources */,
+				8D94EC0E624D7CA93636A428 /* PhoneStorage.swift in Sources */,
+				622C10CD5EE8DB8FCC9499AF /* QuotaStyle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DCDB1B7B11E2AE803FBCB067 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CCEC5B74ECBC91D2E726F075 /* FamilyClient.swift in Sources */,
+				BBC0AD8530FE6F2B48E44A14 /* FamilyStore.swift in Sources */,
+				19B22B9A475F15E203BD444D /* FamilyStoreTests.swift in Sources */,
+				ABC8CAE34008D9F78F895877 /* PhoneStorage.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		D32A39157B5D44513F7C4BF8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AAB4764A7E95D9D72BAFF6EF /* KidsQuotaWidget */;
+			targetProxy = DD6C74C2E9B8967F60C92D81 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		0B929ABF59463FC00941D18F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widget/KidsQuotaWidget.entitlements;
+				INFOPLIST_FILE = Widget/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(KQ_BUNDLE_PREFIX).mobile.widget";
+				PRODUCT_NAME = KidsQuotaWidget;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		2A263BAD5F2D7E1106D1DBD2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widget/KidsQuotaWidget.entitlements;
+				INFOPLIST_FILE = Widget/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(KQ_BUNDLE_PREFIX).mobile.widget";
+				PRODUCT_NAME = KidsQuotaWidget;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		2C72445C0F840579471DA724 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				KQ_APP_GROUP = group.com.unixist.kidsquota.mobile;
+				KQ_BUNDLE_PREFIX = com.unixist.kidsquota;
+				KQ_KEYCHAIN_SUFFIX = com.unixist.kidsquota.mobile.shared;
+				MARKETING_VERSION = 0.2.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		613CE8F698D8EDA679656D63 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				KQ_APP_GROUP = group.com.unixist.kidsquota.mobile;
+				KQ_BUNDLE_PREFIX = com.unixist.kidsquota;
+				KQ_KEYCHAIN_SUFFIX = com.unixist.kidsquota.mobile.shared;
+				MARKETING_VERSION = 0.2.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		748DEC0EA82486D28F4A81FC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/KidsQuotaPhone.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = App/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(KQ_BUNDLE_PREFIX).mobile";
+				PRODUCT_NAME = "Kids Quota";
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		7C2C920A5045EFB475242ECC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(KQ_BUNDLE_PREFIX).mobile.tests";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		A4F5F5E6ED2FD17E1B90F371 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(KQ_BUNDLE_PREFIX).mobile.tests";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		A9285CFEF695212E7DE14557 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/KidsQuotaPhone.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = App/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(KQ_BUNDLE_PREFIX).mobile";
+				PRODUCT_NAME = "Kids Quota";
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		4F8CAFCA2A879BA3B2422532 /* Build configuration list for PBXNativeTarget "KidsQuotaPhoneTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7C2C920A5045EFB475242ECC /* Debug */,
+				A4F5F5E6ED2FD17E1B90F371 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		D23EFEF63CA6CBD260351062 /* Build configuration list for PBXNativeTarget "KidsQuotaPhone" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A9285CFEF695212E7DE14557 /* Debug */,
+				748DEC0EA82486D28F4A81FC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		EF88840E5CD215BB4FD5C53F /* Build configuration list for PBXProject "KidsQuotaPhone" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2C72445C0F840579471DA724 /* Debug */,
+				613CE8F698D8EDA679656D63 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		FBD72979F88BE62BFD508C1E /* Build configuration list for PBXNativeTarget "KidsQuotaWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2A263BAD5F2D7E1106D1DBD2 /* Debug */,
+				0B929ABF59463FC00941D18F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		291489920BBF50928EB2618A /* XCLocalSwiftPackageReference "QuotaKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = QuotaKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		043DD3DB3F26769844D67C05 /* QuotaKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = QuotaKit;
+		};
+		5DCDEBBF231EDF5D557D76E4 /* QuotaKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = QuotaKit;
+		};
+		A35472ED8D7C833CE976F7AE /* QuotaKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = QuotaKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 74238EC96E6D483BF067DED1 /* Project object */;
+}

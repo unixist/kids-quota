@@ -226,6 +226,7 @@ paths:
                   policy: {$ref: '#/components/schemas/Policy'}
                   clients: {type: array, items: {$ref: '#/components/schemas/ClientGrant'}}
                   filterConnected: {type: boolean}
+                  phoneDashboard: {$ref: '#/components/schemas/PhonePublisherStatus'}
                   unattributedFlows: {type: integer, minimum: 0}
         default: {$ref: '#/components/responses/Error'}
   /v1/admin/children:
@@ -419,6 +420,72 @@ paths:
                 properties:
                   policyRevision: {$ref: '#/components/schemas/Revision'}
                   balances: {$ref: '#/components/schemas/BalanceSnapshot'}
+        default: {$ref: '#/components/responses/Error'}
+  /v1/admin/phone:
+    get:
+      operationId: readPhonePublisherStatus
+      summary: Read safe phone dashboard publishing status
+      x-required-scopes: ["policy:write"]
+      x-required-transport: authenticated-native-ipc
+      x-required-authorization: com.kidsquota.manage
+      responses:
+        '200':
+          description: Current status without device credentials
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PhonePublisherStatus'}
+        default: {$ref: '#/components/responses/Error'}
+    put:
+      operationId: configurePhonePublisher
+      summary: Enable outbound summary sharing with a Mac connection document
+      description: Requires native parent authorization. Does not change policyRevision. Stores the credential with owner-only permissions and schedules an immediate update.
+      x-required-scopes: ["policy:write"]
+      x-required-transport: authenticated-native-ipc
+      x-required-authorization: com.kidsquota.manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PhoneConnection'}
+      responses:
+        '200':
+          description: Connection saved; status does not include the write token
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PhonePublisherStatus'}
+        default: {$ref: '#/components/responses/Error'}
+    delete:
+      operationId: disconnectPhonePublisher
+      summary: Stop future uploads and remove this Mac's stored write token
+      description: Previously received cloud snapshots are retained. Does not change local quotas.
+      x-required-scopes: ["policy:write"]
+      x-required-transport: authenticated-native-ipc
+      x-required-authorization: com.kidsquota.manage
+      responses:
+        '200':
+          description: Local phone connection removed
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PhonePublisherStatus'}
+        default: {$ref: '#/components/responses/Error'}
+  /v1/admin/phone/publish:
+    post:
+      operationId: requestPhoneSnapshot
+      summary: Request an immediate complete snapshot update
+      x-required-scopes: ["policy:write"]
+      x-required-transport: authenticated-native-ipc
+      x-required-authorization: com.kidsquota.manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: false}
+      responses:
+        '202':
+          description: Update queued; overlapping requests coalesce
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PhonePublisherStatus'}
         default: {$ref: '#/components/responses/Error'}
 components:
   securitySchemes:
@@ -700,6 +767,28 @@ components:
         childId: {$ref: '#/components/schemas/Id'}
         serviceId: {$ref: '#/components/schemas/Id'}
         weeklyLimitSeconds: {$ref: '#/components/schemas/Seconds'}
+    PhoneConnection:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, endpoint, deviceId, deviceName, writeToken]
+      properties:
+        schemaVersion: {type: integer, const: 1}
+        endpoint: {type: string, format: uri, maxLength: 2048, description: 'HTTPS origin only; no credentials, path, query, or fragment.'}
+        deviceId: {type: string, pattern: '^[A-Za-z0-9_-]{1,100}$'}
+        deviceName: {type: string, minLength: 1, maxLength: 100}
+        writeToken: {type: string, pattern: '^[A-Za-z0-9_-]{32,512}$', writeOnly: true}
+    PhonePublisherStatus:
+      type: object
+      required: [configured, uploading, intervalSeconds]
+      properties:
+        configured: {type: boolean}
+        uploading: {type: boolean}
+        intervalSeconds: {type: integer, const: 300}
+        endpoint: {type: string, format: uri}
+        deviceName: {type: string}
+        lastAttempt: {type: string, format: date-time}
+        lastSuccess: {type: string, format: date-time}
+        lastError: {type: string}
     Balance:
       type: object
       required: [quotaId, serviceId, periodStart, periodEnd, limitSeconds, usedSeconds, remainingSeconds, quotaState, coverage]

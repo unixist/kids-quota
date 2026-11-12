@@ -18,7 +18,9 @@ final class ControllerTests: XCTestCase {
         var inspectedPaths: [String] = []
         var parentAuthorized = true
         var parentAuthorizationUIDs: [UInt32] = []
+        var timeStepPerRead: Double = 0
         func advance(_ seconds: Double) { now.addTimeInterval(seconds); monotonic += seconds }
+        func readNow() -> Date { let value = now; advance(timeStepPerRead); return value }
     }
 
     private final class Fixture {
@@ -29,7 +31,7 @@ final class ControllerTests: XCTestCase {
         init() throws {
             directory = FileManager.default.temporaryDirectory.appendingPathComponent("kids-quota-controller-" + UUID().uuidString)
             let context = self.context
-            controller = try ServiceController(directory: directory, now: { context.now }, monotonic: { context.monotonic }, consoleUID: { context.console }, verifyAccount: { guid in
+            controller = try ServiceController(directory: directory, now: { context.readNow() }, monotonic: { context.monotonic }, consoleUID: { context.console }, verifyAccount: { guid in
                 guard let account = context.accounts[guid] else { throw APIError(422,"invalid_policy","Account no longer exists.") }
                 return account
             }, verifyApplication: { path in
@@ -86,6 +88,92 @@ final class ControllerTests: XCTestCase {
     }
     private func object(_ response: HTTPResponse) throws -> [String:Any] { try XCTUnwrap(JSONSerialization.jsonObject(with: response.body) as? [String:Any]) }
     private func items(_ response: HTTPResponse) throws -> [[String:Any]] { try XCTUnwrap(object(response)["items"] as? [[String:Any]]) }
+
+    func testPhoneConnectionRequiresNativeParentAuthorizationAndDoesNotReturnSecret() throws {
+        let f = try Fixture()
+        let token = String(repeating:"p",count:43)
+        let document: [String:Any] = ["schemaVersion":1,"endpoint":"https://quota.example.org","deviceId":"family-mac","deviceName":"Kids Mac","writeToken":token]
+        let (readToken,_) = try f.grant()
+        for method in ["GET","PUT","DELETE"] {
+            for bearer in [f.administrator,readToken] {
+                XCTAssertEqual(try f.request(method,"/v1/admin/phone",token:bearer,body:document).status,403)
+            }
+        }
+        XCTAssertEqual(try f.request("POST","/v1/admin/phone/publish",token:f.administrator,body:[:]).status,403)
+        f.context.parentAuthorized = false
+        XCTAssertEqual(try f.request("PUT","/v1/admin/phone",body:document).status,403)
+        f.context.parentAuthorized = true
+        let revision = f.revision
+        let configured = try f.request("PUT","/v1/admin/phone",body:document)
+        XCTAssertEqual(configured.status,200)
+        XCTAssertEqual(try object(configured)["configured"] as? Bool,true)
+        XCTAssertFalse(String(decoding:configured.body,as:UTF8.self).contains(token))
+        let state = try f.request("GET","/v1/admin/state")
+        XCTAssertEqual((try object(state)["phoneDashboard"] as? [String:Any])?["deviceName"] as? String,"Kids Mac")
+        XCTAssertFalse(String(decoding:state.body,as:UTF8.self).contains(token))
+        XCTAssertEqual(try f.request("POST","/v1/admin/phone/publish",body:[:]).status,202)
+        XCTAssertEqual(try f.request("POST","/v1/admin/phone/publish",body:["childId":"alice"]).status,400)
+        XCTAssertEqual(try f.request("DELETE","/v1/admin/phone").status,200)
+        XCTAssertFalse(FileManager.default.fileExists(atPath:f.directory.appendingPathComponent("phone-connection.json").path))
+        XCTAssertEqual(f.revision,revision)
+    }
+
+    func testPhoneSnapshotIncludesAllChildrenAndOnlyApprovedSummaryFields() throws {
+        let f = try Fixture()
+        let token = String(repeating:"p",count:43)
+        let connection = try PhoneConnection.parse(JSONSerialization.data(withJSONObject:["schemaVersion":1,"endpoint":"https://quota.example.org","deviceId":"family-mac","deviceName":"Kids Mac","writeToken":token]))
+        f.foreground(); f.browser(); f.context.advance(8)
+        let data = try f.controller.phoneSnapshot(connection:connection)
+        let value = try XCTUnwrap(JSONSerialization.jsonObject(with:data) as? [String:Any])
+        XCTAssertEqual(Set(value.keys),["schemaVersion","deviceId","deviceName","capturedAt","resetTimeZone","children"])
+        let children = try XCTUnwrap(value["children"] as? [[String:Any]])
+        XCTAssertEqual(children.compactMap {$0["id"] as? String},["alice","bob"])
+        XCTAssertEqual(Set(children[0].keys),["id","name","balances"])
+        let alice = try XCTUnwrap(children[0]["balances"] as? [[String:Any]])
+        XCTAssertEqual(Set(alice[0].keys),["quotaId","serviceId","serviceName","domains","limitSeconds","usedSeconds","remainingSeconds","periodStart","periodEnd","quotaState","coverage","blockingReason"])
+        XCTAssertEqual(alice[0]["usedSeconds"] as? Int,8)
+        XCTAssertEqual(alice[0]["remainingSeconds"] as? Int,92)
+        XCTAssertEqual(alice[0]["domains"] as? [String],["chess.com"])
+        XCTAssertEqual(alice[0]["blockingReason"] as? String,"available")
+        let text = String(decoding:data,as:UTF8.self)
+        for secret in ["alice-guid","CHESSTEAM","signingIdentifier","macOSAccount","applicationIds","executablePath",token,f.administrator] { XCTAssertFalse(text.contains(secret),"Snapshot leaked \(secret)") }
+        f.context.advance(20)
+        let paused = try XCTUnwrap(JSONSerialization.jsonObject(with:f.controller.phoneSnapshot(connection:connection)) as? [String:Any])
+        let pausedChildren = try XCTUnwrap(paused["children"] as? [[String:Any]])
+        XCTAssertEqual((pausedChildren[0]["balances"] as? [[String:Any]])?[0]["blockingReason"] as? String,"collector_unavailable")
+    }
+
+    func testPhoneSnapshotFailsWholeUpdateForUnrepresentableChild() throws {
+        let f = try Fixture()
+        let connection = try PhoneConnection.parse(JSONSerialization.data(withJSONObject:["schemaVersion":1,"endpoint":"https://quota.example.org","deviceId":"family-mac","deviceName":"Kids Mac","writeToken":String(repeating:"p",count:43)]))
+        var policy = f.controller.engine.policy
+        policy.children.append(.init(id:String(repeating:"b",count:101),displayName:"Cara",macOSAccount:f.context.accounts["cara-guid"]!))
+        try f.controller.engine.replacePolicy(policy,expectedRevision:policy.revision,now:f.context.now,monotonic:f.context.monotonic)
+        XCTAssertThrowsError(try f.controller.phoneSnapshot(connection:connection))
+    }
+
+    func testPhoneSnapshotUsesOneInstantAcrossChildrenAtWeeklyBoundary() throws {
+        let f = try Fixture()
+        let connection = try PhoneConnection.parse(JSONSerialization.data(withJSONObject:["schemaVersion":1,"endpoint":"https://quota.example.org","deviceId":"family-mac","deviceName":"Kids Mac","writeToken":String(repeating:"p",count:43)]))
+        let ending = try XCTUnwrap(f.controller.engine.balances(childId:"alice",now:f.context.now,monotonic:f.context.monotonic).items.first?.periodEnd)
+        f.context.now = ending.addingTimeInterval(-0.010); f.context.timeStepPerRead = 0.003
+        let value = try XCTUnwrap(JSONSerialization.jsonObject(with:f.controller.phoneSnapshot(connection:connection)) as? [String:Any])
+        let formatter = ISO8601DateFormatter(); formatter.formatOptions = [.withInternetDateTime,.withFractionalSeconds]
+        let captured = try XCTUnwrap(formatter.date(from:try XCTUnwrap(value["capturedAt"] as? String)))
+        let children = try XCTUnwrap(value["children"] as? [[String:Any]])
+        let items = children.flatMap { $0["balances"] as? [[String:Any]] ?? [] }
+        XCTAssertEqual(items.count,3)
+        for item in items {
+            let start = try XCTUnwrap(ISO8601DateFormatter().date(from:try XCTUnwrap(item["periodStart"] as? String)))
+            let end = try XCTUnwrap(ISO8601DateFormatter().date(from:try XCTUnwrap(item["periodEnd"] as? String)))
+            XCTAssertLessThanOrEqual(start,captured); XCTAssertLessThan(captured,end)
+        }
+        XCTAssertEqual(Set(items.compactMap {$0["periodEnd"] as? String}).count,1)
+        f.context.timeStepPerRead = 0; f.context.now = ending.addingTimeInterval(-0.0001)
+        let nearBoundary = try XCTUnwrap(JSONSerialization.jsonObject(with:f.controller.phoneSnapshot(connection:connection)) as? [String:Any])
+        let nearCapture = try XCTUnwrap(formatter.date(from:try XCTUnwrap(nearBoundary["capturedAt"] as? String)))
+        XCTAssertLessThan(nearCapture,ending, "Timestamp precision must not round into the next quota period.")
+    }
 
     func testChildStatusReturnsOnlyTheVerifiedLoginAccountsAllowances() throws {
         let f = try Fixture()

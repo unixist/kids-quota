@@ -3,6 +3,16 @@
 Weekly website and Mac app allowances shared across Chrome, Safari, and selected
 apps, with independent balances for children using separate macOS login accounts.
 
+**iPhone dashboard work (v0.2.0):** this branch adds a SwiftUI iPhone app,
+small/medium/large Home Screen widgets, and optional private cloud synchronization.
+Each Mac sends summaries about every five minutes; phones show time left per
+child, tracking warnings, and report age. iOS controls widget refresh timing.
+The Mac connection requires parent authorization, and phones have read-only access.
+See [phone setup](docs/phone-dashboard.md), [iPhone source and builds](ios/README.md),
+[cloud deployment](docs/phone-cloud.md), and the
+[architecture](docs/architecture.md#optional-iphone-dashboard-v020).
+Cloud deployment and iPhone signing are separate from compiling these components.
+
 **v0.1.5 companion DMG is published; Chrome v0.1.5 was submitted November 11,
 2026 and is pending Google review.** The existing v0.1.4 store extension remains
 available. This revision distinguishes a disconnected activity

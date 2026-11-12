@@ -1,6 +1,22 @@
 import XCTest
 
 final class PolicyAndPresentationTests: XCTestCase {
+    func testPhoneImportRejectsPhoneReadCredentialsAndUnexpectedFields() throws {
+        let mac: [String:Any] = ["schemaVersion":1,"endpoint":"https://quota.example.org","deviceId":"mac-1","deviceName":"Kids Mac","writeToken":"private-device-token"]
+        let text = String(decoding:try JSONSerialization.data(withJSONObject:mac),as:UTF8.self)
+        XCTAssertEqual(try PhoneConnectionDocument.body(text)["deviceId"] as? String,"mac-1")
+        let phone: [String:Any] = ["schemaVersion":1,"endpoint":"https://quota.example.org","familyName":"Family","readToken":"private-parent-token"]
+        XCTAssertThrowsError(try PhoneConnectionDocument.body(String(decoding:JSONSerialization.data(withJSONObject:phone),as:UTF8.self)))
+        var extra = mac; extra["childId"] = "someone-else"
+        XCTAssertThrowsError(try PhoneConnectionDocument.body(String(decoding:JSONSerialization.data(withJSONObject:extra),as:UTF8.self)))
+        XCTAssertThrowsError(try PhoneConnectionDocument.body(String(repeating:" ",count:16_385)))
+    }
+    func testPhoneStatusHasSafeDatesAndRemainsSeparateFromPolicy() throws {
+        let object: [String:Any] = ["configured":true,"endpoint":"https://quota.example.org","deviceName":"Kids Mac","uploading":false,
+                                  "lastSuccess":"2026-11-12T02:00:00Z","intervalSeconds":300]
+        let status = try JSONDecoder().decode(PhoneDashboardStatus.self,from:JSONSerialization.data(withJSONObject:object))
+        XCTAssertNotNil(status.lastSuccessDate); XCTAssertNil(status.lastError); XCTAssertNil(status.lastAttempt)
+    }
     func testLocalBuildCannotActivateNetworkFiltering() {
         let local = BuildFeatures(info: ["KidsQuotaLocalInstall": true])
         XCTAssertTrue(local.isLocalInstall)

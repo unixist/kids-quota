@@ -32,6 +32,36 @@ inactive. Its service uses root-protected code-hash pins instead of an Apple
 Team ID for native-client authentication. Browser quotas and parent controls
 remain, while selected native apps are tracking-only.
 
+## Optional iPhone dashboard (v0.2.0)
+
+```mermaid
+flowchart LR
+    Parent[Parent authorizes phone sync] --> Mac[Protected Mac quota service]
+    Mac -->|HTTPS summary every 5 minutes; device write token| Relay[Cloud Run relay]
+    Relay -->|Latest snapshot per Mac| Bucket[(Private Cloud Storage)]
+    Phone1[Parent's iPhone and widget] -->|HTTPS; own read token| Relay
+    Phone2[Other parent's iPhone and widget] -->|HTTPS; own read token| Relay
+    Relay -->|Balances, tracking status, timestamps| Phone1
+    Relay -->|Balances, tracking status, timestamps| Phone2
+```
+
+The Mac's enforcement loop does not wait for cloud requests. Phone sync is opt-in,
+uses an outbound connection, and exposes no incoming Mac port. Only summarized
+quota data is uploaded; the relay has no endpoint to change allowances or submit
+usage to the Mac. Each computer has a separate write credential, and parents have
+separate read credentials. The bucket stays private; the HTTPS service verifies
+credentials and exposes only the appropriate read or write operation.
+
+The iPhone app refreshes on opening and supports manual refresh. WidgetKit decides
+when a widget runs, so a requested refresh interval is not a five-minute delivery
+guarantee. The widget preserves the actual last reported balance and displays its
+age, including tracking-paused and stale states. It never fabricates a countdown
+or resets a cached allowance at midnight. Quotas from separate Macs remain separate
+ledgers even when the children's display names match.
+
+See the [phone protocol](phone-sync-contract.md), [cloud setup](phone-cloud.md), and
+[iPhone app](../ios/README.md) for implementation and installation details.
+
 ## Services and children
 
 - **Chess.com:** `chess.com` and subdomains, plus the selected Chess.com Mac app,

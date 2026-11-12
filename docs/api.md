@@ -67,6 +67,10 @@ limit, name, or membership preserves usage.
 | `PUT /v1/admin/settings` | Change the shared reset schedule | `policy:write` |
 | `POST /v1/admin/clients` | Issue a child-scoped read credential | `policy:write` |
 | `DELETE /v1/admin/clients/{clientId}` | Revoke a read credential | `policy:write` |
+| `GET /v1/admin/phone` | Read phone publishing status, without credentials | `policy:write` |
+| `PUT /v1/admin/phone` | Save a Mac connection document and enable summary sharing | `policy:write` |
+| `DELETE /v1/admin/phone` | Stop sharing and remove this Mac's saved write token | `policy:write` |
+| `POST /v1/admin/phone/publish` | Request an immediate complete summary update | `policy:write` |
 
 Every `policy:write` operation requires the verified parent process and a current
 OS authorization grant over native IPC. No HTTP header can supply that trust.
@@ -193,9 +197,37 @@ ambiguous policy write.
 
 ## Publishers and remote clients
 
-A local publisher can read approved summaries and send selected fields to a
-chosen website. Publication is a separate client action; this service publishes
-nothing. A hosted website cannot read the Mac's loopback API directly. Remote
-access or cross-device synchronization would require a separately authenticated
-transport; v0.1 has neither. Local clients can use any language supporting HTTP
-and JSON without opening the database or linking Swift code.
+A hosted website cannot read the Mac's loopback API directly. The optional phone
+publisher sends outbound HTTPS summaries only after an administrator connects it
+in Settings → Phone dashboard. It does not open a network listener or give phones
+policy-writing authority. Local clients can still use the read API independently.
+
+`PUT /v1/admin/phone` accepts the exact Mac connection JSON in the
+[phone protocol](phone-sync-contract.md): `schemaVersion`, `endpoint`, `deviceId`,
+`deviceName`, and `writeToken`. The endpoint must be an HTTPS origin without
+credentials, path, query, or fragment. This operation is native-parent-only and
+does not change `policyRevision`. It atomically stores the credential in
+`phone-connection.json` with owner-only `0600` permissions. The installed root
+daemon owns the file. Unsafe existing file permissions or a symlink are rejected
+when loading, without preventing local quota enforcement from starting.
+
+The daemon publishes one complete snapshot every 300 seconds while running and
+requests an immediate update after connecting. `POST /v1/admin/phone/publish`
+accepts only `{}` and returns `202` after scheduling work. Concurrent requests
+coalesce. Networking runs outside the enforcement lock, has a 20-second timeout,
+does not follow redirects, and retries on the next scheduled update after a
+failure. A network failure cannot change usage or allowances. Invalid/oversized
+snapshots fail as a whole rather than silently omitting children. Snapshots are
+limited to 128 KiB, 20 children, and 50 allowances per child.
+
+`GET /v1/admin/phone`, configuration replies, and `phoneDashboard` in admin state
+contain `configured`, `uploading`, `intervalSeconds`, and optional `endpoint`,
+`deviceName`, `lastAttempt`, `lastSuccess`, and `lastError`. Times are RFC 3339;
+status never includes a token or response body from the relay. Status times are
+for this daemon session and clear after reconnection/restart.
+
+Disconnection cancels the pending upload and removes the local token. An upload
+already accepted by the relay cannot be recalled; previously received summaries
+remain there until removed using the relay's administrative controls. Phone
+clients display snapshot age and preserve the last known balance while a Mac is
+offline. This does not pool allowances between Macs or expose browsing history.

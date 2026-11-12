@@ -3,6 +3,48 @@
 Validated locally on Apple Silicon with Xcode 27.1. No protection was installed
 or activated on the development Mac; no real child accounts were linked.
 
+## v0.2.0 iPhone dashboard preparation
+
+The November 11, 2026 local checks cover the opt-in Mac publisher, private relay,
+iPhone dashboard, and small/medium/large widgets. These results describe local
+builds and tests; they do not imply that Google Cloud or TestFlight is live.
+
+| Suite | Result | Coverage |
+| --- | --- | --- |
+| Swift quota core and service | 153 passing tests | Existing accounting/authorization plus consistent phone snapshots, parent-only setup, protected credentials, connection changes, bounded HTTPS responses, cancellation, and malformed ports |
+| Native Mac models and parent session | 28 passing tests | Existing settings and child views plus private phone connection parsing and status presentation |
+| iPhone shared models | 21 passing tests | Protocol validation, timestamps, freshness, weekly reset boundaries, per-Mac child identity, cache ordering, and HTTPS endpoint validation |
+| iPhone app state | 5 passing simulator tests | Late pairing/refresh replies, disconnect/reconnect, and cache failures |
+| Packaging and QR utility | 41 passing tests | Installer regressions plus private QR output, unsafe paths, malformed input, and native QR decoding with synthetic credentials |
+
+The relay's **42 Node tests pass** (`npm test --prefix cloud`). They cover
+read/write/device isolation, payload limits,
+validation, stale/concurrent storage updates, safe provisioning diagnostics, and
+the deployment command sequence using a mock CLI. Google Cloud IAM behavior and
+an actual Cloud Run deployment still require live verification.
+
+The final Mac components build for both Apple silicon and Intel, with macOS 14
+as their minimum version. The local installer retains the inactive network
+extension and does not request its activation. The v0.2.0 DMG contains a runnable
+administrator-authorized PKG and phone setup instructions. Packaging verifies
+its checksum; a read-only mount and package expansion inspect its contents
+without installing it. The final DMG is 4,127,945 bytes with SHA-256
+`f1e15c2a3cd6bc549d5fee4169db05f6cf69a94bd01eb495616922606ce56657`.
+The isolated daemon HTTP/crash-recovery smoke test passes.
+
+The iPhone simulator app and widget build successfully. The unsigned Release
+archive contains app and widget version **0.2.0**, build **1**, for **iPhone,
+iOS 17 or later**. The unsigned archive is not an installable phone release.
+Signed archiving was attempted and stopped because Xcode has no Apple account
+signed in and no matching provisioning profiles. No build was uploaded to
+App Store Connect or TestFlight. Interactive visual review is also pending
+access to the unlocked Mac.
+
+Generated pairing credentials are held outside the checkout in private files.
+Their endpoint remains a placeholder until cloud deployment. No real child
+summary has been uploaded, no cloud resources have been created, and phone
+sharing has not been enabled on an installed Mac during these checks.
+
 ## v0.1.3 automated baseline
 
 | Suite | Result | Coverage |

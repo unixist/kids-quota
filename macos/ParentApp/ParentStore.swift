@@ -69,6 +69,18 @@ import SwiftUI
     var services: [ServiceItem] { state?.policy.services ?? [] }
     var childName: String { children.first { $0.id == selectedChild }?.displayName ?? "child" }
     var quotas: [QuotaItem] { state?.policy.quotas.filter { $0.childId == selectedChild } ?? [] }
+    func connectPhoneDashboard(_ document: String) async throws {
+        _ = try await raw("PUT", "/admin/phone", body: PhoneConnectionDocument.body(document))
+        try await refreshOrThrow()
+    }
+    func disconnectPhoneDashboard() async throws {
+        _ = try await raw("DELETE", "/admin/phone")
+        try await refreshOrThrow()
+    }
+    func publishPhoneDashboard() async throws {
+        _ = try await raw("POST", "/admin/phone/publish", body: [:])
+        try await refreshOrThrow()
+    }
     func refresh() async {
         guard isUnlocked else { return }
         do { try await refreshOrThrow() } catch { /* Current failures are presented below. */ }

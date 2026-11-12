@@ -28,6 +28,7 @@ do {
     if args.contains("--init") {print("Initialized Kids Quota data directory. The parent token is saved to admin.token.");exit(0)}
     let servers=LocalServers(controller:controller,socketPath:socketPath,development:development,localTrust:localTrust)
     try servers.start()
+    controller.startPhonePublisher()
     let timer=DispatchSource.makeTimerSource(queue:DispatchQueue.global(qos:.utility))
     timer.schedule(deadline:.now(),repeating:1)
     timer.setEventHandler {do {try controller.tick()} catch {fputs("Quota storage update failed; coverage is incomplete.\n",stderr)}}

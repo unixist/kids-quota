@@ -76,6 +76,7 @@ struct SettingsView: View {
                          : "Sign in as each child, open a limited website and selected app, and check that time decreases. Set a short test allowance to verify new and already-open network connections stop at exhaustion.")
                 }
             }.formStyle(.grouped).tabItem { Label("Protection", systemImage: "shield") }
+            PhoneDashboardSettingsView().tabItem { Label("Phone dashboard", systemImage: "iphone") }
             Form {
                 Section("Create read-only client") {
                     Text("Give a widget or website publisher its own token. It can read only the selected children's balances and service names.").font(.callout)

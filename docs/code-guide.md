@@ -29,13 +29,15 @@ Apple Team ID. The full filter flow below describes the optional signed profile.
 Then follow the specific path below that interests you. You do not need to start
 with socket parsing or installation scripts to understand quota accounting.
 
-## Three build areas
+## Build areas
 
 | Area | Source of truth | Produces |
 | --- | --- | --- |
 | Swift Package Manager | [Package.swift](../Package.swift), `Sources/`, `Tests/` | `KidsQuotaCore`, `KidsQuotaService`, and the service, login-agent, and Chrome-bridge executables. Uses system SQLite. |
 | Xcode | [project.yml](../project.yml), `macos/` | The SwiftUI parent app, its embedded Safari extension, the network system extension, and native tests. XcodeGen regenerates the checked-in project. |
 | Browser JavaScript | [extensions/shared/](../extensions/shared/), [build-extensions.mjs](../scripts/build-extensions.mjs) | Chrome and Safari packages in `extensions/build/`, including manifests and bundled background scripts. |
+| iPhone and widget | [ios/project.yml](../ios/project.yml), [ios/](../ios/) | A separate SwiftUI iPhone app, WidgetKit extension, and shared `QuotaKit` package. [build-ios.sh](../scripts/build-ios.sh) builds the simulator app; physical phones need Apple signing. |
+| Private phone relay | [cloud/](../cloud/) | A Node service for Cloud Run, storing the latest summary per Mac in a private Cloud Storage bucket. No third-party runtime packages are required. |
 
 Edit shared JavaScript and regenerate the packages; do not make a change only in
 the generated browser output. Similarly, change `project.yml` when adding Xcode
@@ -43,7 +45,7 @@ targets or changing their source/entitlement configuration. The native app has
 small API presentation types in [macos/ParentApp/Models.swift](../macos/ParentApp/Models.swift);
 the authoritative policy types live in `KidsQuotaCore`.
 
-[build-macos.sh](../scripts/build-macos.sh) coordinates all three build areas.
+[build-macos.sh](../scripts/build-macos.sh) coordinates the first three build areas.
 [install.sh](../scripts/install.sh) installs verified artifacts and launchd jobs.
 [package.sh](../scripts/package.sh) and [create-dmg.sh](../scripts/create-dmg.sh)
 wrap the release for installation. Build commands do not install protection.
@@ -123,6 +125,34 @@ not grant the view a parent token or configuration permissions.
 The browser toolbar popup displays balances already received in its own account's
 policy replies. Neither interface invents a second usage clock or modifies limits.
 Multiple domains assigned to one service appear under that service's shared balance.
+
+## Follow a parent's phone balance check
+
+1. The administrator enables sharing in
+   [PhoneDashboardSettingsView.swift](../macos/ParentApp/PhoneDashboardSettingsView.swift)
+   using that Mac's private connection document. The service saves it in a
+   protected file; the settings response never returns its write credential.
+2. [PhonePublisher.swift](../Sources/KidsQuotaService/PhonePublisher.swift) asks
+   `ServiceController.phoneSnapshot` for a consistent summary every five minutes.
+   It sends one bounded HTTPS request on a separate queue. Cloud failures do not
+   interrupt accounting, and disconnecting cancels pending work.
+3. [relay.mjs](../cloud/src/relay.mjs) checks the device's write credential and
+   validates the entire summary. [storage.mjs](../cloud/src/storage.mjs) uses
+   conditional writes so a delayed upload cannot replace a newer report.
+   A separate parent credential can read the family but cannot publish usage or
+   change the Mac's allowances.
+4. [FamilyStore.swift](../ios/App/FamilyStore.swift) fetches that family summary,
+   preserves newer per-Mac reports, and ignores replies from an old connection.
+   [PhoneStorage.swift](../ios/Shared/PhoneStorage.swift) keeps the connection in
+   the shared Keychain and coordinates the app/widget cache.
+5. [KidsQuotaWidget.swift](../ios/Widget/KidsQuotaWidget.swift) reads the same
+   data. Its timeline marks reports stale at age and weekly-reset boundaries,
+   even if iOS delays the next network refresh. It never subtracts time itself
+   or invents a reset from a cached report.
+
+The [phone protocol](phone-sync-contract.md) is the shared contract across Swift
+and JavaScript. The [setup guide](phone-dashboard.md) describes installation;
+[cloud deployment](phone-cloud.md) is a separate step from building the Mac DMG.
 
 ## Follow a standalone app session
 

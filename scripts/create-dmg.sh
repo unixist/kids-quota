@@ -2,7 +2,7 @@
 set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
-VERSION="${VERSION:-0.1.5}"
+VERSION="${VERSION:-0.2.0}"
 if [[ -z "${CHROME_STORE_EXTENSION_ID+x}" && -f "$REPO_ROOT/extensions/chrome-store.json" ]]; then
   CHROME_STORE_EXTENSION_ID="$(/usr/bin/plutil -extract extensionId raw -o - "$REPO_ROOT/extensions/chrome-store.json")"
 else CHROME_STORE_EXTENSION_ID="${CHROME_STORE_EXTENSION_ID:-}"; fi
@@ -198,6 +198,23 @@ WELCOME
   fi
   OUTPUT="$REPO_ROOT/dist/KidsQuota-$VERSION.dmg"
   VOLUME='Kids Quota'
+fi
+if [[ "$MODE" != preview ]]; then
+  cat >> "$STAGE/Start here.txt" <<'PHONE'
+
+OPTIONAL IPHONE DASHBOARD
+
+After your private family dashboard has been set up, open Parent settings →
+Phone dashboard. Import this Mac's private connection file and choose “Connect
+and share balances”. Check that “Last sent” appears. Updates are sent about every
+five minutes while this Mac is awake. Sharing is off until you enable it.
+
+Install the separate Kids Quota iPhone app, then scan your own private parent QR
+code or import your iPhone connection file. Each parent should use their own code.
+Add the Kids Quota widget from the iPhone Home Screen. iOS controls widget refresh
+timing; old reports are labeled. The phone cannot change allowances or reset usage.
+The Mac installer does not install the iPhone app or create the cloud dashboard.
+PHONE
 fi
 /usr/bin/hdiutil create -volname "$VOLUME" -srcfolder "$STAGE" -format UDZO -ov "$OUTPUT"
 /usr/bin/hdiutil verify "$OUTPUT"

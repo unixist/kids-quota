@@ -46,6 +46,7 @@
 		E424E37475F8159409D8089F /* ParentAccessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24FC2B5BEF3EAC36F94A70E5 /* ParentAccessView.swift */; };
 		E444904B11C855DB3411FB86 /* blocked.js in Resources */ = {isa = PBXBuildFile; fileRef = 6A231BBECEC8FF80ECF74B49 /* blocked.js */; };
 		E45AB5CFDA08111D09CD745A /* background.js in Resources */ = {isa = PBXBuildFile; fileRef = A6A9601D36F2488AA82BB3A7 /* background.js */; };
+		E996F037223B6E934D1038C1 /* PhoneDashboardSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73AA6206A658B2C7A189CAEB /* PhoneDashboardSettingsView.swift */; };
 		F0ACE04AD0C96999A8C92068 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B69D825D3E3E70581161834F /* SettingsView.swift */; };
 		F4BC8222B62D72FA44740C89 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF491F7976E4B4EA9EF896F5 /* SafariWebExtensionHandler.swift */; };
 		F65632B769A8496DAF898B3A /* NetworkExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F8C75AF527FBBEF792E7BBD3 /* NetworkExtension.framework */; };
@@ -114,6 +115,7 @@
 		6C85D794878CFF5AAE3F8C22 /* FilterPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterPolicy.swift; sourceTree = "<group>"; };
 		6DC96A4666268F04B0584523 /* blocked.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = blocked.html; sourceTree = "<group>"; };
 		6E94AB309458AB2D4B8D2E57 /* icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = icons; path = extensions/build/safari/icons; sourceTree = SOURCE_ROOT; };
+		73AA6206A658B2C7A189CAEB /* PhoneDashboardSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneDashboardSettingsView.swift; sourceTree = "<group>"; };
 		78CFD972A8045BD26EB40966 /* OpenDirectory.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenDirectory.framework; path = System/Library/Frameworks/OpenDirectory.framework; sourceTree = SDKROOT; };
 		79726C89A0A8759010F74649 /* KidsQuotaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KidsQuotaApp.swift; sourceTree = "<group>"; };
 		868443CEC3154221C14E2B8B /* popup.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = popup.js; sourceTree = "<group>"; };
@@ -252,6 +254,7 @@
 				E34C78A741C5F0D98BBCB17A /* ParentApp.entitlements */,
 				23BBAF1D4C99B04DD0A3F92A /* ParentAuthorization.swift */,
 				34C0C8CBA3370EC5CD0D9406 /* ParentStore.swift */,
+				73AA6206A658B2C7A189CAEB /* PhoneDashboardSettingsView.swift */,
 				B69D825D3E3E70581161834F /* SettingsView.swift */,
 			);
 			path = ParentApp;
@@ -491,6 +494,7 @@
 				E424E37475F8159409D8089F /* ParentAccessView.swift in Sources */,
 				82E01B387D86B86E9C6294DA /* ParentAuthorization.swift in Sources */,
 				D172204FAE0F286790478583 /* ParentStore.swift in Sources */,
+				E996F037223B6E934D1038C1 /* PhoneDashboardSettingsView.swift in Sources */,
 				F0ACE04AD0C96999A8C92068 /* SettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -572,7 +576,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.5;
+				MARKETING_VERSION = 0.2.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -756,7 +760,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.5;
+				MARKETING_VERSION = 0.2.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

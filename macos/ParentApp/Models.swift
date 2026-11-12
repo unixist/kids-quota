@@ -31,6 +31,29 @@ struct AdminState: Decodable {
     let clients: [ClientItem]
     let filterConnected: Bool?
     let unattributedFlows: Int?
+    let phoneDashboard: PhoneDashboardStatus?
+}
+struct PhoneDashboardStatus: Decodable {
+    let configured: Bool
+    let endpoint: String?
+    let deviceName: String?
+    let uploading: Bool
+    let lastAttempt: String?
+    let lastSuccess: String?
+    let lastError: String?
+    let intervalSeconds: Int
+    var lastSuccessDate: Date? { lastSuccess.flatMap { ISO8601DateFormatter().date(from: $0) } }
+}
+
+enum PhoneConnectionDocument {
+    static func body(_ text: String) throws -> [String: Any] {
+        let data = Data(text.utf8)
+        guard data.count <= 16_384, let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              Set(object.keys) == ["schemaVersion", "endpoint", "deviceId", "deviceName", "writeToken"] else {
+            throw ParentError.message("Import or paste the Mac connection document. An iPhone connection document cannot connect this Mac.")
+        }
+        return object
+    }
 }
 struct HouseholdPolicy: Decodable {
     let children: [ChildItem]; let services: [ServiceItem]; let applicationBindings: [AppItem]; let quotas: [QuotaItem]; let reset: ResetItem; let pendingReset: PendingResetItem?

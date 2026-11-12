@@ -66,6 +66,7 @@ public final class ServiceController {
     private let collectorSession = UUID().uuidString
     private var rateBuckets: [String: (Double, Int)] = [:]
     private var accountChecks: [String: (time: Double, valid: Bool)] = [:]
+    private var phonePublisher: PhonePublisher!
 
     public init(directory: URL, port: Int = 48123, now: @escaping () -> Date = Date.init,
                 monotonic: @escaping () -> Double = { ProcessInfo.processInfo.systemUptime },
@@ -81,7 +82,15 @@ public final class ServiceController {
         let store = try QuotaStore(path: directory.appendingPathComponent("quota.sqlite").path)
         engine = try QuotaEngine(store: store, policy: try store.loadPolicy() ?? Policy.starter())
         credentials = try CredentialStore(directory: directory)
+        phonePublisher = PhonePublisher(directory: directory, now: now) { [weak self] connection in
+            guard let self else { throw APIError(503, "unavailable", "Service unavailable.") }
+            return try self.phoneSnapshot(connection: connection)
+        }
     }
+
+    /// Start only in the running daemon, never as a side effect of decoding tests
+    /// or initializing a data directory. No connection means no outbound traffic.
+    public func startPhonePublisher() { phonePublisher.start() }
 
     public func tick() throws {
         lock.lock(); defer { lock.unlock() }
@@ -89,6 +98,7 @@ public final class ServiceController {
         try engine.tick(now: date(), monotonic: monotonic())
     }
     public func stop() throws {
+        phonePublisher.stop()
         lock.lock(); defer { lock.unlock() }
         try engine.stop(now: date(), monotonic: monotonic())
     }
@@ -220,7 +230,20 @@ public final class ServiceController {
             if parts.count >= 3 && parts[1] == "admin" {
                 try requireParent()
                 if request.method == "GET" && parts == ["v1","admin","state"] {
-                    return .init(json:["policyRevision":engine.policy.revision,"policy":try JSONCodec.object(engine.policy),"clients":credentials.publicClients,"filterConnected":filterConnected,"unattributedFlows":filterGaps])
+                    return .init(json:["policyRevision":engine.policy.revision,"policy":try JSONCodec.object(engine.policy),"clients":credentials.publicClients,"filterConnected":filterConnected,"unattributedFlows":filterGaps,"phoneDashboard":try JSONCodec.object(phonePublisher.status)])
+                }
+                if parts == ["v1","admin","phone"] {
+                    if request.method == "PUT" {
+                        try phonePublisher.configure(PhoneConnection.parse(request.body))
+                    } else if request.method == "DELETE" {
+                        try phonePublisher.disconnect()
+                    } else if request.method != "GET" { throw APIError(404,"not_found","Resource not found.") }
+                    return .init(json:try JSONCodec.object(phonePublisher.status))
+                }
+                if request.method == "POST" && parts == ["v1","admin","phone","publish"] {
+                    _ = try payload(request, keys: [])
+                    phonePublisher.requestPublish()
+                    return .init(status:202,json:try JSONCodec.object(phonePublisher.status))
                 }
                 if request.method == "POST" && parts == ["v1","admin","children"] {
                     let data = try payload(request,keys:["expectedPolicyRevision","displayName","generatedUid","uid"])
@@ -288,6 +311,46 @@ public final class ServiceController {
     }
 
     private var filterConnected: Bool { filterLastSeen.map {monotonic() - $0 < 5} ?? false }
+
+    /// A complete, allowlisted export. Never serialize policy/account/app records.
+    func phoneSnapshot(connection: PhoneConnection) throws -> Data {
+        lock.lock(); defer { lock.unlock() }
+        try tick()
+        let capturedAt = date(), capturedClock = monotonic()
+        guard engine.policy.children.count <= 20 else { throw APIError(422,"invalid_snapshot","The phone dashboard supports at most 20 children per Mac.") }
+        let children: [[String: Any]] = try engine.policy.children.map { child in
+            guard PhoneConnection.validID(child.id), PhoneConnection.validText(child.displayName) else { throw APIError(422,"invalid_snapshot","A child cannot be included in the phone update.") }
+            let balances = try snapshot(childId: child.id, at: capturedAt, clock: capturedClock)
+            guard balances.items.count <= 50 else { throw APIError(422,"invalid_snapshot","The phone dashboard supports at most 50 allowances per child.") }
+            let items: [[String: Any]] = try balances.items.map { item in
+                guard PhoneConnection.validID(item.quotaId), PhoneConnection.validID(item.serviceId),
+                      let service = engine.policy.services.first(where: { $0.id == item.serviceId }),
+                      PhoneConnection.validText(service.name) else {
+                    throw APIError(422,"invalid_snapshot","A service cannot be included in the phone update.")
+                }
+                let domains = Array(Set(service.domains.map(\.hostname))).sorted()
+                guard domains.count <= 50 else { throw APIError(422,"phone_snapshot_too_large","A service has too many domains for the phone dashboard.") }
+                var value: [String: Any] = ["quotaId":item.quotaId,"serviceId":service.id,"serviceName":service.name,
+                    "domains":domains,"limitSeconds":item.limitSeconds,"usedSeconds":item.usedSeconds,
+                    "remainingSeconds":item.remainingSeconds,"periodStart":ISO8601DateFormatter().string(from:item.periodStart),
+                    "periodEnd":ISO8601DateFormatter().string(from:item.periodEnd),"quotaState":item.quotaState,"coverage":item.coverage]
+                if accountIsCurrent(child), let uid = child.macOSAccount.uid {
+                    value["blockingReason"] = accessReason(remainingSeconds:item.remainingSeconds,freshCollector:collectorIsFresh(uid:uid)).rawValue
+                }
+                return value
+            }
+            return ["id":child.id,"name":child.displayName,"balances":items]
+        }
+        let formatter = ISO8601DateFormatter(); formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        // Foundation rounds fractional seconds. Truncate first so a capture just
+        // before midnight cannot be represented as belonging to the next week.
+        let representedCapture = Date(timeIntervalSince1970: (capturedAt.timeIntervalSince1970 * 1000).rounded(.down) / 1000)
+        let value: [String: Any] = ["schemaVersion":1,"deviceId":connection.deviceId,"deviceName":connection.deviceName,
+            "capturedAt":formatter.string(from:representedCapture),"resetTimeZone":engine.policy.reset.timeZone,"children":children]
+        let data = try JSONSerialization.data(withJSONObject: value, options: [.sortedKeys])
+        guard data.count <= 131_072 else { throw APIError(422,"phone_snapshot_too_large","The phone update is too large.") }
+        return data
+    }
     private func collectorIsFresh(uid: UInt32) -> Bool {
         guard let report = foreground[uid], report.healthy else { return false }
         let age = monotonic() - report.lastSeen
@@ -306,7 +369,7 @@ public final class ServiceController {
         accountChecks[key] = (clock,valid)
         return valid
     }
-    private func snapshot(childId: String) throws -> BalanceSnapshot {
+    private func snapshot(childId: String, at capturedAt: Date? = nil, clock capturedClock: Double? = nil) throws -> BalanceSnapshot {
         let child = engine.policy.children.first {$0.id == childId}
         let uid = child?.macOSAccount.uid
         let active = uid.map {collectorIsFresh(uid: $0)} ?? false
@@ -316,7 +379,7 @@ public final class ServiceController {
             let readyApps = service.applicationIds.allSatisfy {id in engine.policy.applicationBindings.contains {$0.id == id && $0.status == "ready" && $0.identity != nil}}
             coverage[service.id] = child.map {accountIsCurrent($0)} == true && active && (service.domains.isEmpty || seenBrowser) && (service.applicationIds.isEmpty || (filterConnected && filterGaps == 0 && readyApps))
         }
-        return try engine.balances(childId:childId,now:date(),monotonic:monotonic(),coverage:coverage)
+        return try engine.balances(childId:childId,now:capturedAt ?? date(),monotonic:capturedClock ?? monotonic(),coverage:coverage)
     }
 
     private func balanceResponse(childId: String) throws -> [String:Any] {
