@@ -9,9 +9,9 @@ The November 11, 2026 local checks cover the opt-in Mac publisher, private relay
 iPhone dashboard, and small/medium/large widgets. These results describe local
 builds and tests; they do not imply that Google Cloud or TestFlight is live.
 
-The [earlier GitHub validation run for `04b7bcc`](https://github.com/unixist/kids-quota/actions/runs/43153294519)
-passed both jobs. The simplicity/failure-state refinements below are validated
-locally; their final GitHub run is recorded after publication.
+The [final GitHub validation run for `3b51b28`](https://github.com/unixist/kids-quota/actions/runs/43156166595)
+passed both jobs, including the simplicity/failure-state refinements below.
+All Mac, browser, packaging, relay, and iPhone simulator checks passed.
 
 | Suite | Result | Coverage |
 | --- | --- | --- |
